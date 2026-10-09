@@ -3,6 +3,7 @@ import {Link, useNavigate, useSearchParams} from "react-router-dom";
 import {BiCalendar, BiCheckCircle, BiInfoCircle, BiTimeFive} from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
+import { apiGetBusyBookingTimes } from "../../services/bookingApi";
 
 import {getClient, formatCurrency, formatDate, formatTime, localToday} from "./bookingHelpers";
 import "./NewBooking.css";
@@ -741,28 +742,8 @@ export default function NewBooking() {
             }
           ),
 
-        supabase
-          .from(
-            "bookings"
-          )
-          .select(`
-            booking_id,
-            start_time,
-            end_time,
-            status
-          `)
-          .eq(
-            "photographer_id",
-            photographerId
-          )
-          .eq(
-            "booking_date",
-            selectedDate
-          )
-          .in(
-            "status",
-            BLOCKING_BOOKING_STATUSES
-          ),
+        apiGetBusyBookingTimes(photographerId, selectedDate)
+          .then((result) => ({ data: result.data, error: null })),
       ]);
 
 
@@ -824,6 +805,11 @@ export default function NewBooking() {
         "Unable to load booking availability:",
         err
       );
+
+      // Fail closed: never show open slots when the busy-time lookup failed.
+      setDayBookings([]);
+      setDayExceptions([{ is_available: false, start_time: null, end_time: null }]);
+      setStart("");
 
 
       setError(

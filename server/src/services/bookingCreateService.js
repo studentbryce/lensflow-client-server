@@ -127,6 +127,9 @@ export function slotIsAvailable({ date, start, end, rules, exceptions, bookings 
 async function queryOrFail(promise) {
     const { data, error } = await promise;
     if (error) {
+        if (error.code === '23P01') {
+            throw new BookingRequestError(409, 'SLOT_UNAVAILABLE', 'This booking time has just been taken. Please choose another time.');
+        }
         const failure = new Error('Database operation failed.');
         failure.cause = error;
         throw failure;

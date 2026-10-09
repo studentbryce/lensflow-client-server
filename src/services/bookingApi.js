@@ -61,3 +61,9 @@ export function apiGetBookingRelated(bookingId) {
     }
     return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/related`);
 }
+
+/** Private-safe busy intervals, obtained from Express (not a direct bookings SELECT). */
+export function apiGetBusyBookingTimes(photographerId, date) {
+    const params = new URLSearchParams({ photographer_id: photographerId, date });
+    return apiFetch(`/api/bookings/availability/busy?${params.toString()}`);
+}
