@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
-import { getClient, formatCurrency, formatDate, formatTime } from "./bookingHelpers";
+import { apiGetClientBookingById } from "../../services/clientBookingApi";
+import { formatCurrency, formatDate, formatTime } from "./bookingHelpers";
 import "./Bookings.css";
 
 export default function BookingsDetails() {
@@ -20,12 +20,17 @@ export default function BookingsDetails() {
       setBooking(null);
       setError("");
       try {
-        const client = await getClient(user?.id);
-        const { data, error: queryError } = await supabase.from("bookings")
-          .select("booking_id, booking_date, start_time, end_time, location, notes, status, total_amount, services(name, description, duration_minutes)")
-          .eq("booking_id", booking_id).eq("client_id", client.client_id).maybeSingle();
-        if (queryError) throw queryError;
-        if (active) setBooking(data);
+        if (!user?.id) throw new Error("Please sign in to view your booking.");
+        try {
+          const { data } = await apiGetClientBookingById(booking_id);
+          if (active) setBooking(data);
+        } catch (requestError) {
+          if (requestError.status === 404 || requestError.message === "Booking not found.") {
+            if (active) setBooking(null);
+          } else {
+            throw requestError;
+          }
+        }
       } catch (err) {
         console.error("Unable to load client booking:", err);
         if (active) setError("We couldn't load this booking. Please try again.");

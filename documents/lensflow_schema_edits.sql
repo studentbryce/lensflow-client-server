@@ -1707,3 +1707,116 @@ create unique index if not exists
     payments_one_successful_per_invoice
 on public.payments (invoice_id)
 where status = 'successful'::payment_status;
+
+
+-- ========================================================
+-- 66. CHECK FOR OVERLAPPING BOOKINGS
+-- ========================================================
+
+-- Run this READ-ONLY check first in the shared Supabase SQL editor.
+-- Resolve any returned rows before applying 02_enforce_no_overlaps.sql.
+SELECT a.booking_id AS booking_a, b.booking_id AS booking_b,
+       a.photographer_id, a.booking_date,
+       a.start_time AS a_start, a.end_time AS a_end,
+       b.start_time AS b_start, b.end_time AS b_end
+FROM public.bookings a
+JOIN public.bookings b
+  ON a.photographer_id = b.photographer_id
+ AND a.booking_date = b.booking_date
+ AND a.booking_id < b.booking_id
+ AND a.start_time < b.end_time AND b.start_time < a.end_time
+WHERE a.status IN ('pending','confirmed')
+  AND b.status IN ('pending','confirmed')
+ORDER BY a.booking_date, a.photographer_id;
+
+-- Also ensure all existing bookings have positive, same-day time ranges.
+SELECT booking_id, booking_date, start_time, end_time
+FROM public.bookings
+WHERE start_time >= end_time;
+
+
+-- ========================================================
+-- 67. CREATE FUNCTION TO GET BUSY TIMES FOR A PHOTOGRAPHER ON A GIVEN DATE
+-- ========================================================
+
+-- Apply ONCE to the SHARED Supabase database (used by BOTH LensFlow apps).
+-- Returns only occupied start/end times, not private booking data.
+-- Do NOT loosen bookings SELECT RLS.
+CREATE OR REPLACE FUNCTION public.get_booking_busy_times(
+  p_photographer_id uuid,
+  p_date date
+)
+RETURNS TABLE (start_time time without time zone, end_time time without time zone)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  IF auth.uid() IS NULL OR p_photographer_id IS NULL OR p_date IS NULL THEN
+    RAISE EXCEPTION 'Not authorised to check this schedule' USING ERRCODE = '42501';
+  END IF;
+
+  -- Only the photographer or a client linked to that photographer may request
+  -- occupied times. SECURITY DEFINER can see all booking rows without changing RLS.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.photographer_profiles p
+    WHERE p.photographer_id = p_photographer_id AND p.user_id = auth.uid()
+  ) AND NOT EXISTS (
+    SELECT 1 FROM public.clients c
+    WHERE c.photographer_id = p_photographer_id AND c.user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Not authorised to check this schedule' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT b.start_time, b.end_time
+  FROM public.bookings b
+  WHERE b.photographer_id = p_photographer_id
+    AND b.booking_date = p_date
+    AND b.status IN ('pending'::public.booking_status, 'confirmed'::public.booking_status)
+  ORDER BY b.start_time;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_booking_busy_times(uuid, date) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_booking_busy_times(uuid, date) FROM anon;
+GRANT EXECUTE ON FUNCTION public.get_booking_busy_times(uuid, date) TO authenticated;
+
+
+-- ========================================================
+-- 68. ENFORCE NO OVERLAPPING BOOKINGS
+-- ========================================================
+
+-- Apply only AFTER the preflight queries return zero rows.
+-- Prevents simultaneous pending/confirmed bookings from overlapping,
+-- whether written by either app, Express, or a direct Supabase client.
+-- IMPORTANT: Existing overlapping active bookings will cause this to fail.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE public.bookings
+ADD CONSTRAINT bookings_valid_time_range
+CHECK (start_time < end_time);
+
+ALTER TABLE public.bookings
+ADD CONSTRAINT bookings_no_active_overlap
+EXCLUDE USING gist (
+    photographer_id WITH =,
+    booking_date WITH =,
+    (
+        tsrange(
+            booking_date + start_time,
+            booking_date + end_time,
+            '[)'
+        )
+    ) WITH &&
+)
+WHERE (
+    status IN (
+        'pending'::public.booking_status,
+        'confirmed'::public.booking_status
+    )
+);
+
+-- If already applied, do NOT rerun this ALTER TABLE script.
+-- On a race, PostgreSQL returns SQLSTATE 23P01 (exclusion violation).

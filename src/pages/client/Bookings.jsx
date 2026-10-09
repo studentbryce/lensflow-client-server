@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BiCalendar as CalendarDays, BiTimeFive as Clock, BiMap as MapPin, BiSearch as Search } from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetClientBookings } from "../../services/clientBookingApi";
 import "./Bookings.css";
 
 const STATUSES = ["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "DECLINED"];
@@ -43,18 +43,7 @@ export default function Bookings() {
       setBookings([]);
       try {
         if (!user?.id) throw new Error("Please sign in to view your bookings.");
-        const { data: client, error: clientError } = await supabase
-          .from("clients").select("client_id").eq("user_id", user.id).single();
-        if (clientError) throw clientError;
-        if (!client) throw new Error("Your client profile could not be found.");
-
-        const { data, error: bookingsError } = await supabase
-          .from("bookings")
-          .select("booking_id, booking_date, start_time, end_time, location, status, total_amount, services(name)")
-          .eq("client_id", client.client_id)
-          .order("booking_date", { ascending: true })
-          .order("start_time", { ascending: true });
-        if (bookingsError) throw bookingsError;
+        const { data } = await apiGetClientBookings();
         if (active) setBookings(data || []);
       } catch (err) {
         console.error("Unable to load client bookings:", err);
@@ -122,8 +111,8 @@ export default function Bookings() {
             </label>
             <div className="client-bookings-filters" role="group" aria-label="Filter by booking status">
               {STATUSES.map((value) => (
-                <button type="button" key={value} aria-pressed={status === value}
-                  onClick={() => setStatus(value)}>{value}</button>
+                <button type="button" key={value} aria-pressed={status === value.toLowerCase()}
+                  onClick={() => setStatus(value.toLowerCase())}>{value}</button>
               ))}
             </div>
           </div>
