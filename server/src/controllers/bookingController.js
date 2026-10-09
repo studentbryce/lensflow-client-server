@@ -1,3 +1,4 @@
+import { changePhotographerBookingStatus } from '../services/bookingStatusService.js';
 import { deletePhotographerBooking } from '../services/bookingDeleteService.js';
 import { updatePhotographerBooking } from '../services/bookingUpdateService.js';
 import { createUserSupabaseClient } from '../config/supabaseUser.js';
@@ -118,6 +119,29 @@ export async function deleteBooking(req, res, next) {
         const database = createUserSupabaseClient(req.accessToken);
         const deleted = await deletePhotographerBooking(database, req.user.id, req.params.id);
         return res.status(200).json({ success: true, data: deleted });
+    } catch (error) {
+        if (error instanceof BookingRequestError) {
+            return res.status(error.status).json({
+                success: false,
+                error: { code: error.code, message: error.message },
+            });
+        }
+        next(error);
+    }
+}
+
+/** PATCH /api/bookings/:id/status — restricted photographer status transitions. */
+export async function patchBookingStatus(req, res, next) {
+    if (!isValidBookingId(req.params.id)) {
+        return res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_BOOKING_ID', message: 'Booking ID must be a valid UUID.' },
+        });
+    }
+    try {
+        const database = createUserSupabaseClient(req.accessToken);
+        const updated = await changePhotographerBookingStatus(database, req.user.id, req.params.id, req.body);
+        return res.status(200).json({ success: true, data: updated });
     } catch (error) {
         if (error instanceof BookingRequestError) {
             return res.status(error.status).json({

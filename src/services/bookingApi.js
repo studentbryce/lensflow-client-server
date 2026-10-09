@@ -42,3 +42,14 @@ export function apiDeleteBooking(bookingId) {
         method: 'DELETE',
     });
 }
+
+/** Transition a booking's status via the photographer-only Express endpoint. */
+export function apiUpdateBookingStatus(bookingId, status) {
+    if (typeof bookingId !== 'string' || !bookingId.trim()) {
+        throw new Error('A booking ID is required.');
+    }
+    return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+}

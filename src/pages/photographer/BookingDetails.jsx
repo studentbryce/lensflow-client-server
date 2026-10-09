@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { apiDeleteBooking, apiGetBookingById, apiUpdateBooking } from "../../services/bookingApi";
+import { apiDeleteBooking, apiGetBookingById, apiUpdateBooking, apiUpdateBookingStatus } from "../../services/bookingApi";
 import "./BookingDetails.css";
 
 export default function BookingDetails() {
@@ -194,22 +194,11 @@ export default function BookingDetails() {
     setSuccess("");
 
     try {
-      const { data, error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("booking_id", booking.booking_id)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-
-      setBooking((current) => ({
-        ...current,
-        ...data,
-      }));
+      const response = await apiUpdateBookingStatus(booking.booking_id, newStatus);
+      // Status PATCH returns the booking row; preserve joined client/service data.
+      setBooking((current) => ({ ...current, ...response.data }));
+      setEditing(false);
+      setSuccess(`Booking marked as ${newStatus} through the Express API.`);
     } catch (err) {
       console.error("Error updating booking:", err);
 
@@ -418,6 +407,8 @@ export default function BookingDetails() {
               onClick={() =>
                 updateBookingStatus("declined")
               }
+              disabled={Boolean(existingInvoice || existingGallery)}
+              title={existingInvoice || existingGallery ? "Resolve the linked invoice or gallery before declining." : "Decline booking"}
             >
               Decline
             </button>
@@ -457,6 +448,8 @@ export default function BookingDetails() {
               onClick={() =>
                 updateBookingStatus("cancelled")
               }
+              disabled={Boolean(existingInvoice || existingGallery)}
+              title={existingInvoice || existingGallery ? "Resolve the linked invoice or gallery before cancelling." : "Cancel booking"}
             >
               Cancel Booking
             </button>
