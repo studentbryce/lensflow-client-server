@@ -32,3 +32,13 @@ export function apiUpdateBooking(bookingId, changes) {
         body: JSON.stringify(changes),
     });
 }
+
+/** Permanently delete an owned booking with no linked business records. */
+export function apiDeleteBooking(bookingId) {
+    if (typeof bookingId !== 'string' || !bookingId.trim()) {
+        throw new Error('A booking ID is required.');
+    }
+    return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}`, {
+        method: 'DELETE',
+    });
+}
