@@ -1,4 +1,5 @@
 import { createUserSupabaseClient } from '../config/supabaseUser.js';
+import { createPhotographerBooking, BookingRequestError } from '../services/bookingCreateService.js';
 import { BOOKING_PAGE_LIMIT, listBookings, findBookingById, isValidBookingId } from '../services/bookingService.js';
 
 export async function getBookings(req, res, next) {
@@ -54,6 +55,26 @@ export async function getBookingById(req, res, next) {
             data: booking,
         });
     } catch (error) {
+        next(error);
+    }
+}
+
+/** POST /api/bookings — photographer-only, with validated input and existing RLS. */
+export async function postBooking(req, res, next) {
+    try {
+        const database = createUserSupabaseClient(req.accessToken);
+        const created = await createPhotographerBooking(database, req.user.id, req.body);
+        return res.status(201).location(`/api/bookings/${created.booking_id}`).json({
+            success: true,
+            data: created,
+        });
+    } catch (error) {
+        if (error instanceof BookingRequestError) {
+            return res.status(error.status).json({
+                success: false,
+                error: { code: error.code, message: error.message },
+            });
+        }
         next(error);
     }
 }

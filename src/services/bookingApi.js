@@ -13,3 +13,11 @@ export function apiGetBookingById(bookingId) {
 
     return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}`);
 }
+
+/** Create a photographer booking through Express. No price, status or owner IDs. */
+export function apiCreateBooking({ client_id, service_id, booking_date, start_time, location = '', notes = '' }) {
+    return apiFetch('/api/bookings', {
+        method: 'POST',
+        body: JSON.stringify({ client_id, service_id, booking_date, start_time, location, notes }),
+    });
+}
