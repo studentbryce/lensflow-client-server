@@ -1,3 +1,4 @@
+import { getPhotographerBookingRelated } from '../services/bookingRelatedService.js';
 import { changePhotographerBookingStatus } from '../services/bookingStatusService.js';
 import { deletePhotographerBooking } from '../services/bookingDeleteService.js';
 import { updatePhotographerBooking } from '../services/bookingUpdateService.js';
@@ -142,6 +143,29 @@ export async function patchBookingStatus(req, res, next) {
         const database = createUserSupabaseClient(req.accessToken);
         const updated = await changePhotographerBookingStatus(database, req.user.id, req.params.id, req.body);
         return res.status(200).json({ success: true, data: updated });
+    } catch (error) {
+        if (error instanceof BookingRequestError) {
+            return res.status(error.status).json({
+                success: false,
+                error: { code: error.code, message: error.message },
+            });
+        }
+        next(error);
+    }
+}
+
+/** GET /api/bookings/:id/related — linked invoice and gallery for the owning photographer. */
+export async function getBookingRelated(req, res, next) {
+    if (!isValidBookingId(req.params.id)) {
+        return res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_BOOKING_ID', message: 'Booking ID must be a valid UUID.' },
+        });
+    }
+    try {
+        const database = createUserSupabaseClient(req.accessToken);
+        const related = await getPhotographerBookingRelated(database, req.user.id, req.params.id);
+        return res.status(200).json({ success: true, data: related });
     } catch (error) {
         if (error instanceof BookingRequestError) {
             return res.status(error.status).json({

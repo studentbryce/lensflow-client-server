@@ -53,3 +53,11 @@ export function apiUpdateBookingStatus(bookingId, status) {
         body: JSON.stringify({ status }),
     });
 }
+
+/** Related invoice and gallery summaries for the photographer Booking Details UI. */
+export function apiGetBookingRelated(bookingId) {
+    if (typeof bookingId !== 'string' || !bookingId.trim()) {
+        throw new Error('A booking ID is required.');
+    }
+    return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/related`);
+}

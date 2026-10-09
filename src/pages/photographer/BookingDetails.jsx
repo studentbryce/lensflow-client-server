@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
-import { apiDeleteBooking, apiGetBookingById, apiUpdateBooking, apiUpdateBookingStatus } from "../../services/bookingApi";
+import { apiDeleteBooking, apiGetBookingById, apiGetBookingRelated, apiUpdateBooking, apiUpdateBookingStatus } from "../../services/bookingApi";
 import "./BookingDetails.css";
 
 export default function BookingDetails() {
@@ -42,47 +41,11 @@ export default function BookingDetails() {
       setService(data.services ?? null);
       setClient(data.photographerClientProfile ?? null);
 
-      /*
-       * Check whether this booking already has an invoice.
-       *
-       * If an invoice exists, the completed booking action will
-       * open that invoice instead of allowing a duplicate invoice
-       * to be created for the same booking.
-       */
-      const { data: invoiceData, error: invoiceError } =
-        await supabase
-          .from("invoices")
-          .select(`
-            invoice_id,
-            invoice_number,
-            status
-          `)
-          .eq("booking_id", data.booking_id)
-          .maybeSingle();
-
-      if (invoiceError) throw invoiceError;
-
-      setExistingInvoice(invoiceData || null);
-
-      /*
-       * Check whether this booking already has a gallery.
-       * If one exists, the gallery action will open it instead of
-       * allowing another gallery to be created for the same booking.
-       */
-      const { data: galleryData, error: galleryError } =
-        await supabase
-          .from("galleries")
-          .select(`
-            gallery_id,
-            name,
-            is_published
-          `)
-          .eq("booking_id", data.booking_id)
-          .maybeSingle();
-
-      if (galleryError) throw galleryError;
-
-      setExistingGallery(galleryData || null);
+      // Linked invoice/gallery summaries are retrieved through Express.
+      // Keep both null when no related record exists.
+      const relatedResponse = await apiGetBookingRelated(data.booking_id);
+      setExistingInvoice(relatedResponse.data?.invoice ?? null);
+      setExistingGallery(relatedResponse.data?.gallery ?? null);
 
     } catch (err) {
       console.error("Error loading booking:", err);
