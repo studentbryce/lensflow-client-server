@@ -2,13 +2,13 @@ import { deletePhotographerBooking } from '../services/bookingDeleteService.js';
 import { updatePhotographerBooking } from '../services/bookingUpdateService.js';
 import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { createPhotographerBooking, BookingRequestError } from '../services/bookingCreateService.js';
-import { BOOKING_PAGE_LIMIT, listBookings, findBookingById, isValidBookingId } from '../services/bookingService.js';
+import { BOOKING_PAGE_LIMIT, listBookingsWithRelations, findBookingWithRelationsById, enrichBookingsWithProfiles, isValidBookingId } from '../services/bookingService.js';
 
 export async function getBookings(req, res, next) {
     try {
         // requireAuth has already verified this JWT with Supabase Auth.
         const database = createUserSupabaseClient(req.accessToken);
-        const bookings = await listBookings(database);
+        const bookings = await enrichBookingsWithProfiles(database, await listBookingsWithRelations(database));
 
         return res.status(200).json({
             success: true,
@@ -39,7 +39,7 @@ export async function getBookingById(req, res, next) {
 
     try {
         const database = createUserSupabaseClient(req.accessToken);
-        const booking = await findBookingById(database, id);
+        const booking = await findBookingWithRelationsById(database, id);
 
         // Do not distinguish missing records from records hidden by RLS.
         if (!booking) {
@@ -52,9 +52,11 @@ export async function getBookingById(req, res, next) {
             });
         }
 
+        const [enrichedBooking] = await enrichBookingsWithProfiles(database, [booking]);
+
         return res.status(200).json({
             success: true,
-            data: booking,
+            data: enrichedBooking,
         });
     } catch (error) {
         next(error);

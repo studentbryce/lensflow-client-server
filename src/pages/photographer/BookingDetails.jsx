@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { apiGetBookingById } from "../../services/bookingApi";
 import "./BookingDetails.css";
 
 export default function BookingDetails() {
@@ -26,53 +27,12 @@ export default function BookingDetails() {
     setError("");
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-
-      if (!user) {
-        throw new Error("You must be logged in.");
-      }
-
-      const { data, error: bookingError } = await supabase
-        .from("bookings")
-        .select(`
-          booking_id,
-          photographer_id,
-          client_id,
-          service_id,
-          booking_date,
-          start_time,
-          end_time,
-          location,
-          notes,
-          status,
-          total_amount,
-          created_at,
-          updated_at,
-          clients (
-            client_id,
-            user_id,
-            notes
-          ),
-          services (
-            service_id,
-            name,
-            description,
-            price,
-            duration_minutes
-          )
-        `)
-        .eq("booking_id", booking_id)
-        .single();
-
-      if (bookingError) throw bookingError;
-
+      // Booking data, service and client contact details come through Express.
+      const response = await apiGetBookingById(booking_id);
+      const data = response.data;
       setBooking(data);
-      setService(data.services);
+      setService(data.services ?? null);
+      setClient(data.photographerClientProfile ?? null);
 
       /*
        * Check whether this booking already has an invoice.
@@ -116,29 +76,6 @@ export default function BookingDetails() {
 
       setExistingGallery(galleryData || null);
 
-      /*
-       * Retrieve the client profile using the user_id
-       * associated with the LensFlow client record.
-       */
-      if (data.clients?.user_id) {
-        const { data: profile, error: profileError } =
-          await supabase
-            .from("profiles")
-            .select(`
-              user_id,
-              first_name,
-              last_name,
-              email,
-              phone,
-              avatar_url
-            `)
-            .eq("user_id", data.clients.user_id)
-            .single();
-
-        if (profileError) throw profileError;
-
-        setClient(profile);
-      }
     } catch (err) {
       console.error("Error loading booking:", err);
       setError(err.message || "Unable to load booking.");

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetBookings } from "../../services/bookingApi";
 import { useNavigate } from "react-router-dom";
 import "./Bookings.css";
 
@@ -19,6 +19,7 @@ export default function Bookings() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [limitReached, setLimitReached] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -29,100 +30,13 @@ export default function Bookings() {
     setError("");
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-
-      if (!user) {
-        throw new Error("You must be logged in to view bookings.");
-      }
-
-      /*
-       * RLS determines which bookings this photographer
-       * is actually allowed to access.
-       *
-       * The embedded client and service relationships provide
-       * the information needed by the booking cards.
-       */
-      const { data, error: bookingsError } = await supabase
-        .from("bookings")
-        .select(`
-          booking_id,
-          photographer_id,
-          client_id,
-          service_id,
-          booking_date,
-          start_time,
-          end_time,
-          location,
-          notes,
-          status,
-          total_amount,
-          created_at,
-          updated_at,
-          clients (
-            client_id,
-            user_id,
-            notes
-          ),
-          services (
-            service_id,
-            name,
-            description,
-            price,
-            duration_minutes
-          )
-        `)
-        .order("booking_date", { ascending: true })
-        .order("start_time", { ascending: true });
-
-      if (bookingsError) throw bookingsError;
-
-      /*
-       * The client profile contains the customer's name/email.
-       * We retrieve these separately so the query remains compatible
-       * with the existing LensFlow relational structure and RLS.
-       */
-      const clientUserIds = [
-        ...new Set(
-          (data || [])
-            .map((booking) => booking.clients?.user_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      let profileMap = {};
-
-      if (clientUserIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("user_id, first_name, last_name, email")
-          .in("user_id", clientUserIds);
-
-        if (profilesError) throw profilesError;
-
-        profileMap = Object.fromEntries(
-          (profiles || []).map((profile) => [
-            profile.user_id,
-            profile,
-          ])
-        );
-      }
-
-      const formattedBookings = (data || []).map((booking) => {
-        const photographerClientProfile = profileMap[booking.clients?.user_id];
-
-        return {
-          ...booking,
-          photographerClientProfile,
-        };
-      });
-
-      setBookings(formattedBookings);
+      // The API returns booking relationships and RLS-visible client profiles.
+      // All booking reads now pass through Express rather than direct Supabase queries.
+      const response = await apiGetBookings();
+      setBookings(response.data ?? []);
+      setLimitReached(Boolean(response.meta?.limit && response.meta.returned >= response.meta.limit));
     } catch (err) {
+      setLimitReached(false);
       console.error("Error loading bookings:", err);
       setError(err.message || "Unable to load bookings.");
     } finally {
@@ -305,6 +219,12 @@ export default function Bookings() {
           </button>
         ))}
       </nav>
+
+      {!loading && !error && limitReached && (
+        <p role="status" className="page-description">
+          Showing the first 100 bookings. API pagination will be added in a later milestone.
+        </p>
+      )}
 
       {loading && (
         <div className="booking-state">

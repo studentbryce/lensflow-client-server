@@ -14,6 +14,7 @@ import {
 } from "react-icons/bi";
 
 import { supabase } from "../../lib/supabaseClient";
+import { apiCreateBooking } from "../../services/bookingApi";
 
 import "./NewBooking.css";
 
@@ -1479,59 +1480,17 @@ export default function NewBooking() {
       }
 
 
-      const {
-        data,
-        error:
-          bookingError,
-      } =
-        await supabase
-          .from("bookings")
-          .insert({
-            photographer_id:
-              photographer.photographer_id,
-
-            client_id:
-              clientId,
-
-            service_id:
-              serviceId,
-
-            booking_date:
-              bookingDate,
-
-            start_time:
-              startTime,
-
-            end_time:
-              endTime,
-
-            location:
-              location.trim() ||
-              null,
-
-            notes:
-              notes.trim() ||
-              null,
-
-            status:
-              "confirmed",
-
-            total_amount:
-              selectedService?.price ||
-              0,
-          })
-          .select(
-            "booking_id"
-          )
-          .single();
-
-
-      if (
-        bookingError
-      ) {
-        throw bookingError;
-      }
-
+      // Express validates ownership, service pricing and availability again.
+      // Do not send photographer_id, status, total_amount or end_time from React.
+      const response = await apiCreateBooking({
+        client_id: clientId,
+        service_id: serviceId,
+        booking_date: bookingDate,
+        start_time: startTime,
+        location: location.trim(),
+        notes: notes.trim(),
+      });
+      const data = response.data;
 
       navigate(
         `/photographer/bookings/${data.booking_id}`,
