@@ -39,3 +39,32 @@ export async function listBookings(database) {
 
     return data ?? [];
 }
+
+/**
+ * Accept the canonical PostgreSQL UUID text format before querying.
+ * Validation is not authorisation; Supabase RLS still controls row visibility.
+ */
+export function isValidBookingId(bookingId) {
+    return typeof bookingId === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
+}
+
+/**
+ * Find one booking by primary key, subject to the caller's existing RLS.
+ * maybeSingle() returns null for both a nonexistent and an RLS-hidden row.
+ */
+export async function findBookingById(database, bookingId) {
+    const { data, error } = await database
+        .from('bookings')
+        .select(BOOKING_FIELDS)
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+
+    if (error) {
+        const failure = new Error('Unable to retrieve booking.');
+        failure.cause = error;
+        throw failure;
+    }
+
+    return data ?? null;
+}
