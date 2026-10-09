@@ -46,7 +46,7 @@ function currentNzDateAndTime() {
     return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
 }
 
-/** Accept a small, explicit allowlist. Never accept owner, price, status or end time. */
+/** Accept a explicit allowlist. Never accept owner, price, status or end time. */
 export function validateCreateBookingBody(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         fail(400, 'INVALID_BODY', 'A JSON booking object is required.');

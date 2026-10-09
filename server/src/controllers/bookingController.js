@@ -1,3 +1,4 @@
+import { updatePhotographerBooking } from '../services/bookingUpdateService.js';
 import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { createPhotographerBooking, BookingRequestError } from '../services/bookingCreateService.js';
 import { BOOKING_PAGE_LIMIT, listBookings, findBookingById, isValidBookingId } from '../services/bookingService.js';
@@ -68,6 +69,29 @@ export async function postBooking(req, res, next) {
             success: true,
             data: created,
         });
+    } catch (error) {
+        if (error instanceof BookingRequestError) {
+            return res.status(error.status).json({
+                success: false,
+                error: { code: error.code, message: error.message },
+            });
+        }
+        next(error);
+    }
+}
+
+/** PATCH /api/bookings/:id — photographer-only safe booking edits. */
+export async function patchBooking(req, res, next) {
+    if (!isValidBookingId(req.params.id)) {
+        return res.status(400).json({
+            success: false,
+            error: { code: 'INVALID_BOOKING_ID', message: 'Booking ID must be a valid UUID.' },
+        });
+    }
+    try {
+        const database = createUserSupabaseClient(req.accessToken);
+        const updated = await updatePhotographerBooking(database, req.user.id, req.params.id, req.body);
+        return res.status(200).json({ success: true, data: updated });
     } catch (error) {
         if (error instanceof BookingRequestError) {
             return res.status(error.status).json({

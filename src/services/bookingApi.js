@@ -21,3 +21,14 @@ export function apiCreateBooking({ client_id, service_id, booking_date, start_ti
         body: JSON.stringify({ client_id, service_id, booking_date, start_time, location, notes }),
     });
 }
+
+/** Update an owned booking's schedule, location or notes through Express. */
+export function apiUpdateBooking(bookingId, changes) {
+    if (typeof bookingId !== 'string' || !bookingId.trim()) {
+        throw new Error('A booking ID is required.');
+    }
+    return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes),
+    });
+}
