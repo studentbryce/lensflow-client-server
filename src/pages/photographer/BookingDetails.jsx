@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { apiGetBookingById } from "../../services/bookingApi";
+import { apiDeleteBooking, apiGetBookingById, apiUpdateBooking } from "../../services/bookingApi";
 import "./BookingDetails.css";
 
 export default function BookingDetails() {
@@ -17,6 +17,13 @@ export default function BookingDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [editForm, setEditForm] = useState({
+    booking_date: "", start_time: "", location: "", notes: "",
+  });
 
   useEffect(() => {
     fetchBooking();
@@ -25,6 +32,7 @@ export default function BookingDetails() {
   async function fetchBooking() {
     setLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       // Booking data, service and client contact details come through Express.
@@ -84,6 +92,94 @@ export default function BookingDetails() {
     }
   }
 
+  function beginEdit() {
+    if (!booking || !["pending", "confirmed"].includes(booking.status)) return;
+    setError("");
+    setSuccess("");
+    setEditForm({
+      booking_date: booking.booking_date ?? "",
+      start_time: (booking.start_time ?? "").slice(0, 5),
+      location: booking.location ?? "",
+      notes: booking.notes ?? "",
+    });
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    if (savingEdit) return;
+    setEditing(false);
+    setError("");
+  }
+
+  async function handleSaveEdit(event) {
+    event.preventDefault();
+    if (!booking || savingEdit || deleting || updating) return;
+
+    // Send only modified fields. Re-sending an unchanged date/time would
+    // unnecessarily trigger the API's availability and dependency checks.
+    const changes = {};
+    if (editForm.booking_date !== booking.booking_date) {
+      changes.booking_date = editForm.booking_date;
+    }
+    if (editForm.start_time !== (booking.start_time ?? "").slice(0, 5)) {
+      changes.start_time = editForm.start_time;
+    }
+    if (editForm.location !== (booking.location ?? "")) {
+      changes.location = editForm.location;
+    }
+    if (editForm.notes !== (booking.notes ?? "")) {
+      changes.notes = editForm.notes;
+    }
+    if (Object.keys(changes).length === 0) {
+      setEditing(false);
+      setSuccess("No changes were needed.");
+      return;
+    }
+
+    setSavingEdit(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await apiUpdateBooking(booking.booking_id, changes);
+      // PATCH returns the booking row, not enriched client/service objects.
+      // Preserve the relationships already loaded by GET.
+      setBooking((current) => ({ ...current, ...response.data }));
+      setEditing(false);
+      setSuccess("Booking updated successfully through the Express API.");
+    } catch (err) {
+      setError(err.message || "Unable to update booking.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteBooking() {
+    if (!booking || deleting || savingEdit || updating) return;
+    if (existingInvoice || existingGallery) {
+      setError("This booking has an invoice or gallery and cannot be deleted.");
+      return;
+    }
+    const confirmed = window.confirm(
+      "Permanently delete this booking? This cannot be undone. " +
+      "Only delete COMP.7214 test records during testing."
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+    setSuccess("");
+    try {
+      await apiDeleteBooking(booking.booking_id);
+      navigate("/photographer/bookings", { replace: true });
+    } catch (err) {
+      // The API also rejects linked reviews, locked bookings, and changes
+      // made since the record was loaded. Never assume the DELETE succeeded.
+      setError(err.message || "Unable to delete booking.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function updateBookingStatus(newStatus) {
     if (!booking) return;
 
@@ -95,6 +191,7 @@ export default function BookingDetails() {
 
     setUpdating(true);
     setError("");
+    setSuccess("");
 
     try {
       const { data, error: updateError } = await supabase
@@ -293,7 +390,7 @@ export default function BookingDetails() {
   }
 
   function renderActions() {
-    if (updating) {
+    if (updating || savingEdit || deleting) {
       return (
         <div className="booking-actions">
           <span className="updating-message">
@@ -327,9 +424,7 @@ export default function BookingDetails() {
 
             <button
               className="action-button secondary-action"
-              onClick={() =>
-                console.log("Edit booking")
-              }
+              onClick={beginEdit}
             >
               Edit Booking
             </button>
@@ -352,9 +447,7 @@ export default function BookingDetails() {
 
             <button
               className="action-button secondary-action"
-              onClick={() =>
-                console.log("Edit booking")
-              }
+              onClick={beginEdit}
             >
               Edit Booking
             </button>
@@ -476,8 +569,14 @@ export default function BookingDetails() {
       </header>
 
       {error && (
-        <div className="inline-error">
+        <div className="inline-error" role="alert">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="booking-api-success" role="status">
+          {success}
         </div>
       )}
 
@@ -714,6 +813,76 @@ export default function BookingDetails() {
 
       </section>
 
+      {/* Photographer-only PATCH form. The Express API revalidates every change. */}
+      {editing && ["pending", "confirmed"].includes(booking.status) && (
+        <section className="booking-edit-card" aria-label="Edit booking details">
+          <p className="card-eyebrow">Edit Booking</p>
+          <h2>Update booking details</h2>
+          <p className="booking-edit-hint">
+            Dates and times are checked against your availability and existing
+            bookings. Client, service, price and status cannot be edited here.
+          </p>
+          {(existingInvoice || existingGallery) && (
+            <p className="booking-edit-hint">
+              This booking has an invoice or gallery. You can update its
+              location or notes, but the API will reject rescheduling.
+            </p>
+          )}
+          <form onSubmit={handleSaveEdit}>
+            <div className="booking-edit-fields">
+              <label>
+                Booking date
+                <input
+                  type="date"
+                  value={editForm.booking_date}
+                  onChange={(e) => setEditForm((f) => ({ ...f, booking_date: e.target.value }))}
+                  required
+                  disabled={savingEdit}
+                />
+              </label>
+              <label>
+                Start time
+                <input
+                  type="time"
+                  value={editForm.start_time}
+                  onChange={(e) => setEditForm((f) => ({ ...f, start_time: e.target.value }))}
+                  required
+                  disabled={savingEdit}
+                />
+              </label>
+              <label>
+                Location
+                <input
+                  type="text"
+                  value={editForm.location}
+                  maxLength={300}
+                  onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+                  disabled={savingEdit}
+                />
+              </label>
+              <label className="booking-edit-notes">
+                Notes
+                <textarea
+                  value={editForm.notes}
+                  maxLength={2000}
+                  rows={4}
+                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                  disabled={savingEdit}
+                />
+              </label>
+            </div>
+            <div className="booking-edit-actions">
+              <button type="submit" className="action-button confirm-button" disabled={savingEdit}>
+                {savingEdit ? "Saving..." : "Save Changes"}
+              </button>
+              <button type="button" className="action-button secondary-action" onClick={cancelEdit} disabled={savingEdit}>
+                Discard Changes
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
       {/* Actions */}
 
       <section className="booking-actions-card">
@@ -730,7 +899,22 @@ export default function BookingDetails() {
 
         </div>
 
-        {renderActions()}
+        <div className="booking-actions-right">
+          {renderActions()}
+          {["pending", "confirmed"].includes(booking.status) && (
+            <button
+              type="button"
+              className="action-button decline-button booking-delete-button"
+              onClick={handleDeleteBooking}
+              disabled={updating || savingEdit || deleting || Boolean(existingInvoice || existingGallery)}
+              title={existingInvoice || existingGallery
+                ? "Cannot delete a booking with an invoice or gallery"
+                : "Permanently delete this booking"}
+            >
+              {deleting ? "Deleting..." : "Delete Booking"}
+            </button>
+          )}
+        </div>
 
       </section>
 
