@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BiImage, BiFile } from "react-icons/bi";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerDashboard } from "../../services/dashboardApi";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import StatCard from "../../components/dashboard/StatCard";
 import "./Dashboard.css";
@@ -28,53 +28,16 @@ export default function Dashboard() {
       try {
         setLoading(true);
         setError("");
-        const {data:{user},error:authError} = await supabase.auth.getUser();
-        if (authError) throw authError;
-        if (!user) throw new Error("No authenticated user found.");
-        const {data:photographer,error:profileError} = await supabase
-          .from("photographer_profiles")
-          .select("photographer_id,business_name,slug,profile_image_url")
-          .eq("user_id",user.id).single();
-        if (profileError) throw profileError;
-        const id = photographer.photographer_id;
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-        const [bookings,clients,invoices,galleries,galleryCount] = await Promise.all([
-          supabase.from("bookings").select(`
-            booking_id,booking_date,start_time,end_time,status,total_amount,
-            clients(client_id,user_id,profiles(first_name,last_name)),
-            services(service_id,name)
-          `).eq("photographer_id",id).gte("booking_date",today)
-            .in("status",["pending","confirmed"])
-            .order("booking_date",{ascending:true})
-            .order("start_time",{ascending:true}).limit(5),
-          supabase.from("clients").select("client_id",{count:"exact",head:true})
-            .eq("photographer_id",id),
-          supabase.from("invoices").select("*").eq("photographer_id",id)
-            .in("status",["draft","sent","overdue"])
-            .order("created_at",{ascending:false}),
-          supabase.from("galleries").select("*").eq("photographer_id",id)
-            .order("created_at",{ascending:false}).limit(4),
-          supabase.from("galleries").select("gallery_id",{count:"exact",head:true})
-            .eq("photographer_id",id).eq("is_published",true)
-        ]);
-        for (const result of [bookings,clients,invoices,galleries,galleryCount]) {
-          if (result.error) throw result.error;
-        }
+        const response = await apiGetPhotographerDashboard(today);
         if (!active) return;
-        const unpaid = invoices.data || [];
-        setProfile(photographer);
-        setUpcomingBookings(bookings.data || []);
-        setRecentGalleries(galleries.data || []);
-        setOutstandingInvoices([...unpaid].sort((a,b)=>
-          (a.due_date||"9999-12-31").localeCompare(b.due_date||"9999-12-31")
-        ).slice(0,3));
-        setStats({
-          bookings:bookings.data?.length||0,
-          clients:clients.count||0,
-          outstanding:unpaid.reduce((sum,x)=>sum+Number(x.total_amount||0),0),
-          galleries:galleryCount.count||0
-        });
+        const data = response.data;
+        setProfile(data.profile);
+        setStats(data.stats);
+        setUpcomingBookings(data.upcoming_bookings || []);
+        setRecentGalleries(data.recent_galleries || []);
+        setOutstandingInvoices(data.outstanding_invoices || []);
       } catch(e) {
         console.error("Dashboard error:",e);
         if (active) setError(e.message||"Unable to load dashboard.");

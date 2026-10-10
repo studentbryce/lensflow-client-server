@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerClient } from "../../services/photographerClientsApi";
 import "./ClientProfile.css";
 
 export default function PhotographerClientProfile() {
@@ -24,105 +24,9 @@ export default function PhotographerClientProfile() {
     setError("");
 
     try {
-      /*
-       * Get authenticated photographer.
-       *
-       * RLS remains the final security boundary.
-       */
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-
-      if (!user) {
-        throw new Error(
-          "You must be logged in to view this client."
-        );
-      }
-
-      /*
-       * Retrieve the client record.
-       */
-      const { data: clientData, error: clientError } =
-        await supabase
-          .from("clients")
-          .select(`
-            client_id,
-            photographer_id,
-            user_id,
-            notes,
-            created_at
-          `)
-          .eq("client_id", client_id)
-          .single();
-
-      if (clientError) throw clientError;
-
-      if (!clientData) {
-        throw new Error("Client could not be found.");
-      }
-
-      /*
-       * Retrieve the client's profile.
-       */
-      let profile = null;
-
-      if (clientData.user_id) {
-        const { data: profileData, error: profileError } =
-          await supabase
-            .from("profiles")
-            .select(`
-              user_id,
-              first_name,
-              last_name,
-              email,
-              phone,
-              avatar_url
-            `)
-            .eq("user_id", clientData.user_id)
-            .single();
-
-        if (profileError && profileError.code !== "PGRST116") {
-          throw profileError;
-        }
-
-        profile = profileData || null;
-      }
-
-      /*
-       * Retrieve all bookings belonging to this client.
-       *
-       * RLS ensures the photographer can only access
-       * bookings they are authorised to view.
-       */
-      const { data: bookingData, error: bookingsError } =
-        await supabase
-          .from("bookings")
-          .select(`
-            booking_id,
-            client_id,
-            booking_date,
-            status,
-            total_amount,
-            services (
-              name
-            )
-          `)
-          .eq("client_id", client_id)
-          .order("booking_date", {
-            ascending: false,
-          });
-
-      if (bookingsError) throw bookingsError;
-
-      setClient({
-        ...clientData,
-        profile,
-      });
-
-      setBookings(bookingData || []);
+      const response = await apiGetPhotographerClient(client_id);
+      setClient(response.data.client);
+      setBookings(response.data.bookings || []);
     } catch (err) {
       console.error(
         "Error loading client profile:",

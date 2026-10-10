@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerClient, apiUpdatePhotographerClient } from "../../services/photographerClientsApi";
 import "./EditClient.css";
 
 export default function EditClient() {
@@ -35,86 +35,11 @@ export default function EditClient() {
         setSuccess("");
 
         try {
-            const {
-                data: { user },
-                error: userError,
-            } = await supabase.auth.getUser();
-
-            if (userError) throw userError;
-
-            if (!user) {
-                throw new Error("You must be logged in to edit a client.");
-            }
-
-            /*
-             * Get the client record.
-             *
-             * RLS determines whether the authenticated photographer
-             * is allowed to access this client.
-             */
-            const { data: clientData, error: clientError } = await supabase
-                .from("clients")
-                .select(`
-          client_id,
-          photographer_id,
-          user_id,
-          notes,
-          created_at
-        `)
-                .eq("client_id", client_id)
-                .single();
-
-            if (clientError) throw clientError;
-
-            if (!clientData) {
-                throw new Error("Client could not be found.");
-            }
-
-            /*
-             * Get the client's profile information.
-             */
-            const { data: profileData, error: profileError } = await supabase
-                .from("profiles")
-                .select(`
-          user_id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          avatar_url
-        `)
-                .eq("user_id", clientData.user_id)
-                .single();
-
-            if (profileError) throw profileError;
-
-            /*
-             * Get the client's booking history.
-             */
-            const { data: bookingData, error: bookingError } = await supabase
-                .from("bookings")
-                .select(`
-          booking_id,
-          booking_date,
-          start_time,
-          end_time,
-          status,
-          total_amount,
-          services (
-            name
-          )
-        `)
-                .eq("client_id", client_id)
-                .order("booking_date", { ascending: false });
-
-            if (bookingError) throw bookingError;
-
-            setClient({
-                ...clientData,
-                profile: profileData,
-            });
-
-            setBookings(bookingData || []);
+            const response = await apiGetPhotographerClient(client_id);
+            const clientData = response.data.client;
+            const profileData = clientData.profile;
+            setClient(clientData);
+            setBookings(response.data.bookings || []);
 
             setFormData({
                 first_name: profileData?.first_name || "",
@@ -154,67 +79,26 @@ export default function EditClient() {
                 throw new Error("Client information is unavailable.");
             }
 
-            /*
-             * Update profile information.
-             *
-             * Personal/contact information belongs in profiles.
-             */
-            /*const { error: profileError } = await supabase
-              .from("profiles")
-              .update({
+            await apiUpdatePhotographerClient(client_id, {
                 first_name: formData.first_name.trim(),
                 last_name: formData.last_name.trim(),
                 email: formData.email.trim(),
-                phone: formData.phone.trim() || null,
-              })
-              .eq("user_id", client.user_id);
-      
-            if (profileError) throw profileError;
-            */
-
-            const { data: updatedProfile, error: profileError } = await supabase
-                .from("profiles")
-                .update({
-                    first_name: formData.first_name.trim(),
-                    last_name: formData.last_name.trim(),
-                    email: formData.email.trim(),
-                    phone: formData.phone.trim() || null,
-                })
-                .eq("user_id", client.user_id)
-                .select()
-                .single();
-
-            if (profileError) {
-                throw profileError;
-            }
-
-            if (!updatedProfile) {
-                throw new Error(
-                    "The client profile could not be updated. Check the profiles table RLS policy."
-                );
-            }
-
-            /*
-             * Update photographer-specific client information.
-             *
-             * Notes belong in the clients table.
-             */
-            const { error: clientError } = await supabase
-                .from("clients")
-                .update({
-                    notes: formData.notes.trim() || null,
-                })
-                .eq("client_id", client_id);
-
-            if (clientError) throw clientError;
-
+                phone: formData.phone.trim(),
+                notes: formData.notes.trim(),
+            });
+            // Refresh without erasing the success message.
+            const response = await apiGetPhotographerClient(client_id);
+            const refreshed = response.data.client;
+            setClient(refreshed);
+            setBookings(response.data.bookings || []);
+            setFormData({
+                first_name: refreshed.profile?.first_name || "",
+                last_name: refreshed.profile?.last_name || "",
+                email: refreshed.profile?.email || "",
+                phone: refreshed.profile?.phone || "",
+                notes: refreshed.notes || "",
+            });
             setSuccess("Client details have been saved successfully.");
-
-            /*
-             * Refresh the local client data so the page remains
-             * synchronised with Supabase.
-             */
-            await fetchClient();
         } catch (err) {
             console.error("Error saving client:", err);
             setError(err.message || "Unable to save client details.");

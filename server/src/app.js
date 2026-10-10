@@ -4,6 +4,8 @@ import authRoutes from './routes/authRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import clientBookingRoutes from './routes/clientBookingRoutes.js';
 import calendarRoutes from './routes/calendarRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import photographerClientsRoutes from './routes/photographerClientsRoutes.js';
 
 const app = express();
 
@@ -14,6 +16,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/client/bookings', clientBookingRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/photographer/clients', photographerClientsRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
