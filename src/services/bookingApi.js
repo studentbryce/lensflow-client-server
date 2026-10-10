@@ -62,7 +62,19 @@ export function apiGetBookingRelated(bookingId) {
     return apiFetch(`/api/bookings/${encodeURIComponent(bookingId)}/related`);
 }
 
-/** Private-safe busy intervals, obtained from Express (not a direct bookings SELECT). */
+
+/** Photographer New Booking form: client/service choices and weekly rules. */
+export function apiGetPhotographerBookingOptions() {
+    return apiFetch('/api/bookings/new/options');
+}
+
+/** Photographer New Booking form: date exceptions and anonymous occupied intervals. */
+export function apiGetPhotographerBookingAvailability(date) {
+    return apiFetch(`/api/bookings/availability?date=${encodeURIComponent(date)}`);
+}
+
+
+/** Backward-compatible secure occupied-time lookup for either authorised role. */
 export function apiGetBusyBookingTimes(photographerId, date) {
     const params = new URLSearchParams({ photographer_id: photographerId, date });
     return apiFetch(`/api/bookings/availability/busy?${params.toString()}`);

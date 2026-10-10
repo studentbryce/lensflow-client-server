@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -13,8 +14,7 @@ import {
   BiTimeFive,
 } from "react-icons/bi";
 
-import { supabase } from "../../lib/supabaseClient";
-import { apiCreateBooking } from "../../services/bookingApi";
+import { apiCreateBooking, apiGetPhotographerBookingOptions, apiGetPhotographerBookingAvailability } from "../../services/bookingApi";
 
 import "./NewBooking.css";
 
@@ -24,12 +24,6 @@ import "./NewBooking.css";
    ============================================================ */
 
 const SLOT_INTERVAL_MINUTES = 30;
-
-const BLOCKING_BOOKING_STATUSES = [
-  "pending",
-  "confirmed",
-];
-
 
 /* ============================================================
    DATE / TIME HELPERS
@@ -396,6 +390,9 @@ export default function NewBooking() {
     setLoadingAvailability,
   ] = useState(false);
 
+  const [availabilityVerified, setAvailabilityVerified] = useState(false);
+  const availabilityRequestRef = useRef(0);
+
 
   /* =========================================================
      Page state
@@ -429,272 +426,16 @@ export default function NewBooking() {
   async function loadBookingData() {
     setLoading(true);
     setError("");
-
     try {
-      const {
-        data: {
-          user,
-        },
-        error: userError,
-      } =
-        await supabase.auth.getUser();
-
-
-      if (userError) {
-        throw userError;
-      }
-
-
-      if (!user) {
-        throw new Error(
-          "You must be logged in to create a booking."
-        );
-      }
-
-
-      /* -----------------------------------------------------
-         Photographer
-         ----------------------------------------------------- */
-
-      const {
-        data:
-          photographerData,
-        error:
-          photographerError,
-      } =
-        await supabase
-          .from(
-            "photographer_profiles"
-          )
-          .select(`
-            photographer_id,
-            user_id,
-            business_name
-          `)
-          .eq(
-            "user_id",
-            user.id
-          )
-          .single();
-
-
-      if (
-        photographerError
-      ) {
-        throw photographerError;
-      }
-
-
-      setPhotographer(
-        photographerData
-      );
-
-
-      /* -----------------------------------------------------
-         Clients
-         ----------------------------------------------------- */
-
-      const {
-        data:
-          clientData,
-        error:
-          clientsError,
-      } =
-        await supabase
-          .from("clients")
-          .select(`
-            client_id,
-            user_id
-          `)
-          .eq(
-            "photographer_id",
-            photographerData.photographer_id
-          );
-
-
-      if (
-        clientsError
-      ) {
-        throw clientsError;
-      }
-
-
-      const clientUserIds =
-        [
-          ...new Set(
-            (
-              clientData || []
-            )
-              .map(
-                (client) =>
-                  client.user_id
-              )
-              .filter(Boolean)
-          ),
-        ];
-
-
-      let profileMap = {};
-
-
-      if (
-        clientUserIds.length
-      ) {
-        const {
-          data:
-            profiles,
-          error:
-            profilesError,
-        } =
-          await supabase
-            .from("profiles")
-            .select(`
-              user_id,
-              first_name,
-              last_name,
-              email
-            `)
-            .in(
-              "user_id",
-              clientUserIds
-            );
-
-
-        if (
-          profilesError
-        ) {
-          throw profilesError;
-        }
-
-
-        profileMap =
-          Object.fromEntries(
-            (
-              profiles || []
-            ).map(
-              (profile) => [
-                profile.user_id,
-                profile,
-              ]
-            )
-          );
-      }
-
-
-      setClients(
-        (
-          clientData || []
-        ).map(
-          (client) => ({
-            ...client,
-
-            profile:
-              profileMap[
-                client.user_id
-              ] || null,
-          })
-        )
-      );
-
-
-      /* -----------------------------------------------------
-         Services
-         ----------------------------------------------------- */
-
-      const {
-        data:
-          serviceData,
-        error:
-          servicesError,
-      } =
-        await supabase
-          .from("services")
-          .select(`
-            service_id,
-            name,
-            description,
-            price,
-            duration_minutes,
-            deposit_amount
-          `)
-          .eq(
-            "photographer_id",
-            photographerData.photographer_id
-          )
-          .eq(
-            "is_active",
-            true
-          )
-          .order(
-            "name",
-            {
-              ascending: true,
-            }
-          );
-
-
-      if (
-        servicesError
-      ) {
-        throw servicesError;
-      }
-
-
-      setServices(
-        serviceData || []
-      );
-
-
-      /* -----------------------------------------------------
-         Weekly availability
-         ----------------------------------------------------- */
-
-      const {
-        data:
-          rulesData,
-        error:
-          rulesError,
-      } =
-        await supabase
-          .from(
-            "availability_rules"
-          )
-          .select(`
-            availability_rule_id,
-            photographer_id,
-            day_of_week,
-            start_time,
-            end_time,
-            is_available
-          `)
-          .eq(
-            "photographer_id",
-            photographerData.photographer_id
-          );
-
-
-      if (
-        rulesError
-      ) {
-        throw rulesError;
-      }
-
-
-      setAvailabilityRules(
-        rulesData || []
-      );
-
+      const response = await apiGetPhotographerBookingOptions();
+      const data = response.data;
+      setPhotographer(data.photographer);
+      setClients(data.clients || []);
+      setServices(data.services || []);
+      setAvailabilityRules(data.availability_rules || []);
     } catch (err) {
-      console.error(
-        "Error loading booking data:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to load booking information."
-      );
-
+      console.error("Error loading booking data:", err);
+      setError(err.message || "Unable to load booking information.");
     } finally {
       setLoading(false);
     }
@@ -735,6 +476,8 @@ export default function NewBooking() {
   useEffect(
     () => {
       setStartTime("");
+      setAvailabilityVerified(false);
+      const requestId = ++availabilityRequestRef.current;
 
       if (
         !photographer ||
@@ -743,14 +486,16 @@ export default function NewBooking() {
         setDayExceptions([]);
         setDayBookings([]);
 
-        return;
+        return () => { availabilityRequestRef.current += 1; };
       }
 
 
       loadSelectedDate(
         photographer.photographer_id,
-        bookingDate
+        bookingDate,
+        requestId
       );
+      return () => { availabilityRequestRef.current += 1; };
     },
     [
       photographer,
@@ -771,95 +516,21 @@ export default function NewBooking() {
   );
 
 
-  async function fetchSelectedDateData(
-    photographerId,
-    date
-  ) {
-    const [
-      exceptionsResult,
-      bookingsResult,
-    ] =
-      await Promise.all([
-        supabase
-          .from(
-            "availability_exceptions"
-          )
-          .select(`
-            exception_id,
-            exception_date,
-            start_time,
-            end_time,
-            is_available,
-            reason
-          `)
-          .eq(
-            "photographer_id",
-            photographerId
-          )
-          .eq(
-            "exception_date",
-            date
-          )
-          .order(
-            "start_time",
-            {
-              ascending: true,
-              nullsFirst: true,
-            }
-          ),
-
-        supabase
-          .from("bookings")
-          .select(`
-            booking_id,
-            start_time,
-            end_time,
-            status
-          `)
-          .eq(
-            "photographer_id",
-            photographerId
-          )
-          .eq(
-            "booking_date",
-            date
-          )
-          .in(
-            "status",
-            BLOCKING_BOOKING_STATUSES
-          ),
-      ]);
-
-
-    if (
-      exceptionsResult.error
-    ) {
-      throw exceptionsResult.error;
-    }
-
-
-    if (
-      bookingsResult.error
-    ) {
-      throw bookingsResult.error;
-    }
-
-
+  async function fetchSelectedDateData(photographerId, date) {
+    // The server derives photographerId from the authenticated JWT.
+    // Do not send or trust a photographer ID from the browser.
+    const response = await apiGetPhotographerBookingAvailability(date);
     return {
-      exceptions:
-        exceptionsResult.data ||
-        [],
-
-      bookings:
-        bookingsResult.data ||
-        [],
+      exceptions: response.data.exceptions || [],
+      bookings: response.data.bookings || [],
     };
   }
 
 
   async function loadSelectedDate(
     photographerId,
-    date
+    date,
+    requestId
   ) {
     try {
       setLoadingAvailability(
@@ -876,6 +547,8 @@ export default function NewBooking() {
         );
 
 
+      if (requestId !== availabilityRequestRef.current) return;
+
       setDayExceptions(
         result.exceptions
       );
@@ -883,8 +556,14 @@ export default function NewBooking() {
       setDayBookings(
         result.bookings
       );
+      setAvailabilityVerified(true);
 
     } catch (err) {
+      if (requestId !== availabilityRequestRef.current) return;
+      setAvailabilityVerified(false);
+      setDayExceptions([]);
+      setDayBookings([]);
+      setStartTime("");
       console.error(
         "Unable to load availability:",
         err
@@ -896,9 +575,9 @@ export default function NewBooking() {
       );
 
     } finally {
-      setLoadingAvailability(
-        false
-      );
+      if (requestId === availabilityRequestRef.current) {
+        setLoadingAvailability(false);
+      }
     }
   }
 
@@ -1168,7 +847,8 @@ export default function NewBooking() {
       () => {
         if (
           !bookingDate ||
-          !selectedService
+          !selectedService ||
+          !availabilityVerified
         ) {
           return [];
         }
@@ -1250,6 +930,7 @@ export default function NewBooking() {
         bookingDate,
         selectedService,
         availableRanges,
+        availabilityVerified,
       ]
     );
 

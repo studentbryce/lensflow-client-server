@@ -1817,6 +1817,3 @@ WHERE (
         'confirmed'::public.booking_status
     )
 );
-
--- If already applied, do NOT rerun this ALTER TABLE script.
--- On a race, PostgreSQL returns SQLSTATE 23P01 (exclusion violation).
