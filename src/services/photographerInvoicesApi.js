@@ -1,0 +1,10 @@
+import { apiFetch } from './apiClient';
+const base='/api/photographer/invoices';
+const path=id=>`${base}/${encodeURIComponent(id)}`;
+export const apiGetPhotographerInvoices=()=>apiFetch(base);
+export const apiGetPhotographerInvoiceOptions=()=>apiFetch(`${base}/options`);
+export const apiGetPhotographerInvoice=id=>apiFetch(path(id));
+export const apiCreatePhotographerInvoice=body=>apiFetch(base,{method:'POST',body:JSON.stringify(body)});
+export const apiUpdatePhotographerInvoice=(id,body)=>apiFetch(path(id),{method:'PATCH',body:JSON.stringify(body)});
+export const apiUpdatePhotographerInvoiceStatus=(id,status)=>apiFetch(`${path(id)}/status`,{method:'PATCH',body:JSON.stringify({status})});
+export const apiDeletePhotographerInvoice=id=>apiFetch(path(id),{method:'DELETE'});

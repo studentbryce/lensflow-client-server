@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerInvoices } from "../../services/photographerInvoicesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./Invoices.css";
 
@@ -180,174 +180,11 @@ export default function Invoices() {
     try {
       setLoading(true);
       setError("");
-
-      /*
-       * RLS is responsible for restricting which invoices this
-       * authenticated photographer can retrieve.
-       *
-       * We deliberately do not filter photographer_id from the
-       * browser. Ownership is enforced by Supabase RLS.
-       */
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from("invoices")
-        .select(`
-          invoice_id,
-          photographer_id,
-          client_id,
-          booking_id,
-          invoice_number,
-          issue_date,
-          due_date,
-          subtotal,
-          tax_amount,
-          total_amount,
-          status,
-          notes,
-          created_at,
-          updated_at
-        `)
-        .order("created_at", { ascending: false });
-
-      if (invoiceError) {
-        throw invoiceError;
-      }
-
-      if (!invoiceData || invoiceData.length === 0) {
-        setInvoices([]);
-        return;
-      }
-
-      /*
-       * Fetch related clients.
-       */
-      const clientIds = [
-        ...new Set(
-          invoiceData
-            .map((invoice) => invoice.client_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      let clients = [];
-
-      if (clientIds.length > 0) {
-        const { data: clientData, error: clientError } = await supabase
-          .from("clients")
-          .select(`
-            client_id,
-            user_id,
-            photographer_id
-          `)
-          .in("client_id", clientIds);
-
-        if (clientError) {
-          throw clientError;
-        }
-
-        clients = clientData || [];
-      }
-
-      /*
-       * Fetch client profile information separately.
-       *
-       * This is intentional because profile access is protected by
-       * its own RLS policy.
-       */
-      const clientUserIds = [
-        ...new Set(clients.map((client) => client.user_id).filter(Boolean)),
-      ];
-
-      let profiles = [];
-
-      if (clientUserIds.length > 0) {
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select(`
-            user_id,
-            first_name,
-            last_name,
-            email,
-            phone
-          `)
-          .in("user_id", clientUserIds);
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        profiles = profileData || [];
-      }
-
-      /*
-       * Fetch booking information.
-       */
-      const bookingIds = [
-        ...new Set(
-          invoiceData
-            .map((invoice) => invoice.booking_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      let bookings = [];
-
-      if (bookingIds.length > 0) {
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select(`
-            booking_id,
-            client_id,
-            service_id,
-            booking_date,
-            start_time,
-            end_time,
-            status,
-            total_amount
-          `)
-          .in("booking_id", bookingIds);
-
-        if (bookingError) {
-          throw bookingError;
-        }
-
-        bookings = bookingData || [];
-      }
-
-      /*
-       * Combine the related records into one structure for the UI.
-       */
-      const clientMap = new Map(
-        clients.map((client) => [client.client_id, client])
-      );
-
-      const profileMap = new Map(
-        profiles.map((profile) => [profile.user_id, profile])
-      );
-
-      const bookingMap = new Map(
-        bookings.map((booking) => [booking.booking_id, booking])
-      );
-
-      const formattedInvoices = invoiceData.map((invoice) => {
-        const client = clientMap.get(invoice.client_id);
-        const profile = client
-          ? profileMap.get(client.user_id)
-          : null;
-
-        return {
-          ...invoice,
-          client,
-          clientProfile: profile,
-          booking: bookingMap.get(invoice.booking_id) || null,
-        };
-      });
-
-      setInvoices(formattedInvoices);
+      const result = await apiGetPhotographerInvoices();
+      setInvoices(result.data || []);
     } catch (err) {
       console.error("Error loading invoices:", err);
-      setError(
-        err.message || "Unable to load invoices. Please try again."
-      );
+      setError(err.message || "Unable to load invoices. Please try again.");
     } finally {
       setLoading(false);
     }

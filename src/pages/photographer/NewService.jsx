@@ -5,7 +5,8 @@ import {
     BiTrash,
 } from "react-icons/bi";
 
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient"; // Storage uploads only; database writes use Express.
+import { apiGetPhotographerServicesContext, apiCreatePhotographerService } from "../../services/photographerServicesApi";
 
 import "./NewService.css";
 
@@ -245,56 +246,9 @@ export default function NewService() {
         let uploadedStoragePath = null;
 
         try {
-            // =================================================
-            // Get authenticated user
-            // =================================================
-
-            const {
-                data: { user },
-                error: userError,
-            } =
-                await supabase.auth.getUser();
-
-            if (userError) {
-                throw userError;
-            }
-
-            if (!user) {
-                throw new Error(
-                    "You must be logged in to create a service."
-                );
-            }
-
-            // =================================================
-            // Get photographer
-            // =================================================
-
-            const {
-                data: photographer,
-                error:
-                    photographerError,
-            } = await supabase
-                .from(
-                    "photographer_profiles"
-                )
-                .select(
-                    "photographer_id"
-                )
-                .eq("user_id", user.id)
-                .single();
-
-            if (photographerError) {
-                throw photographerError;
-            }
-
-            if (!photographer) {
-                throw new Error(
-                    "Photographer profile could not be found."
-                );
-            }
-
-            const photographerId =
-                photographer.photographer_id;
+            // The API resolves the authenticated photographer, never trust a supplied owner ID.
+            const { data: context } = await apiGetPhotographerServicesContext();
+            const photographerId = context.photographer_id;
 
             // =================================================
             // Upload service image
@@ -368,47 +322,16 @@ export default function NewService() {
             // Create service
             // =================================================
 
-            const {
-                data,
-                error: insertError,
-            } = await supabase
-                .from("services")
-                .insert({
-                    photographer_id:
-                        photographerId,
-
-                    name,
-
-                    description:
-                        description ||
-                        null,
-
-                    price,
-
-                    duration_minutes:
-                        duration,
-
-                    deposit_amount:
-                        deposit,
-
-                    image_url:
-                        imageUrl,
-
-                    is_active:
-                        formData.is_active,
-                })
-                .select()
-                .single();
-
-            if (insertError) {
-                throw insertError;
-            }
-
-            if (!data) {
-                throw new Error(
-                    "The service could not be created."
-                );
-            }
+            const { data } = await apiCreatePhotographerService({
+                name,
+                description: description || null,
+                price,
+                duration_minutes: duration,
+                deposit_amount: deposit,
+                is_active: formData.is_active,
+                image_path: uploadedStoragePath,
+            });
+            if (!data) throw new Error("The service could not be created.");
 
             setSuccess(
                 "Service created successfully."

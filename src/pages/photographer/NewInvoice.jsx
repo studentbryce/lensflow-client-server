@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerInvoiceOptions, apiCreatePhotographerInvoice } from "../../services/photographerInvoicesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./NewInvoice.css";
 
@@ -104,223 +104,32 @@ export default function NewInvoice() {
         try {
             setLoading(true);
             setError("");
+            const { data } = await apiGetPhotographerInvoiceOptions();
+            const clientData = data.clients || [];
+            const bookingData = data.bookings || [];
+            const serviceData = data.services || [];
+            setClients(clientData);
+            setBookings(bookingData);
+            setServices(serviceData);
+            setFormData(current => ({ ...current, tax_rate: String(data.default_tax_rate ?? 15) }));
 
-            /*
-             * Get the photographer profile first.
-             */
-            const { data: photographer, error: photographerError } =
-                await supabase
-                    .from("photographer_profiles")
-                    .select(`
-                        photographer_id
-                    `)
-                    .eq("user_id", user.id)
-                    .single();
-
-            if (photographerError) {
-                throw photographerError;
-            }
-
-            const {
-                data: paymentSettings,
-                error: paymentSettingsError,
-            } = await supabase
-                .from("photographer_payment_settings")
-                .select("default_tax_rate")
-                .eq("photographer_id", photographer.photographer_id)
-                .maybeSingle();
-
-            if (paymentSettingsError) {
-                throw paymentSettingsError;
-            }
-
-            setFormData((current) => ({
-                ...current,
-                tax_rate: String(
-                    paymentSettings?.default_tax_rate ?? 15
-                ),
-            }));
-
-            /*
-             * Load clients.
-             *
-             * RLS ensures the authenticated photographer only sees
-             * their own clients.
-             */
-            const { data: clientData, error: clientError } = await supabase
-                .from("clients")
-                .select(`
-                    client_id,
-                    user_id
-                `)
-                .order("created_at", { ascending: false });
-
-            if (clientError) {
-                throw clientError;
-            }
-
-            /*
-             * Load client profiles separately because profiles has
-             * its own RLS policy.
-             */
-            const clientUserIds = [
-                ...new Set(
-                    (clientData || [])
-                        .map((client) => client.user_id)
-                        .filter(Boolean)
-                ),
-            ];
-
-            let profileData = [];
-
-            if (clientUserIds.length > 0) {
-                const { data: profiles, error: profileError } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            user_id,
-                            first_name,
-                            last_name,
-                            email,
-                            phone
-                        `)
-                        .in("user_id", clientUserIds);
-
-                if (profileError) {
-                    throw profileError;
-                }
-
-                profileData = profiles || [];
-            }
-
-            const profileMap = new Map(
-                profileData.map((profile) => [profile.user_id, profile])
-            );
-
-            const formattedClients = (clientData || []).map((client) => ({
-                ...client,
-                profile: profileMap.get(client.user_id) || null,
-            }));
-
-            /*
-             * Load bookings belonging to this photographer.
-             *
-             * RLS remains the security boundary.
-             */
-            const { data: bookingData, error: bookingError } =
-                await supabase
-                    .from("bookings")
-                    .select(`
-                        booking_id,
-                        client_id,
-                        service_id,
-                        booking_date,
-                        start_time,
-                        end_time,
-                        location,
-                        status,
-                        total_amount
-                    `)
-                    .order("booking_date", { ascending: false });
-
-            if (bookingError) {
-                throw bookingError;
-            }
-
-            /*
-             * Load active services.
-             */
-            const { data: serviceData, error: serviceError } =
-                await supabase
-                    .from("services")
-                    .select(`
-                        service_id,
-                        name,
-                        description,
-                        price,
-                        duration_minutes,
-                        deposit_amount,
-                        is_active
-                    `)
-                    .eq("is_active", true)
-                    .order("name", { ascending: true });
-
-            if (serviceError) {
-                throw serviceError;
-            }
-
-            setClients(formattedClients);
-            setBookings(bookingData || []);
-            setServices(serviceData || []);
-
-            /*
-             * If New Invoice was opened from Booking Details, preselect the
-             * booking and client and add the booked service as the first
-             * invoice item. The booking must exist in the RLS-filtered data
-             * returned for the current photographer before it is accepted.
-             */
             const searchParams = new URLSearchParams(window.location.search);
             const requestedBookingId = searchParams.get("booking_id");
             const requestedClientId = searchParams.get("client_id");
-
             if (requestedBookingId) {
-                const requestedBooking = (bookingData || []).find(
-                    (booking) => booking.booking_id === requestedBookingId
-                );
-
-                if (
-                    requestedBooking &&
-                    (!requestedClientId ||
-                        requestedBooking.client_id === requestedClientId)
-                ) {
-                    setFormData((current) => ({
-                        ...current,
-                        client_id: requestedBooking.client_id,
-                        booking_id: requestedBooking.booking_id,
-                    }));
-
-                    const bookedService = (serviceData || []).find(
-                        (service) =>
-                            service.service_id === requestedBooking.service_id
-                    );
-
-                    if (bookedService) {
-                        setItems([
-                            {
-                                service_id: bookedService.service_id,
-                                description:
-                                    bookedService.description ||
-                                    bookedService.name ||
-                                    "",
-                                quantity: 1,
-                                unit_price:
-                                    requestedBooking.total_amount ??
-                                    bookedService.price ??
-                                    "",
-                            },
-                        ]);
-                    }
+                const selected = bookingData.find(b => b.booking_id === requestedBookingId);
+                if (selected && (!requestedClientId || selected.client_id === requestedClientId)) {
+                    setFormData(current => ({ ...current, client_id: selected.client_id, booking_id: selected.booking_id }));
+                    const bookedService = serviceData.find(s => s.service_id === selected.service_id);
+                    if (bookedService) setItems([{ service_id: bookedService.service_id,
+                        description: bookedService.description || bookedService.name || "",
+                        quantity: 1, unit_price: selected.total_amount ?? bookedService.price ?? "" }]);
                 }
-            }
-
-            /*
-             * Confirm that the current account has a photographer profile.
-             */
-            if (!photographer?.photographer_id) {
-                throw new Error(
-                    "A photographer profile could not be found for this account."
-                );
             }
         } catch (err) {
             console.error("Error loading invoice data:", err);
-
-            setError(
-                err.message ||
-                "Unable to load the information required to create an invoice."
-            );
-        } finally {
-            setLoading(false);
-        }
+            setError(err.message || "Unable to load invoice options.");
+        } finally { setLoading(false); }
     }
 
     const selectedClientBookings = useMemo(() => {
@@ -638,216 +447,37 @@ export default function NewInvoice() {
 
     async function handleSubmit(event) {
         event.preventDefault();
-
         const validationError = validateForm();
-
-        if (validationError) {
-            setError(validationError);
-            return;
-        }
-
-        if (!user) {
-            setError("You must be signed in to create an invoice.");
-            return;
-        }
-
+        if (validationError) { setError(validationError); return; }
+        if (!user) { setError("You must be signed in to create an invoice."); return; }
+        if (saving) return;
         try {
             setSaving(true);
             setError("");
             setSuccess("");
-
-            /*
-             * Get the current photographer ID.
-             */
-            const { data: photographer, error: photographerError } =
-                await supabase
-                    .from("photographer_profiles")
-                    .select(`
-                        photographer_id
-                    `)
-                    .eq("user_id", user.id)
-                    .single();
-
-            if (photographerError) {
-                throw photographerError;
-            }
-
-            if (!photographer?.photographer_id) {
-                throw new Error(
-                    "A photographer profile could not be found."
-                );
-            }
-
-            const {
-                data: paymentSettings,
-                error: paymentSettingsError,
-            } = await supabase
-                .from("photographer_payment_settings")
-                .select(`
-                    bank_account_name,
-                    bank_name,
-                    bank_account_number,
-                    bank_payment_instructions,
-                    gst_tax_number
-                `)
-                .eq(
-                    "photographer_id",
-                    photographer.photographer_id
-                )
-                .maybeSingle();
-
-            if (paymentSettingsError) {
-                throw paymentSettingsError;
-            }
-
-            /*
-             * Verify that the selected client belongs to this
-             * photographer's available client list.
-             *
-             * Supabase RLS remains the real security boundary.
-             */
-            const selectedClient = clients.find(
-                (client) =>
-                    client.client_id === formData.client_id
-            );
-
-            if (!selectedClient) {
-                throw new Error(
-                    "The selected client could not be verified."
-                );
-            }
-
-            /*
-             * Verify that the selected booking belongs to
-             * the selected client.
-             */
-            const selectedBooking = selectedClientBookings.find(
-                (booking) =>
-                    booking.booking_id === formData.booking_id
-            );
-
-            if (!selectedBooking) {
-                throw new Error(
-                    "The selected booking does not belong to the selected client."
-                );
-            }
-
-            /*
-             * Create the invoice first.
-             */
-            const { data: invoice, error: invoiceError } =
-                await supabase
-                    .from("invoices")
-                    .insert({
-                        photographer_id:
-                            photographer.photographer_id,
-                        client_id: formData.client_id,
-                        booking_id: formData.booking_id,
-                        invoice_number:
-                            formData.invoice_number.trim(),
-                        issue_date: formData.issue_date,
-                        due_date:
-                            formData.due_date || null,
-                        subtotal: Number(subtotal.toFixed(2)),
-                        tax_rate: Number(
-                            Number(formData.tax_rate).toFixed(2)
-                        ),
-                        tax_included:
-                            Boolean(formData.tax_included),
-                        tax_number:
-                            paymentSettings?.gst_tax_number?.trim() ||
-                            null,
-                        bank_account_name:
-                            paymentSettings?.bank_account_name?.trim() ||
-                            null,
-                        bank_name:
-                            paymentSettings?.bank_name?.trim() ||
-                            null,
-                        bank_account_number:
-                            paymentSettings?.bank_account_number?.trim() ||
-                            null,
-                        bank_payment_instructions:
-                            paymentSettings?.bank_payment_instructions?.trim() ||
-                            null,
-                        tax_amount: Number(
-                            taxAmount.toFixed(2)
-                        ),
-                        total_amount: Number(
-                            totalAmount.toFixed(2)
-                        ),
-                        status: formData.status,
-                        notes:
-                            formData.notes.trim() || null,
-                    })
-                    .select()
-                    .single();
-
-            if (invoiceError) {
-                throw invoiceError;
-            }
-
-            /*
-             * Create invoice items using the newly created invoice ID.
-             */
-            const invoiceItems = items.map((item) => {
-                const quantity = Number(item.quantity);
-                const unitPrice = Number(item.unit_price);
-                const itemSubtotal = quantity * unitPrice;
-
-                return {
-                    photographer_id:
-                        photographer.photographer_id,
-                    invoice_id: invoice.invoice_id,
+            await apiCreatePhotographerInvoice({
+                client_id: formData.client_id,
+                booking_id: formData.booking_id,
+                invoice_number: formData.invoice_number.trim(),
+                issue_date: formData.issue_date,
+                due_date: formData.due_date || null,
+                status: formData.status,
+                tax_rate: Number(formData.tax_rate),
+                tax_included: Boolean(formData.tax_included),
+                notes: formData.notes,
+                items: items.map(item => ({
                     service_id: item.service_id || null,
-                    description: item.description.trim(),
-                    quantity,
-                    unit_price: Number(
-                        unitPrice.toFixed(2)
-                    ),
-                    subtotal: Number(
-                        itemSubtotal.toFixed(2)
-                    ),
-                };
+                    description: item.description,
+                    quantity: Number(item.quantity),
+                    unit_price: Number(item.unit_price),
+                })),
             });
-
-            const { error: itemsError } = await supabase
-                .from("invoice_items")
-                .insert(invoiceItems);
-
-            /*
-             * If invoice items fail, remove the invoice that was
-             * just created so an incomplete invoice is not left behind.
-             */
-            if (itemsError) {
-                await supabase
-                    .from("invoices")
-                    .delete()
-                    .eq(
-                        "invoice_id",
-                        invoice.invoice_id
-                    );
-
-                throw itemsError;
-            }
-
             setSuccess("Invoice created successfully.");
-
-            setTimeout(() => {
-                navigate("/photographer/invoices");
-            }, 700);
+            setTimeout(() => navigate("/photographer/invoices"), 700);
         } catch (err) {
-            console.error(
-                "Error creating invoice:",
-                err
-            );
-
-            setError(
-                err.message ||
-                "Unable to create the invoice. Please try again."
-            );
-        } finally {
-            setSaving(false);
-        }
+            console.error("Error creating invoice:", err);
+            setError(err.message || "Unable to create invoice. Check the list before retrying.");
+        } finally { setSaving(false); }
     }
 
     if (loading) {

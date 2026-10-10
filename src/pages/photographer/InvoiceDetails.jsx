@@ -5,7 +5,7 @@ import InvoiceDocument, {
     formatInvoiceStatus,
 } from "../../components/invoices/InvoiceDocument";
 import { downloadInvoicePdf } from "../../utils/invoicePdf";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerInvoice, apiUpdatePhotographerInvoiceStatus, apiDeletePhotographerInvoice } from "../../services/photographerInvoicesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./InvoiceDetails.css";
 
@@ -48,268 +48,41 @@ export default function InvoiceDetails() {
         try {
             setLoading(true);
             setError("");
-
-            const { data: invoiceData, error: invoiceError } =
-                await supabase
-                    .from("invoices")
-                    .select(`
-                        invoice_id,
-                        photographer_id,
-                        client_id,
-                        booking_id,
-                        invoice_number,
-                        issue_date,
-                        due_date,
-                        subtotal,
-                        tax_rate,
-                        tax_included,
-                        tax_number,
-                        bank_account_name,
-                        bank_name,
-                        bank_account_number,
-                        bank_payment_instructions,
-                        tax_amount,
-                        total_amount,
-                        status,
-                        notes,
-                        created_at,
-                        updated_at
-                    `)
-                    .eq("invoice_id", invoice_id)
-                    .single();
-
-            if (invoiceError) throw invoiceError;
-            if (!invoiceData) {
-                throw new Error("Invoice could not be found.");
-            }
-
-            setInvoice(invoiceData);
-
-            const {
-                data: photographerData,
-                error: photographerError,
-            } = await supabase
-                .from("photographer_profiles")
-                .select("photographer_id, business_name")
-                .eq(
-                    "photographer_id",
-                    invoiceData.photographer_id
-                )
-                .maybeSingle();
-
-            if (photographerError) throw photographerError;
-            setPhotographerProfile(photographerData || null);
-
-            const { data: itemData, error: itemError } =
-                await supabase
-                    .from("invoice_items")
-                    .select(`
-                        invoice_item_id,
-                        invoice_id,
-                        photographer_id,
-                        service_id,
-                        description,
-                        quantity,
-                        unit_price,
-                        subtotal
-                    `)
-                    .eq("invoice_id", invoice_id)
-                    .order("invoice_item_id", {
-                        ascending: true,
-                    });
-
-            if (itemError) throw itemError;
-            setItems(itemData || []);
-
-            if (invoiceData.client_id) {
-                const { data: clientData, error: clientError } =
-                    await supabase
-                        .from("clients")
-                        .select(`
-                            client_id,
-                            user_id,
-                            photographer_id,
-                            created_at
-                        `)
-                        .eq(
-                            "client_id",
-                            invoiceData.client_id
-                        )
-                        .single();
-
-                if (clientError) throw clientError;
-
-                if (clientData?.user_id) {
-                    const {
-                        data: profileData,
-                        error: profileError,
-                    } = await supabase
-                        .from("profiles")
-                        .select(`
-                            user_id,
-                            first_name,
-                            last_name,
-                            email,
-                            phone
-                        `)
-                        .eq("user_id", clientData.user_id)
-                        .single();
-
-                    if (
-                        profileError &&
-                        profileError.code !== "PGRST116"
-                    ) {
-                        throw profileError;
-                    }
-
-                    setClientProfile(profileData || null);
-                }
-            }
-
-            if (invoiceData.booking_id) {
-                const {
-                    data: bookingData,
-                    error: bookingError,
-                } = await supabase
-                    .from("bookings")
-                    .select(`
-                        booking_id,
-                        client_id,
-                        service_id,
-                        booking_date,
-                        start_time,
-                        end_time,
-                        location,
-                        status,
-                        total_amount
-                    `)
-                    .eq(
-                        "booking_id",
-                        invoiceData.booking_id
-                    )
-                    .single();
-
-                if (bookingError) throw bookingError;
-                setBooking(bookingData);
-
-                if (bookingData?.service_id) {
-                    const {
-                        data: serviceData,
-                        error: serviceError,
-                    } = await supabase
-                        .from("services")
-                        .select(`
-                            service_id,
-                            name,
-                            description,
-                            price,
-                            duration_minutes
-                        `)
-                        .eq(
-                            "service_id",
-                            bookingData.service_id
-                        )
-                        .single();
-
-                    if (
-                        serviceError &&
-                        serviceError.code !== "PGRST116"
-                    ) {
-                        throw serviceError;
-                    }
-
-                    setService(serviceData || null);
-                }
-            }
+            const { data } = await apiGetPhotographerInvoice(invoice_id);
+            setInvoice(data.invoice);
+            setItems(data.items || []);
+            setClientProfile(data.clientProfile || null);
+            setBooking(data.booking || null);
+            setService(data.service || null);
+            setPhotographerProfile(data.photographerProfile || null);
         } catch (err) {
             console.error("Error loading invoice:", err);
-            setError(
-                err.message ||
-                    "Unable to load this invoice. Please try again."
-            );
-        } finally {
-            setLoading(false);
-        }
+            setError(err.message || "Unable to load invoice.");
+        } finally { setLoading(false); }
     }
 
     async function handleMarkAsSent() {
-        if (!invoice) return;
-
+        if (!invoice || actionLoading) return;
         try {
             setActionLoading(true);
             setError("");
-
-            const { data, error: updateError } =
-                await supabase
-                    .from("invoices")
-                    .update({
-                        status: "sent",
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq(
-                        "invoice_id",
-                        invoice.invoice_id
-                    )
-                    .select()
-                    .single();
-
-            if (updateError) throw updateError;
+            const { data } = await apiUpdatePhotographerInvoiceStatus(invoice.invoice_id, "sent");
             setInvoice(data);
         } catch (err) {
-            console.error(
-                "Error marking invoice as sent:",
-                err
-            );
-            setError(
-                err.message ||
-                    "Unable to update the invoice status."
-            );
-        } finally {
-            setActionLoading(false);
-        }
+            setError(err.message || "Unable to update invoice status.");
+        } finally { setActionLoading(false); }
     }
 
     async function handleMarkAsPaid() {
-        if (!invoice) return;
-
-        const confirmed = window.confirm(
-            "Are you sure you want to mark this invoice as paid?"
-        );
-
-        if (!confirmed) return;
-
+        if (!invoice || actionLoading || !window.confirm("Are you sure you want to mark this invoice as paid?")) return;
         try {
             setActionLoading(true);
             setError("");
-
-            const { data, error: updateError } =
-                await supabase
-                    .from("invoices")
-                    .update({
-                        status: "paid",
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq(
-                        "invoice_id",
-                        invoice.invoice_id
-                    )
-                    .select()
-                    .single();
-
-            if (updateError) throw updateError;
+            const { data } = await apiUpdatePhotographerInvoiceStatus(invoice.invoice_id, "paid");
             setInvoice(data);
         } catch (err) {
-            console.error(
-                "Error marking invoice as paid:",
-                err
-            );
-            setError(
-                err.message ||
-                    "Unable to update the invoice status."
-            );
-        } finally {
-            setActionLoading(false);
-        }
+            setError(err.message || "Unable to update invoice status.");
+        } finally { setActionLoading(false); }
     }
 
     function handleDownloadPdf() {
@@ -342,42 +115,17 @@ export default function InvoiceDetails() {
     }
 
     async function handleDelete() {
-        if (!invoice) return;
-
-        const confirmed = window.confirm(
-            `Are you sure you want to delete invoice ${invoice.invoice_number}? This action cannot be undone.`
-        );
-
-        if (!confirmed) return;
-
+        if (!invoice || actionLoading) return;
+        if (!window.confirm(`Are you sure you want to delete invoice ${invoice.invoice_number}? This action cannot be undone.`)) return;
         try {
             setActionLoading(true);
             setError("");
-
-            const { error: itemsError } = await supabase
-                .from("invoice_items")
-                .delete()
-                .eq("invoice_id", invoice.invoice_id);
-
-            if (itemsError) throw itemsError;
-
-            const { error: invoiceError } = await supabase
-                .from("invoices")
-                .delete()
-                .eq("invoice_id", invoice.invoice_id);
-
-            if (invoiceError) throw invoiceError;
-
+            await apiDeletePhotographerInvoice(invoice.invoice_id);
             navigate("/photographer/invoices");
         } catch (err) {
             console.error("Error deleting invoice:", err);
-            setError(
-                err.message ||
-                    "Unable to delete the invoice."
-            );
-        } finally {
-            setActionLoading(false);
-        }
+            setError(err.message || "Unable to delete invoice.");
+        } finally { setActionLoading(false); }
     }
 
     if (loading) {

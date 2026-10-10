@@ -5,7 +5,8 @@ import {
   BiTrash,
 } from "react-icons/bi";
 
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient"; // Storage operations only.
+import { apiGetPhotographerService, apiUpdatePhotographerService } from "../../services/photographerServicesApi";
 
 import "./EditService.css";
 
@@ -122,55 +123,8 @@ export default function EditService() {
     setError("");
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } =
-        await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "You must be logged in to edit a service."
-        );
-      }
-
-      const {
-        data,
-        error: serviceError,
-      } = await supabase
-        .from("services")
-        .select(`
-          service_id,
-          photographer_id,
-          name,
-          description,
-          price,
-          duration_minutes,
-          deposit_amount,
-          image_url,
-          is_active,
-          created_at,
-          updated_at
-        `)
-        .eq(
-          "service_id",
-          service_id
-        )
-        .single();
-
-      if (serviceError) {
-        throw serviceError;
-      }
-
-      if (!data) {
-        throw new Error(
-          "Service could not be found."
-        );
-      }
+      const { data } = await apiGetPhotographerService(service_id);
+      if (!data) throw new Error("Service could not be found.");
 
       setService(data);
 
@@ -540,26 +494,6 @@ export default function EditService() {
     let newStoragePath = null;
 
     try {
-      // ===================================================
-      // Authentication
-      // ===================================================
-
-      const {
-        data: { user },
-        error: userError,
-      } =
-        await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "You must be logged in to update a service."
-        );
-      }
-
       const photographerId =
         service.photographer_id;
 
@@ -646,47 +580,18 @@ export default function EditService() {
       // Update service
       // ===================================================
 
-      const {
-        data: updatedService,
-        error: updateError,
-      } = await supabase
-        .from("services")
-        .update({
-          name,
-
-          description:
-            description || null,
-
-          price,
-
-          duration_minutes:
-            duration,
-
-          deposit_amount:
-            deposit,
-
-          image_url:
-            nextImageUrl,
-
-          is_active:
-            formData.is_active,
-        })
-        .eq(
-          "service_id",
-          service_id
-        )
-        .select()
-        .single();
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      if (!updatedService) {
-        throw new Error(
-          "The service could not be updated. Check the services RLS policy."
-        );
-      }
+      const changes = {
+        name,
+        description: description || null,
+        price,
+        duration_minutes: duration,
+        deposit_amount: deposit,
+        is_active: formData.is_active,
+      };
+      if (imageFile) changes.image_path = newStoragePath;
+      else if (removeCurrentImage) changes.image_path = null;
+      const { data: updatedService } = await apiUpdatePhotographerService(service_id, changes);
+      if (!updatedService) throw new Error("The service could not be updated.");
 
       // ===================================================
       // Delete old Storage image

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerInvoiceOptions, apiGetPhotographerInvoice, apiUpdatePhotographerInvoice } from "../../services/photographerInvoicesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./EditInvoice.css";
 
@@ -91,275 +91,37 @@ export default function EditInvoice() {
         try {
             setLoading(true);
             setError("");
-
-            /*
-             * Get the current photographer ID.
-             *
-             * RLS remains the actual ownership/security boundary.
-             */
-            const { data: photographer, error: photographerError } =
-                await supabase
-                    .from("photographer_profiles")
-                    .select("photographer_id")
-                    .eq("user_id", user.id)
-                    .single();
-
-            if (photographerError) {
-                throw photographerError;
-            }
-
-            if (!photographer?.photographer_id) {
-                throw new Error(
-                    "A photographer profile could not be found for this account."
-                );
-            }
-
-            /*
-             * Load the invoice.
-             *
-             * We do not add a photographer_id filter here because
-             * Supabase RLS is responsible for ownership enforcement.
-             */
-            const { data: invoice, error: invoiceError } =
-                await supabase
-                    .from("invoices")
-                    .select(`
-                        invoice_id,
-                        photographer_id,
-                        client_id,
-                        booking_id,
-                        invoice_number,
-                        issue_date,
-                        due_date,
-                        subtotal,
-                        tax_rate,
-                        tax_included,
-                        tax_amount,
-                        total_amount,
-                        status,
-                        notes,
-                        created_at,
-                        updated_at
-                    `)
-                    .eq("invoice_id", invoice_id)
-                    .single();
-
-            if (invoiceError) {
-                throw invoiceError;
-            }
-
-            if (!invoice) {
-                throw new Error("Invoice could not be found.");
-            }
-
-            /*
-             * Load invoice items.
-             */
-            const { data: invoiceItems, error: invoiceItemsError } =
-                await supabase
-                    .from("invoice_items")
-                    .select(`
-                        invoice_item_id,
-                        invoice_id,
-                        photographer_id,
-                        service_id,
-                        description,
-                        quantity,
-                        unit_price,
-                        subtotal
-                    `)
-                    .eq("invoice_id", invoice_id)
-                    .order("invoice_item_id", {
-                        ascending: true,
-                    });
-
-            if (invoiceItemsError) {
-                throw invoiceItemsError;
-            }
-
-            /*
-             * Load clients.
-             */
-            const { data: clientData, error: clientError } =
-                await supabase
-                    .from("clients")
-                    .select(`
-                        client_id,
-                        user_id
-                    `)
-                    .order("created_at", {
-                        ascending: false,
-                    });
-
-            if (clientError) {
-                throw clientError;
-            }
-
-            /*
-             * Load client profiles separately because profiles
-             * has its own RLS policy.
-             */
-            const clientUserIds = [
-                ...new Set(
-                    (clientData || [])
-                        .map((client) => client.user_id)
-                        .filter(Boolean)
-                ),
-            ];
-
-            let profileData = [];
-
-            if (clientUserIds.length > 0) {
-                const { data: profiles, error: profileError } =
-                    await supabase
-                        .from("profiles")
-                        .select(`
-                            user_id,
-                            first_name,
-                            last_name,
-                            email,
-                            phone
-                        `)
-                        .in("user_id", clientUserIds);
-
-                if (profileError) {
-                    throw profileError;
-                }
-
-                profileData = profiles || [];
-            }
-
-            const profileMap = new Map(
-                profileData.map((profile) => [
-                    profile.user_id,
-                    profile,
-                ])
-            );
-
-            const formattedClients = (clientData || []).map(
-                (client) => ({
-                    ...client,
-                    profile:
-                        profileMap.get(client.user_id) || null,
-                })
-            );
-
-            /*
-             * Load bookings.
-             */
-            const { data: bookingData, error: bookingError } =
-                await supabase
-                    .from("bookings")
-                    .select(`
-                        booking_id,
-                        client_id,
-                        service_id,
-                        booking_date,
-                        start_time,
-                        end_time,
-                        location,
-                        status,
-                        total_amount
-                    `)
-                    .order("booking_date", {
-                        ascending: false,
-                    });
-
-            if (bookingError) {
-                throw bookingError;
-            }
-
-            /*
-             * Load active services.
-             */
-            const { data: serviceData, error: serviceError } =
-                await supabase
-                    .from("services")
-                    .select(`
-                        service_id,
-                        name,
-                        description,
-                        price,
-                        duration_minutes,
-                        deposit_amount,
-                        is_active
-                    `)
-                    .eq("is_active", true)
-                    .order("name", {
-                        ascending: true,
-                    });
-
-            if (serviceError) {
-                throw serviceError;
-            }
-
-            /*
-             * Convert database invoice items into the same
-             * editable structure used by NewInvoice.jsx.
-             */
-            const formattedItems = (invoiceItems || []).map(
-                (item) => ({
-                    invoice_item_id:
-                        item.invoice_item_id,
-                    service_id:
-                        item.service_id || "",
-                    description:
-                        item.description || "",
-                    quantity:
-                        item.quantity ?? 1,
-                    unit_price:
-                        item.unit_price ?? "",
-                })
-            );
-
-            /*
-             * An invoice should contain at least one item.
-             * This also prevents the edit form from displaying
-             * an empty invoice unexpectedly.
-             */
-            if (formattedItems.length === 0) {
-                formattedItems.push({
-                    ...EMPTY_ITEM,
-                });
-            }
-
-            setClients(formattedClients);
-            setBookings(bookingData || []);
-            setServices(serviceData || []);
-
+            const [options, detail] = await Promise.all([
+                apiGetPhotographerInvoiceOptions(), apiGetPhotographerInvoice(invoice_id),
+            ]);
+            const { clients, bookings, services } = options.data;
+            const { invoice, items: invoiceItems } = detail.data;
+            setClients(clients || []);
+            setBookings(bookings || []);
+            setServices(services || []);
             setFormData({
                 client_id: invoice.client_id || "",
                 booking_id: invoice.booking_id || "",
-                invoice_number:
-                    invoice.invoice_number || "",
-                issue_date:
-                    invoice.issue_date || "",
-                due_date:
-                    invoice.due_date || "",
-                status:
-                    invoice.status || "draft",
-                tax_rate:
-                    invoice.tax_rate ?? 15,
-                tax_included:
-                    Boolean(invoice.tax_included),
-                notes:
-                    invoice.notes || "",
+                invoice_number: invoice.invoice_number || "",
+                issue_date: invoice.issue_date || "",
+                due_date: invoice.due_date || "",
+                status: invoice.status || "draft",
+                tax_rate: invoice.tax_rate ?? 15,
+                tax_included: Boolean(invoice.tax_included),
+                notes: invoice.notes || "",
             });
-
-            setItems(formattedItems);
+            const formattedItems = (invoiceItems || []).map(item => ({
+                invoice_item_id: item.invoice_item_id,
+                service_id: item.service_id || "",
+                description: item.description || "",
+                quantity: item.quantity ?? 1,
+                unit_price: item.unit_price ?? "",
+            }));
+            setItems(formattedItems.length ? formattedItems : [{ ...EMPTY_ITEM }]);
         } catch (err) {
-            console.error(
-                "Error loading invoice:",
-                err
-            );
-
-            setError(
-                err.message ||
-                "Unable to load the invoice."
-            );
-        } finally {
-            setLoading(false);
-        }
+            console.error("Error loading invoice:", err);
+            setError(err.message || "Unable to load invoice.");
+        } finally { setLoading(false); }
     }
 
     /*
@@ -674,246 +436,37 @@ export default function EditInvoice() {
 
     async function handleSubmit(event) {
         event.preventDefault();
-
-        const validationError =
-            validateForm();
-
-        if (validationError) {
-            setError(validationError);
-            return;
-        }
-
-        if (!user) {
-            setError(
-                "You must be signed in to edit an invoice."
-            );
-            return;
-        }
-
+        const validationError = validateForm();
+        if (validationError) { setError(validationError); return; }
+        if (!user) { setError("You must be signed in to edit an invoice."); return; }
+        if (saving) return;
         try {
             setSaving(true);
             setError("");
             setSuccess("");
-
-            /*
-             * Get current photographer.
-             */
-            const {
-                data: photographer,
-                error: photographerError,
-            } = await supabase
-                .from("photographer_profiles")
-                .select("photographer_id")
-                .eq("user_id", user.id)
-                .single();
-
-            if (photographerError) {
-                throw photographerError;
-            }
-
-            if (!photographer?.photographer_id) {
-                throw new Error(
-                    "A photographer profile could not be found."
-                );
-            }
-
-            /*
-             * Verify selected client is available to
-             * this photographer.
-             */
-            const selectedClient =
-                clients.find(
-                    (client) =>
-                        client.client_id ===
-                        formData.client_id
-                );
-
-            if (!selectedClient) {
-                throw new Error(
-                    "The selected client could not be verified."
-                );
-            }
-
-            /*
-             * Verify selected booking belongs to
-             * the selected client.
-             */
-            const selectedBooking =
-                selectedClientBookings.find(
-                    (booking) =>
-                        booking.booking_id ===
-                        formData.booking_id
-                );
-
-            if (!selectedBooking) {
-                throw new Error(
-                    "The selected booking does not belong to the selected client."
-                );
-            }
-
-            /*
-             * Update the invoice.
-             */
-            const {
-                error: invoiceError,
-            } = await supabase
-                .from("invoices")
-                .update({
-                    client_id:
-                        formData.client_id,
-                    booking_id:
-                        formData.booking_id,
-                    invoice_number:
-                        formData.invoice_number.trim(),
-                    issue_date:
-                        formData.issue_date,
-                    due_date:
-                        formData.due_date || null,
-                    subtotal:
-                        Number(
-                            subtotal.toFixed(2)
-                        ),
-                    tax_rate:
-                        Number(
-                            Number(
-                                formData.tax_rate
-                            ).toFixed(2)
-                        ),
-                    tax_included:
-                        Boolean(
-                            formData.tax_included
-                        ),
-                    tax_amount:
-                        Number(
-                            taxAmount.toFixed(2)
-                        ),
-                    total_amount:
-                        Number(
-                            totalAmount.toFixed(2)
-                        ),
-                    status:
-                        formData.status,
-                    notes:
-                        formData.notes.trim() ||
-                        null,
-                    updated_at:
-                        new Date().toISOString(),
-                })
-                .eq(
-                    "invoice_id",
-                    invoice_id
-                );
-
-            if (invoiceError) {
-                throw invoiceError;
-            }
-
-            /*
-             * Replace the existing invoice items.
-             *
-             * The invoice_items table is treated as the
-             * current snapshot of the invoice's line items.
-             */
-            const {
-                error: deleteItemsError,
-            } = await supabase
-                .from("invoice_items")
-                .delete()
-                .eq(
-                    "invoice_id",
-                    invoice_id
-                );
-
-            if (deleteItemsError) {
-                throw deleteItemsError;
-            }
-
-            /*
-             * Build the updated invoice items.
-             */
-            const invoiceItems =
-                items.map((item) => {
-                    const quantity =
-                        Number(
-                            item.quantity
-                        );
-
-                    const unitPrice =
-                        Number(
-                            item.unit_price
-                        );
-
-                    const itemSubtotal =
-                        quantity *
-                        unitPrice;
-
-                    return {
-                        photographer_id:
-                            photographer.photographer_id,
-                        invoice_id:
-                            invoice_id,
-                        service_id:
-                            item.service_id ||
-                            null,
-                        description:
-                            item.description.trim(),
-                        quantity,
-                        unit_price:
-                            Number(
-                                unitPrice.toFixed(
-                                    2
-                                )
-                            ),
-                        subtotal:
-                            Number(
-                                itemSubtotal.toFixed(
-                                    2
-                                )
-                            ),
-                    };
-                });
-
-            /*
-             * Insert the updated items.
-             */
-            const {
-                error: insertItemsError,
-            } = await supabase
-                .from("invoice_items")
-                .insert(
-                    invoiceItems
-                );
-
-            if (insertItemsError) {
-                throw insertItemsError;
-            }
-
-            setSuccess(
-                "Invoice updated successfully."
-            );
-
-            /*
-             * Give the user a short success message
-             * before returning to the invoice.
-             */
-            setTimeout(() => {
-                navigate(
-                    `/photographer/invoices/${invoice_id}`
-                );
-            }, 700);
+            await apiUpdatePhotographerInvoice(invoice_id, {
+                client_id: formData.client_id,
+                booking_id: formData.booking_id,
+                invoice_number: formData.invoice_number.trim(),
+                issue_date: formData.issue_date,
+                due_date: formData.due_date || null,
+                status: formData.status,
+                tax_rate: Number(formData.tax_rate),
+                tax_included: Boolean(formData.tax_included),
+                notes: formData.notes,
+                items: items.map(item => ({
+                    service_id: item.service_id || null,
+                    description: item.description,
+                    quantity: Number(item.quantity),
+                    unit_price: Number(item.unit_price),
+                })),
+            });
+            setSuccess("Invoice updated successfully.");
+            setTimeout(() => navigate(`/photographer/invoices/${invoice_id}`), 700);
         } catch (err) {
-            console.error(
-                "Error updating invoice:",
-                err
-            );
-
-            setError(
-                err.message ||
-                "Unable to update the invoice. Please try again."
-            );
-        } finally {
-            setSaving(false);
-        }
+            console.error("Error updating invoice:", err);
+            setError(err.message || "Unable to update invoice. Reload to verify before retrying.");
+        } finally { setSaving(false); }
     }
 
     /*

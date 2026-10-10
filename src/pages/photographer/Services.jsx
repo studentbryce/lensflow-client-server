@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerServices } from "../../services/photographerServicesApi";
 import "./Services.css";
 
 export default function Services() {
@@ -22,35 +22,7 @@ export default function Services() {
     setError("");
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-
-      if (!user) {
-        throw new Error("You must be logged in to view your services.");
-      }
-
-      const { data, error: servicesError } = await supabase
-        .from("services")
-        .select(`
-          service_id,
-          photographer_id,
-          name,
-          description,
-          price,
-          duration_minutes,
-          deposit_amount,
-          image_url,
-          is_active,
-          created_at,
-          updated_at
-        `)
-        .order("created_at", { ascending: false });
-
-      if (servicesError) throw servicesError;
+      const { data } = await apiGetPhotographerServices();
 
       setServices(data || []);
     } catch (err) {
