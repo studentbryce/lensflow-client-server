@@ -11,3 +11,16 @@ export function apiGetClientBookingById(bookingId) {
   }
   return apiFetch(`/api/client/bookings/${encodeURIComponent(bookingId)}`);
 }
+
+/** New-booking reference data and availability: no direct React database reads. */
+export function apiGetClientBookingForm() {
+  return apiFetch('/api/client/bookings/new/options');
+}
+
+export function apiGetClientBookingAvailability(date) {
+  return apiFetch(`/api/client/bookings/availability?date=${encodeURIComponent(date)}`);
+}
+
+export function apiCreateClientBooking(body) {
+  return apiFetch('/api/client/bookings', { method: 'POST', body: JSON.stringify(body) });
+}

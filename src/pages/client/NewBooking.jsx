@@ -2,10 +2,9 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {Link, useNavigate, useSearchParams} from "react-router-dom";
 import {BiCalendar, BiCheckCircle, BiInfoCircle, BiTimeFive} from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
-import { apiGetBusyBookingTimes } from "../../services/bookingApi";
+import { apiGetClientBookingForm, apiGetClientBookingAvailability, apiCreateClientBooking } from "../../services/clientBookingApi";
 
-import {getClient, formatCurrency, formatDate, formatTime, localToday} from "./bookingHelpers";
+import {formatCurrency, formatDate, formatTime, localToday} from "./bookingHelpers";
 import "./NewBooking.css";
 
 
@@ -429,11 +428,8 @@ export default function NewBooking() {
 
 
         try {
-          const profile =
-            await getClient(
-              user?.id
-            );
-
+          const { data: formData } = await apiGetClientBookingForm();
+          const profile = formData.client;
 
           if (
             !profile.photographer_id
@@ -463,91 +459,9 @@ export default function NewBooking() {
           }
 
 
-          /* -------------------------------------------------
-             Services
-             ------------------------------------------------- */
-
-          const {
-            data:
-            serviceData,
-            error:
-            serviceError,
-          } =
-            await supabase
-              .from("services")
-              .select(`
-                service_id,
-                name,
-                description,
-                price,
-                duration_minutes
-              `)
-              .eq(
-                "photographer_id",
-                profile.photographer_id
-              )
-              .eq(
-                "is_active",
-                true
-              )
-              .order(
-                "name"
-              );
-
-
-          if (
-            serviceError
-          ) {
-            throw serviceError;
-          }
-
-
-          /* -------------------------------------------------
-             Weekly availability
-             ------------------------------------------------- */
-
-          const {
-            data:
-            rulesData,
-            error:
-            rulesError,
-          } =
-            await supabase
-              .from(
-                "availability_rules"
-              )
-              .select(`
-                availability_rule_id,
-                photographer_id,
-                day_of_week,
-                start_time,
-                end_time,
-                is_available
-              `)
-              .eq(
-                "photographer_id",
-                profile.photographer_id
-              )
-              .order(
-                "day_of_week",
-                {
-                  ascending: true,
-                }
-              )
-              .order(
-                "start_time",
-                {
-                  ascending: true,
-                }
-              );
-
-
-          if (
-            rulesError
-          ) {
-            throw rulesError;
-          }
-
+          // The Express API supplies active services and weekly availability.
+          const serviceData = formData.services;
+          const rulesData = formData.availability_rules;
 
           if (active) {
             const loadedServices =
@@ -693,10 +607,7 @@ export default function NewBooking() {
       }
 
 
-      loadSelectedDate(
-        client.photographer_id,
-        date
-      );
+      loadSelectedDate(date);
     },
     [
       client,
@@ -705,78 +616,15 @@ export default function NewBooking() {
   );
 
 
-  async function fetchSelectedDateData(
-    photographerId,
-    selectedDate
-  ) {
-    const [
-      exceptionsResult,
-      bookingsResult,
-    ] =
-      await Promise.all([
-        supabase
-          .from(
-            "availability_exceptions"
-          )
-          .select(`
-            exception_id,
-            exception_date,
-            start_time,
-            end_time,
-            is_available,
-            reason
-          `)
-          .eq(
-            "photographer_id",
-            photographerId
-          )
-          .eq(
-            "exception_date",
-            selectedDate
-          )
-          .order(
-            "start_time",
-            {
-              ascending: true,
-              nullsFirst: true,
-            }
-          ),
-
-        apiGetBusyBookingTimes(photographerId, selectedDate)
-          .then((result) => ({ data: result.data, error: null })),
-      ]);
-
-
-    if (
-      exceptionsResult.error
-    ) {
-      throw exceptionsResult.error;
-    }
-
-
-    if (
-      bookingsResult.error
-    ) {
-      throw bookingsResult.error;
-    }
-
-
-    return {
-      exceptions:
-        exceptionsResult.data ||
-        [],
-
-      bookings:
-        bookingsResult.data ||
-        [],
-    };
+  async function fetchSelectedDateData(selectedDate) {
+    // Express derives the assigned photographer from the authenticated JWT.
+    // Busy times include other clients' occupied intervals without exposing identities.
+    const { data } = await apiGetClientBookingAvailability(selectedDate);
+    return { exceptions: data.exceptions || [], bookings: data.bookings || [] };
   }
 
 
-  async function loadSelectedDate(
-    photographerId,
-    selectedDate
-  ) {
+  async function loadSelectedDate(selectedDate) {
     try {
       setLoadingAvailability(
         true
@@ -786,10 +634,7 @@ export default function NewBooking() {
 
 
       const result =
-        await fetchSelectedDateData(
-          photographerId,
-          selectedDate
-        );
+        await fetchSelectedDateData(selectedDate);
 
 
       setDayExceptions(
@@ -1330,10 +1175,7 @@ export default function NewBooking() {
        * booking was created while this page was open.
        */
       const freshData =
-        await fetchSelectedDateData(
-          client.photographer_id,
-          date
-        );
+        await fetchSelectedDateData(date);
 
 
       const freshRanges =
@@ -1385,63 +1227,13 @@ export default function NewBooking() {
       }
 
 
-      const {
-        data,
-        error:
-        insertError,
-      } =
-        await supabase
-          .from(
-            "bookings"
-          )
-          .insert({
-            client_id:
-              client.client_id,
-
-            photographer_id:
-              client.photographer_id,
-
-            service_id:
-              service.service_id,
-
-            booking_date:
-              date,
-
-            start_time:
-              start,
-
-            end_time:
-              end,
-
-            location:
-              location.trim() ||
-              null,
-
-            notes:
-              notes.trim() ||
-              null,
-
-            /*
-             * Client bookings remain requests.
-             */
-            status:
-              "pending",
-
-            total_amount:
-              service.price,
-          })
-          .select(
-            "booking_id"
-          )
-          .single();
-
-
-      if (
-        insertError
-      ) {
-        throw insertError;
-      }
-
+      const { data } = await apiCreateClientBooking({
+        service_id: service.service_id,
+        booking_date: date,
+        start_time: start,
+        location: location.trim() || null,
+        notes: notes.trim() || null,
+      });
 
       navigate(
         `/client/bookings/${data.booking_id}`,
