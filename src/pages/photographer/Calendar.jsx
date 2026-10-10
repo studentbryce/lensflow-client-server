@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -21,7 +22,13 @@ import {
   BiXCircle,
 } from "react-icons/bi";
 
-import { supabase } from "../../lib/supabaseClient";
+import {
+  apiGetCalendar,
+  apiCreateCalendarRule,
+  apiDeleteCalendarRule,
+  apiCreateCalendarException,
+  apiDeleteCalendarException,
+} from "../../services/calendarApi";
 
 import "./Calendar.css";
 
@@ -516,633 +523,59 @@ export default function Calendar() {
 
 
   /* =========================================================
-     Photographer
+     Load all calendar data through Express REST API
      ========================================================= */
 
-  const loadPhotographer =
-    useCallback(
-      async () => {
-        const {
-          data: {
-            user,
-          },
-          error: authError,
-        } =
-          await supabase.auth.getUser();
+  const calendarRequestId = useRef(0);
 
-
-        if (authError) {
-          throw authError;
-        }
-
-
-        if (!user) {
-          throw new Error(
-            "No authenticated photographer was found."
-          );
-        }
-
-
-        const {
-          data:
-            photographerData,
-          error:
-            photographerError,
-        } =
-          await supabase
-            .from(
-              "photographer_profiles"
-            )
-            .select(
-              "photographer_id"
-            )
-            .eq(
-              "user_id",
-              user.id
-            )
-            .single();
-
-
-        if (
-          photographerError
-        ) {
-          throw photographerError;
-        }
-
-
-        setPhotographerId(
-          photographerData.photographer_id
-        );
-
-
-        return photographerData.photographer_id;
-      },
-      []
+  const loadCalendarData = useCallback(async () => {
+    const requestId = ++calendarRequestId.current;
+    const response = await apiGetCalendar(
+      formatDateKey(calendarStart),
+      formatDateKey(calendarEnd)
     );
+    if (requestId !== calendarRequestId.current) return;
+    const data = response.data;
+    setPhotographerId(data.photographer_id);
+    setBookings(data.bookings || []);
+    setAvailabilityRules(data.availability_rules || []);
+    setAvailabilityExceptions(data.availability_exceptions || []);
+  }, [calendarStart, calendarEnd]);
 
-
-  /* =========================================================
-     Bookings
-     ========================================================= */
-
-  const loadBookings =
-    useCallback(
-      async (
-        activePhotographerId
-      ) => {
-        if (
-          !activePhotographerId
-        ) {
-          return;
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
+        // The component remains mounted during normal month changes.
+        // Ignore obsolete error messages after a month switch.
+        await loadCalendarData();
+      } catch (loadError) {
+        if (!cancelled) {
+          console.error("Unable to load calendar:", loadError);
+          setError(loadError.message || "Unable to load the calendar.");
         }
-
-
-        const startDate =
-          formatDateKey(
-            calendarStart
-          );
-
-        const endDate =
-          formatDateKey(
-            calendarEnd
-          );
-
-
-        const {
-          data: bookingRows,
-          error:
-            bookingError,
-        } =
-          await supabase
-            .from("bookings")
-            .select(`
-              booking_id,
-              photographer_id,
-              client_id,
-              service_id,
-              booking_date,
-              start_time,
-              end_time,
-              location,
-              notes,
-              status,
-              total_amount,
-              created_at,
-              updated_at
-            `)
-            .eq(
-              "photographer_id",
-              activePhotographerId
-            )
-            .gte(
-              "booking_date",
-              startDate
-            )
-            .lte(
-              "booking_date",
-              endDate
-            )
-            .order(
-              "booking_date",
-              {
-                ascending: true,
-              }
-            )
-            .order(
-              "start_time",
-              {
-                ascending: true,
-              }
-            );
-
-
-        if (bookingError) {
-          throw bookingError;
-        }
-
-
-        if (
-          !bookingRows?.length
-        ) {
-          setBookings([]);
-          return;
-        }
-
-
-        const clientIds =
-          [
-            ...new Set(
-              bookingRows.map(
-                (booking) =>
-                  booking.client_id
-              )
-            ),
-          ];
-
-
-        const {
-          data: clientRows,
-          error: clientError,
-        } =
-          await supabase
-            .from("clients")
-            .select(`
-              client_id,
-              user_id,
-              photographer_id
-            `)
-            .in(
-              "client_id",
-              clientIds
-            );
-
-
-        if (clientError) {
-          throw clientError;
-        }
-
-
-        const userIds =
-          [
-            ...new Set(
-              (
-                clientRows || []
-              ).map(
-                (client) =>
-                  client.user_id
-              )
-            ),
-          ];
-
-
-        let profileRows = [];
-
-
-        if (
-          userIds.length
-        ) {
-          const {
-            data:
-              profileData,
-            error:
-              profileError,
-          } =
-            await supabase
-              .from("profiles")
-              .select(`
-                user_id,
-                first_name,
-                last_name,
-                email,
-                phone
-              `)
-              .in(
-                "user_id",
-                userIds
-              );
-
-
-          if (
-            profileError
-          ) {
-            throw profileError;
-          }
-
-
-          profileRows =
-            profileData || [];
-        }
-
-
-        const serviceIds =
-          [
-            ...new Set(
-              bookingRows.map(
-                (booking) =>
-                  booking.service_id
-              )
-            ),
-          ];
-
-
-        const {
-          data:
-            serviceRows,
-          error:
-            serviceError,
-        } =
-          await supabase
-            .from("services")
-            .select(`
-              service_id,
-              name,
-              duration_minutes,
-              price,
-              image_url,
-              is_active
-            `)
-            .in(
-              "service_id",
-              serviceIds
-            );
-
-
-        if (
-          serviceError
-        ) {
-          throw serviceError;
-        }
-
-
-        const profileByUser =
-          new Map(
-            profileRows.map(
-              (profile) => [
-                profile.user_id,
-                profile,
-              ]
-            )
-          );
-
-
-        const clientById =
-          new Map(
-            (
-              clientRows || []
-            ).map(
-              (client) => [
-                client.client_id,
-                {
-                  ...client,
-
-                  ...profileByUser.get(
-                    client.user_id
-                  ),
-                },
-              ]
-            )
-          );
-
-
-        const serviceById =
-          new Map(
-            (
-              serviceRows || []
-            ).map(
-              (service) => [
-                service.service_id,
-                service,
-              ]
-            )
-          );
-
-
-        setBookings(
-          bookingRows.map(
-            (booking) => ({
-              ...booking,
-
-              client:
-                clientById.get(
-                  booking.client_id
-                ) || null,
-
-              service:
-                serviceById.get(
-                  booking.service_id
-                ) || null,
-            })
-          )
-        );
-      },
-      [
-        calendarStart,
-        calendarEnd,
-      ]
-    );
-
-
-  /* =========================================================
-     Availability
-     ========================================================= */
-
-  const loadAvailability =
-    useCallback(
-      async (
-        activePhotographerId
-      ) => {
-        if (
-          !activePhotographerId
-        ) {
-          return;
-        }
-
-
-        const startDate =
-          formatDateKey(
-            calendarStart
-          );
-
-        const endDate =
-          formatDateKey(
-            calendarEnd
-          );
-
-
-        const [
-          rulesResult,
-          exceptionsResult,
-        ] =
-          await Promise.all([
-            supabase
-              .from(
-                "availability_rules"
-              )
-              .select(`
-                availability_rule_id,
-                photographer_id,
-                day_of_week,
-                start_time,
-                end_time,
-                is_available,
-                created_at,
-                updated_at
-              `)
-              .eq(
-                "photographer_id",
-                activePhotographerId
-              )
-              .order(
-                "day_of_week",
-                {
-                  ascending: true,
-                }
-              )
-              .order(
-                "start_time",
-                {
-                  ascending: true,
-                }
-              ),
-
-            supabase
-              .from(
-                "availability_exceptions"
-              )
-              .select(`
-                exception_id,
-                photographer_id,
-                exception_date,
-                start_time,
-                end_time,
-                is_available,
-                reason,
-                created_at,
-                updated_at
-              `)
-              .eq(
-                "photographer_id",
-                activePhotographerId
-              )
-              .gte(
-                "exception_date",
-                startDate
-              )
-              .lte(
-                "exception_date",
-                endDate
-              )
-              .order(
-                "exception_date",
-                {
-                  ascending: true,
-                }
-              )
-              .order(
-                "start_time",
-                {
-                  ascending: true,
-                  nullsFirst: true,
-                }
-              ),
-          ]);
-
-
-        if (
-          rulesResult.error
-        ) {
-          throw rulesResult.error;
-        }
-
-
-        if (
-          exceptionsResult.error
-        ) {
-          throw exceptionsResult.error;
-        }
-
-
-        setAvailabilityRules(
-          rulesResult.data || []
-        );
-
-        setAvailabilityExceptions(
-          exceptionsResult.data || []
-        );
-      },
-      [
-        calendarStart,
-        calendarEnd,
-      ]
-    );
-
-
-  /* =========================================================
-     Initialization
-     ========================================================= */
-
-  useEffect(
-    () => {
-      async function initializeCalendar() {
-        try {
-          setLoading(true);
-          setError("");
-
-
-          const id =
-            await loadPhotographer();
-
-
-          await Promise.all([
-            loadBookings(id),
-            loadAvailability(id),
-          ]);
-
-        } catch (
-          loadError
-        ) {
-          console.error(
-            "Unable to initialize calendar:",
-            loadError
-          );
-
-
-          setError(
-            loadError.message ||
-              "Unable to load the calendar."
-          );
-
-        } finally {
-          setLoading(false);
-        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-
-      initializeCalendar();
-    },
-    [
-      loadPhotographer,
-    ]
-  );
-
-
-  /* =========================================================
-     Reload month data
-     ========================================================= */
-
-  useEffect(
-    () => {
-      if (
-        !photographerId ||
-        loading
-      ) {
-        return;
-      }
-
-
-      async function reloadMonth() {
-        try {
-          setError("");
-
-
-          await Promise.all([
-            loadBookings(
-              photographerId
-            ),
-
-            loadAvailability(
-              photographerId
-            ),
-          ]);
-
-        } catch (
-          loadError
-        ) {
-          console.error(
-            "Unable to load calendar month:",
-            loadError
-          );
-
-
-          setError(
-            loadError.message ||
-              "Unable to load this month."
-          );
-        }
-      }
-
-
-      reloadMonth();
-    },
-    [
-      photographerId,
-      currentMonth,
-      loadBookings,
-      loadAvailability,
-      loading,
-    ]
-  );
-
-
-  /* =========================================================
-     Manual refresh
-     ========================================================= */
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [loadCalendarData]);
 
   async function handleRefresh() {
     try {
       setRefreshing(true);
       setError("");
-
-
-      await Promise.all([
-        loadBookings(
-          photographerId
-        ),
-
-        loadAvailability(
-          photographerId
-        ),
-      ]);
-
-    } catch (
-      refreshError
-    ) {
-      console.error(
-        "Unable to refresh calendar:",
-        refreshError
-      );
-
-
-      setError(
-        refreshError.message ||
-          "Unable to refresh the calendar."
-      );
-
+      await loadCalendarData();
+    } catch (refreshError) {
+      console.error("Unable to refresh calendar:", refreshError);
+      setError(refreshError.message || "Unable to refresh the calendar.");
     } finally {
       setRefreshing(false);
     }
   }
-
 
   /* =========================================================
      Booking derived values
@@ -1566,41 +999,12 @@ export default function Calendar() {
       setAvailabilityMessage("");
 
 
-      const {
-        error: insertError,
-      } =
-        await supabase
-          .from(
-            "availability_rules"
-          )
-          .insert({
-            photographer_id:
-              photographerId,
-
-            day_of_week:
-              Number(
-                ruleForm.day_of_week
-              ),
-
-            start_time:
-              ruleForm.start_time,
-
-            end_time:
-              ruleForm.end_time,
-
-            is_available:
-              Boolean(
-                ruleForm.is_available
-              ),
-          });
-
-
-      if (
-        insertError
-      ) {
-        throw insertError;
-      }
-
+      await apiCreateCalendarRule({
+        day_of_week: Number(ruleForm.day_of_week),
+        start_time: ruleForm.start_time,
+        end_time: ruleForm.end_time,
+        is_available: Boolean(ruleForm.is_available),
+      });
 
       setRuleForm(
         EMPTY_RULE_FORM
@@ -1612,9 +1016,7 @@ export default function Calendar() {
       );
 
 
-      await loadAvailability(
-        photographerId
-      );
+      await loadCalendarData();
 
     } catch (
       saveError
@@ -1648,36 +1050,14 @@ export default function Calendar() {
       setAvailabilityMessage("");
 
 
-      const {
-        error:
-          deleteError,
-      } =
-        await supabase
-          .from(
-            "availability_rules"
-          )
-          .delete()
-          .eq(
-            "availability_rule_id",
-            ruleId
-          );
-
-
-      if (
-        deleteError
-      ) {
-        throw deleteError;
-      }
-
+      await apiDeleteCalendarRule(ruleId);
 
       setAvailabilityMessage(
         "Availability rule removed."
       );
 
 
-      await loadAvailability(
-        photographerId
-      );
+      await loadCalendarData();
 
     } catch (
       deleteError
@@ -1754,47 +1134,13 @@ export default function Calendar() {
       setAvailabilityMessage("");
 
 
-      const {
-        error: insertError,
-      } =
-        await supabase
-          .from(
-            "availability_exceptions"
-          )
-          .insert({
-            photographer_id:
-              photographerId,
-
-            exception_date:
-              exceptionForm.exception_date,
-
-            start_time:
-              exceptionForm.full_day
-                ? null
-                : exceptionForm.start_time,
-
-            end_time:
-              exceptionForm.full_day
-                ? null
-                : exceptionForm.end_time,
-
-            is_available:
-              Boolean(
-                exceptionForm.is_available
-              ),
-
-            reason:
-              exceptionForm.reason.trim() ||
-              null,
-          });
-
-
-      if (
-        insertError
-      ) {
-        throw insertError;
-      }
-
+      await apiCreateCalendarException({
+        exception_date: exceptionForm.exception_date,
+        start_time: exceptionForm.full_day ? null : exceptionForm.start_time,
+        end_time: exceptionForm.full_day ? null : exceptionForm.end_time,
+        is_available: Boolean(exceptionForm.is_available),
+        reason: exceptionForm.reason.trim() || null,
+      });
 
       setAvailabilityMessage(
         "Availability exception added."
@@ -1808,9 +1154,7 @@ export default function Calendar() {
       });
 
 
-      await loadAvailability(
-        photographerId
-      );
+      await loadCalendarData();
 
     } catch (
       saveError
@@ -1846,36 +1190,14 @@ export default function Calendar() {
       setAvailabilityMessage("");
 
 
-      const {
-        error:
-          deleteError,
-      } =
-        await supabase
-          .from(
-            "availability_exceptions"
-          )
-          .delete()
-          .eq(
-            "exception_id",
-            exceptionId
-          );
-
-
-      if (
-        deleteError
-      ) {
-        throw deleteError;
-      }
-
+      await apiDeleteCalendarException(exceptionId);
 
       setAvailabilityMessage(
         "Availability exception removed."
       );
 
 
-      await loadAvailability(
-        photographerId
-      );
+      await loadCalendarData();
 
     } catch (
       deleteError
