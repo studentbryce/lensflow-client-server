@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerGalleryOptions, apiCreatePhotographerGallery } from "../../services/photographerGalleriesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./Galleries.css";
 
@@ -94,102 +94,12 @@ export default function NewGallery() {
       setError("");
 
       try {
-        // ---------------------------------------------------------
-        // 1. Get photographer profile
-        // ---------------------------------------------------------
-        const { data: photographerProfile, error: photographerError } =
-          await supabase
-            .from("photographer_profiles")
-            .select("photographer_id")
-            .eq("user_id", user.id)
-            .single();
-
-        if (photographerError) {
-          throw photographerError;
-        }
-
-        const currentPhotographerId =
-          photographerProfile.photographer_id;
-
-        // ---------------------------------------------------------
-        // 2. Load photographer's clients
-        // ---------------------------------------------------------
-        const { data: clientData, error: clientsError } = await supabase
-          .from("clients")
-          .select("client_id, user_id")
-          .eq("photographer_id", currentPhotographerId)
-          .order("created_at", { ascending: false });
-
-        if (clientsError) {
-          throw clientsError;
-        }
-
-        // ---------------------------------------------------------
-        // 3. Load client profiles
-        // ---------------------------------------------------------
-        const clientUserIds = (clientData || [])
-          .map((client) => client.user_id)
-          .filter(Boolean);
-
-        let profileData = [];
-
-        if (clientUserIds.length > 0) {
-          const { data: profilesResult, error: profilesError } =
-            await supabase
-              .from("profiles")
-              .select(
-                "user_id, first_name, last_name, email, phone"
-              )
-              .in("user_id", clientUserIds);
-
-          if (profilesError) {
-            throw profilesError;
-          }
-
-          profileData = profilesResult || [];
-        }
-
-        // ---------------------------------------------------------
-        // 4. Load photographer's bookings
-        // ---------------------------------------------------------
-        const { data: bookingData, error: bookingsError } =
-          await supabase
-            .from("bookings")
-            .select(`
-              booking_id,
-              client_id,
-              service_id,
-              booking_date,
-              start_time,
-              end_time,
-              location,
-              status,
-              total_amount
-            `)
-            .eq("photographer_id", currentPhotographerId)
-            .order("booking_date", { ascending: false });
-
-        if (bookingsError) {
-          throw bookingsError;
-        }
-
-        // ---------------------------------------------------------
-        // 5. Load existing galleries
-        //
-        // This is the important part.
-        //
-        // Use the existing galleries to determine which bookings
-        // already have a gallery.
-        // ---------------------------------------------------------
-        const { data: galleryData, error: galleriesError } =
-          await supabase
-            .from("galleries")
-            .select("gallery_id, booking_id, client_id, name")
-            .eq("photographer_id", currentPhotographerId);
-
-        if (galleriesError) {
-          throw galleriesError;
-        }
+        const payload = await apiGetPhotographerGalleryOptions();
+        const currentPhotographerId = payload.photographer_id;
+        const clientData = payload.clients;
+        const profileData = payload.profiles;
+        const bookingData = payload.bookings;
+        const galleryData = payload.existing_galleries;
 
         if (!isMounted) return;
 
@@ -525,116 +435,15 @@ export default function NewGallery() {
     setSaving(true);
 
     try {
-      /*
-       * Re-check the booking immediately before insertion.
-       *
-       * This protects against a second gallery being created in
-       * another browser/tab after this page initially loaded.
-       */
-      const { data: latestGallery, error: latestGalleryError } =
-        await supabase
-          .from("galleries")
-          .select("gallery_id")
-          .eq("photographer_id", photographerId)
-          .eq("booking_id", formData.booking_id)
-          .maybeSingle();
-
-      if (latestGalleryError) {
-        throw latestGalleryError;
-      }
-
-      if (latestGallery) {
-        setError(
-          "This booking already has a gallery. The booking list may have changed. Please select another booking."
-        );
-
-        setSaving(false);
-
-        window.scrollTo({
-          top: 0,
-          behavior: "smooth",
-        });
-
-        return;
-      }
-
-      /*
-       * Re-check that the booking belongs to the selected client
-       * and photographer.
-       */
-      const { data: verifiedBooking, error: bookingError } =
-        await supabase
-          .from("bookings")
-          .select("booking_id, client_id, photographer_id")
-          .eq("booking_id", formData.booking_id)
-          .eq("photographer_id", photographerId)
-          .single();
-
-      if (bookingError) {
-        throw bookingError;
-      }
-
-      if (
-        verifiedBooking.client_id !== formData.client_id ||
-        verifiedBooking.photographer_id !== photographerId
-      ) {
-        setError(
-          "The selected booking is not valid for this client."
-        );
-
-        setSaving(false);
-        return;
-      }
-
-      /*
-       * Insert the new gallery.
-       */
-      const { data: gallery, error: insertError } = await supabase
-        .from("galleries")
-        .insert({
-          photographer_id: photographerId,
-          client_id: formData.client_id,
-          booking_id: formData.booking_id,
-          name: formData.name.trim(),
-          description:
-            formData.description.trim() || null,
-          is_published: Boolean(formData.is_published),
-          allow_downloads: Boolean(formData.allow_downloads),
-        })
-        .select(`
-          gallery_id,
-          photographer_id,
-          client_id,
-          booking_id,
-          name,
-          description,
-          is_published,
-          allow_downloads,
-          created_at,
-          updated_at
-        `)
-        .single();
-
-      if (insertError) {
-        /*
-         * Handle the unique booking constraint specifically.
-         *
-         * This gives the photographer a friendly message instead
-         * of exposing the PostgreSQL constraint name.
-         */
-        if (
-          insertError.code === "23505" ||
-          insertError.message?.includes(
-            "galleries_booking_unique"
-          )
-        ) {
-          throw new Error(
-            "This booking already has a gallery. Please select another booking."
-          );
-        }
-
-        throw insertError;
-      }
+      // Server verifies booking ownership and checks for duplicate galleries.
+      const gallery = await apiCreatePhotographerGallery({
+        client_id: formData.client_id,
+        booking_id: formData.booking_id,
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        is_published: Boolean(formData.is_published),
+        allow_downloads: Boolean(formData.allow_downloads),
+      });
 
       setSuccess("Gallery created successfully.");
 

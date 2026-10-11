@@ -26,6 +26,7 @@ import {
     BiX,
 } from "react-icons/bi";
 import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerGallery, apiUpdatePhotographerGallery, apiCreatePhotographerGalleryMedia, apiDeletePhotographerGalleryMedia, apiDeletePhotographerGallery } from "../../services/photographerGalleriesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./GalleryDetails.css";
 
@@ -259,155 +260,12 @@ export default function GalleryDetails() {
             setError("");
             setSuccess("");
 
-            // --------------------------------------------------------
-            // 1. Get photographer profile
-            // --------------------------------------------------------
-            const {
-                data: photographer,
-                error: photographerError,
-            } = await supabase
-                .from("photographer_profiles")
-                .select("photographer_id")
-                .eq("user_id", user.id)
-                .single();
-
-            if (photographerError) {
-                throw photographerError;
-            }
-
-            if (!photographer) {
-                throw new Error(
-                    "Photographer profile could not be found."
-                );
-            }
-
-            setPhotographerId(photographer.photographer_id);
-
-            // --------------------------------------------------------
-            // 2. Get gallery
-            // --------------------------------------------------------
-            const {
-                data: galleryData,
-                error: galleryError,
-            } = await supabase
-                .from("galleries")
-                .select("*")
-                .eq("gallery_id", gallery_id)
-                .eq(
-                    "photographer_id",
-                    photographer.photographer_id
-                )
-                .single();
-
-            if (galleryError) {
-                throw galleryError;
-            }
-
-            if (!galleryData) {
-                throw new Error("Gallery could not be found.");
-            }
-
-            setGallery(galleryData);
-
-            // --------------------------------------------------------
-            // 3. Get client
-            // --------------------------------------------------------
-            setClient(null);
-
-            if (galleryData.client_id) {
-                const {
-                    data: clientData,
-                    error: clientError,
-                } = await supabase
-                    .from("clients")
-                    .select("client_id, user_id")
-                    .eq("client_id", galleryData.client_id)
-                    .eq(
-                        "photographer_id",
-                        photographer.photographer_id
-                    )
-                    .single();
-
-                if (clientError) {
-                    throw clientError;
-                }
-
-                if (clientData) {
-                    let clientWithProfile = clientData;
-
-                    if (clientData.user_id) {
-                        const {
-                            data: profileData,
-                            error: profileError,
-                        } = await supabase
-                            .from("profiles")
-                            .select(
-                                "user_id, first_name, last_name, email, phone"
-                            )
-                            .eq("user_id", clientData.user_id)
-                            .single();
-
-                        if (profileError) {
-                            throw profileError;
-                        }
-
-                        if (profileData) {
-                            clientWithProfile = {
-                                ...clientData,
-                                profile: profileData,
-                            };
-                        }
-                    }
-
-                    setClient(clientWithProfile);
-                }
-            }
-
-            // --------------------------------------------------------
-            // 4. Get booking
-            // --------------------------------------------------------
-            setBooking(null);
-
-            if (galleryData.booking_id) {
-                const {
-                    data: bookingData,
-                    error: bookingError,
-                } = await supabase
-                    .from("bookings")
-                    .select("*")
-                    .eq("booking_id", galleryData.booking_id)
-                    .eq(
-                        "photographer_id",
-                        photographer.photographer_id
-                    )
-                    .single();
-
-                if (!bookingError) {
-                    setBooking(bookingData);
-                }
-            }
-
-            // --------------------------------------------------------
-            // 5. Get gallery media
-            // --------------------------------------------------------
-            const {
-                data: mediaData,
-                error: mediaError,
-            } = await supabase
-                .from("media")
-                .select("*")
-                .eq("gallery_id", galleryData.gallery_id)
-                .eq(
-                    "photographer_id",
-                    photographer.photographer_id
-                )
-                .order("uploaded_at", {
-                    ascending: false,
-                });
-
-            if (mediaError) {
-                throw mediaError;
-            }
+            const payload = await apiGetPhotographerGallery(gallery_id);
+            setPhotographerId(payload.photographer_id);
+            setGallery(payload.gallery);
+            setClient(payload.client || null);
+            setBooking(payload.booking || null);
+            const mediaData = payload.media;
 
             const mediaWithUrls = await addSignedUrls(
                 mediaData || []
@@ -493,25 +351,7 @@ export default function GalleryDetails() {
             setError("");
             setSuccess("");
 
-            const {
-                data,
-                error: updateError,
-            } = await supabase
-                .from("galleries")
-                .update({
-                    [field]: value,
-                })
-                .eq("gallery_id", gallery.gallery_id)
-                .eq(
-                    "photographer_id",
-                    photographerId
-                )
-                .select()
-                .single();
-
-            if (updateError) {
-                throw updateError;
-            }
+            const data = await apiUpdatePhotographerGallery(gallery.gallery_id, { [field]: value });
 
             setGallery(data);
 
@@ -674,34 +514,19 @@ export default function GalleryDetails() {
                 // ------------------------------------------------------
                 // Create media database record
                 // ------------------------------------------------------
-                const {
-                    data: mediaRecord,
-                    error: mediaInsertError,
-                } = await supabase
-                    .from("media")
-                    .insert({
-                        gallery_id: gallery.gallery_id,
-                        photographer_id: photographerId,
+                let mediaRecord;
+                try {
+                    mediaRecord = await apiCreatePhotographerGalleryMedia(gallery.gallery_id, {
                         file_name: file.name,
                         storage_path: storagePath,
-                        media_type: isVideo
-                            ? "video"
-                            : "image",
+                        media_type: isVideo ? "video" : "image",
                         mime_type: file.type,
                         file_size: file.size,
                         is_downloadable: true,
-                    })
-                    .select()
-                    .single();
-
-                if (mediaInsertError) {
-                    // Attempt to remove the uploaded file if
-                    // the database insert fails.
-                    await supabase.storage
-                        .from("client-media")
-                        .remove([storagePath]);
-
-                    throw mediaInsertError;
+                    });
+                } catch (mediaError) {
+                    await supabase.storage.from("client-media").remove([storagePath]);
+                    throw mediaError;
                 }
 
                 // ------------------------------------------------------
@@ -798,30 +623,8 @@ export default function GalleryDetails() {
                 }
             }
 
-            // --------------------------------------------------------
-            // Remove media database record.
-            // --------------------------------------------------------
-            const {
-                error: mediaError,
-            } = await supabase
-                .from("media")
-                .delete()
-                .eq(
-                    "media_id",
-                    mediaItem.media_id
-                )
-                .eq(
-                    "gallery_id",
-                    gallery_id
-                )
-                .eq(
-                    "photographer_id",
-                    photographerId
-                );
-
-            if (mediaError) {
-                throw mediaError;
-            }
+            // Database deletion is handled by Express after the Storage removal.
+            await apiDeletePhotographerGalleryMedia(gallery_id, mediaItem.media_id);
 
             setMedia((currentMedia) =>
                 currentMedia.filter(
@@ -872,29 +675,8 @@ export default function GalleryDetails() {
             setError("");
             setSuccess("");
 
-            // --------------------------------------------------------
-            // 1. Get all media belonging to this gallery.
-            // --------------------------------------------------------
-            const {
-                data: galleryMedia,
-                error: mediaLookupError,
-            } = await supabase
-                .from("media")
-                .select(
-                    "media_id, storage_path"
-                )
-                .eq(
-                    "gallery_id",
-                    gallery.gallery_id
-                )
-                .eq(
-                    "photographer_id",
-                    photographerId
-                );
-
-            if (mediaLookupError) {
-                throw mediaLookupError;
-            }
+            // The loaded media belongs to this authenticated gallery.
+            const galleryMedia = media;
 
             // --------------------------------------------------------
             // 2. Remove files from Supabase Storage.
@@ -919,47 +701,8 @@ export default function GalleryDetails() {
                 }
             }
 
-            // --------------------------------------------------------
-            // 3. Delete media database records.
-            // --------------------------------------------------------
-            const {
-                error: mediaDeleteError,
-            } = await supabase
-                .from("media")
-                .delete()
-                .eq(
-                    "gallery_id",
-                    gallery.gallery_id
-                )
-                .eq(
-                    "photographer_id",
-                    photographerId
-                );
-
-            if (mediaDeleteError) {
-                throw mediaDeleteError;
-            }
-
-            // --------------------------------------------------------
-            // 4. Delete the gallery itself.
-            // --------------------------------------------------------
-            const {
-                error: galleryDeleteError,
-            } = await supabase
-                .from("galleries")
-                .delete()
-                .eq(
-                    "gallery_id",
-                    gallery.gallery_id
-                )
-                .eq(
-                    "photographer_id",
-                    photographerId
-                );
-
-            if (galleryDeleteError) {
-                throw galleryDeleteError;
-            }
+            // Express deletes the owned gallery and its media records.
+            await apiDeletePhotographerGallery(gallery.gallery_id);
 
             // --------------------------------------------------------
             // 5. Return to Galleries page.

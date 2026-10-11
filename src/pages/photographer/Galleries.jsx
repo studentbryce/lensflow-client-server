@@ -14,6 +14,7 @@ import {
   BiX,
 } from "react-icons/bi";
 import { supabase } from "../../lib/supabaseClient";
+import { apiListPhotographerGalleries } from "../../services/photographerGalleriesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./Galleries.css";
 
@@ -98,169 +99,14 @@ export default function Galleries() {
         setLoading(true);
         setErrorMessage("");
 
-        // -------------------------------------------------------
-        // 1. Get photographer profile
-        // -------------------------------------------------------
-
-        const { data: photographer, error: photographerError } =
-          await supabase
-            .from("photographer_profiles")
-            .select("photographer_id")
-            .eq("user_id", user.id)
-            .single();
-
-        if (photographerError) {
-          throw photographerError;
-        }
-
-        if (!photographer?.photographer_id) {
-          throw new Error("Photographer profile could not be found.");
-        }
-
-        const currentPhotographerId = photographer.photographer_id;
-
-        // -------------------------------------------------------
-        // 2. Load photographer galleries
-        // -------------------------------------------------------
-
-        const { data: galleryData, error: galleryError } = await supabase
-          .from("galleries")
-          .select(`
-            gallery_id,
-            photographer_id,
-            client_id,
-            booking_id,
-            name,
-            description,
-            is_published,
-            allow_downloads,
-            created_at,
-            updated_at
-          `)
-          .eq("photographer_id", currentPhotographerId)
-          .order("updated_at", { ascending: false });
-
-        if (galleryError) {
-          throw galleryError;
-        }
-
-        const loadedGalleries = galleryData || [];
-
-        // -------------------------------------------------------
-        // 3. Load photographer clients
-        // -------------------------------------------------------
-
-        const { data: clientData, error: clientError } = await supabase
-          .from("clients")
-          .select(`
-            client_id,
-            user_id
-          `)
-          .eq("photographer_id", currentPhotographerId);
-
-        if (clientError) {
-          throw clientError;
-        }
-
-        const loadedClients = clientData || [];
-
-        // -------------------------------------------------------
-        // 4. Load related profiles
-        // -------------------------------------------------------
-
-        const clientUserIds = [
-          ...new Set(
-            loadedClients
-              .map((client) => client.user_id)
-              .filter(Boolean)
-          ),
-        ];
-
-        let loadedProfiles = [];
-
-        if (clientUserIds.length > 0) {
-          const { data: profileData, error: profileError } =
-            await supabase
-              .from("profiles")
-              .select(`
-                user_id,
-                first_name,
-                last_name,
-                email,
-                phone
-              `)
-              .in("user_id", clientUserIds);
-
-          if (profileError) {
-            throw profileError;
-          }
-
-          loadedProfiles = profileData || [];
-        }
-
-        // -------------------------------------------------------
-        // 5. Load bookings
-        // -------------------------------------------------------
-
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select(`
-            booking_id,
-            client_id,
-            service_id,
-            booking_date,
-            start_time,
-            end_time,
-            location,
-            status,
-            total_amount
-          `)
-          .eq("photographer_id", currentPhotographerId)
-          .order("booking_date", { ascending: false });
-
-        if (bookingError) {
-          throw bookingError;
-        }
-
-        const loadedBookings = bookingData || [];
-
-        // -------------------------------------------------------
-        // 6. Load gallery media
-        //
-        // We load the media records for:
-        // - media counts
-        // - photo counts
-        // - video counts
-        // - gallery thumbnail selection
-        // -------------------------------------------------------
-
-        const galleryIds = loadedGalleries.map(
-          (gallery) => gallery.gallery_id
-        );
-
-        let loadedMedia = [];
-
-        if (galleryIds.length > 0) {
-          const { data: mediaData, error: mediaError } = await supabase
-            .from("media")
-            .select(`
-              media_id,
-              gallery_id,
-              media_type,
-              file_name,
-              storage_path,
-              is_downloadable,
-              uploaded_at
-            `)
-            .in("gallery_id", galleryIds)
-            .order("uploaded_at", { ascending: true });
-
-          if (mediaError) {
-            throw mediaError;
-          }
-
-          loadedMedia = mediaData || [];
-        }
+        // Photographer-owned gallery data now comes from Express (JWT + RLS).
+        const payload = await apiListPhotographerGalleries();
+        const currentPhotographerId = payload.photographer_id;
+        const loadedGalleries = payload.galleries || [];
+        const loadedClients = payload.clients || [];
+        const loadedProfiles = payload.profiles || [];
+        const loadedBookings = payload.bookings || [];
+        const loadedMedia = payload.media || [];
 
         // -------------------------------------------------------
         // 7. Generate signed thumbnail URLs

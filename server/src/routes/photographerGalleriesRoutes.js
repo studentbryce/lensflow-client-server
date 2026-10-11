@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import { requireAuth } from '../middleware/authMiddleware.js';
+import { listGalleries,galleryOptions,getGallery,postGallery,patchGallery,postMedia,deleteMedia,deleteGallery } from '../controllers/photographerGalleriesController.js';
+const router=Router();
+router.use(requireAuth);
+router.get('/',listGalleries);
+router.get('/options',galleryOptions);
+router.get('/:id',getGallery);
+router.post('/',postGallery);
+router.patch('/:id',patchGallery);
+router.post('/:id/media',postMedia);
+router.delete('/:id/media/:mediaId',deleteMedia);
+router.delete('/:id',deleteGallery);
+export default router;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerGallery, apiUpdatePhotographerGallery } from "../../services/photographerGalleriesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./EditGallery.css";
 
@@ -119,55 +119,10 @@ function EditGallery() {
     setError("");
 
     try {
-      // ---------------------------------------------------------
-      // 1. Get photographer profile
-      // ---------------------------------------------------------
-      const { data: photographer, error: photographerError } =
-        await supabase
-          .from("photographer_profiles")
-          .select("photographer_id")
-          .eq("user_id", user.id)
-          .single();
-
-      if (photographerError) {
-        throw new Error(
-          photographerError.message ||
-            "Unable to load your photographer profile."
-        );
-      }
-
-      if (!photographer) {
-        throw new Error(
-          "Photographer profile could not be found."
-        );
-      }
-
-      // ---------------------------------------------------------
-      // 2. Load gallery
-      // ---------------------------------------------------------
-      const { data: galleryData, error: galleryError } =
-        await supabase
-          .from("galleries")
-          .select("*")
-          .eq("gallery_id", gallery_id)
-          .eq(
-            "photographer_id",
-            photographer.photographer_id
-          )
-          .single();
-
-      if (galleryError) {
-        throw new Error(
-          galleryError.message ||
-            "Unable to load gallery."
-        );
-      }
-
-      if (!galleryData) {
-        throw new Error(
-          "Gallery could not be found."
-        );
-      }
+      const payload = await apiGetPhotographerGallery(gallery_id);
+      const galleryData = payload.gallery;
+      const relatedClient = payload.client;
+      const relatedBooking = payload.booking;
 
       setGallery(galleryData);
 
@@ -182,118 +137,8 @@ function EditGallery() {
         ),
       });
 
-      // ---------------------------------------------------------
-      // 3. Load client and client profile
-      //
-      // Relationship:
-      //
-      // galleries.client_id
-      //        ↓
-      // clients.client_id
-      //        ↓
-      // clients.user_id
-      //        ↓
-      // profiles.user_id
-      //        ↓
-      // first_name / last_name / email / phone
-      // ---------------------------------------------------------
-      setClient(null);
-
-      if (galleryData.client_id) {
-        const { data: clientData, error: clientError } =
-          await supabase
-            .from("clients")
-            .select("client_id, user_id")
-            .eq(
-              "client_id",
-              galleryData.client_id
-            )
-            .eq(
-              "photographer_id",
-              photographer.photographer_id
-            )
-            .single();
-
-        if (
-          clientError &&
-          clientError.code !== "PGRST116"
-        ) {
-          throw new Error(clientError.message);
-        }
-
-        if (clientData) {
-          let clientWithProfile = clientData;
-
-          // -----------------------------------------------------
-          // Get the client's profile using user_id
-          // -----------------------------------------------------
-          if (clientData.user_id) {
-            const {
-              data: profileData,
-              error: profileError,
-            } = await supabase
-              .from("profiles")
-              .select(
-                "user_id, first_name, last_name, email, phone"
-              )
-              .eq(
-                "user_id",
-                clientData.user_id
-              )
-              .single();
-
-            if (
-              profileError &&
-              profileError.code !== "PGRST116"
-            ) {
-              throw new Error(
-                profileError.message
-              );
-            }
-
-            if (profileData) {
-              clientWithProfile = {
-                ...clientData,
-                profile: profileData,
-              };
-            }
-          }
-
-          setClient(clientWithProfile);
-        }
-      }
-
-      // ---------------------------------------------------------
-      // 4. Load booking
-      // ---------------------------------------------------------
-      setBooking(null);
-
-      if (galleryData.booking_id) {
-        const { data: bookingData, error: bookingError } =
-          await supabase
-            .from("bookings")
-            .select("*")
-            .eq(
-              "booking_id",
-              galleryData.booking_id
-            )
-            .eq(
-              "photographer_id",
-              photographer.photographer_id
-            )
-            .single();
-
-        if (
-          bookingError &&
-          bookingError.code !== "PGRST116"
-        ) {
-          throw new Error(
-            bookingError.message
-          );
-        }
-
-        setBooking(bookingData || null);
-      }
+      setClient(relatedClient || null);
+      setBooking(relatedBooking || null);
     } catch (err) {
       console.error(
         "Error loading gallery:",
@@ -385,75 +230,12 @@ function EditGallery() {
     setSuccess("");
 
     try {
-      // ---------------------------------------------------------
-      // Get photographer profile again before updating.
-      // ---------------------------------------------------------
-      const {
-        data: photographer,
-        error: photographerError,
-      } = await supabase
-        .from("photographer_profiles")
-        .select("photographer_id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (photographerError) {
-        throw new Error(
-          photographerError.message ||
-            "Unable to verify your photographer profile."
-        );
-      }
-
-      if (!photographer) {
-        throw new Error(
-          "Photographer profile could not be found."
-        );
-      }
-
-      // ---------------------------------------------------------
-      // Update gallery
-      //
-      // Client and booking are intentionally NOT updated.
-      // A gallery remains linked to its original booking.
-      // ---------------------------------------------------------
-      const {
-        data: updatedGallery,
-        error: updateError,
-      } = await supabase
-        .from("galleries")
-        .update({
-          name: trimmedName,
-          description:
-            formData.description.trim() ||
-            null,
-          is_published:
-            formData.is_published,
-          allow_downloads:
-            formData.allow_downloads,
-        })
-        .eq(
-          "gallery_id",
-          gallery_id
-        )
-        .eq(
-          "photographer_id",
-          photographer.photographer_id
-        )
-        .select()
-        .single();
-
-      if (updateError) {
-        throw new Error(
-          updateError.message ||
-            "Unable to save gallery changes."
-        );
-      }
-
-      if (!updatedGallery) {
-        throw new Error(
-          "The gallery could not be updated."
-        );
-      }
+      const updatedGallery = await apiUpdatePhotographerGallery(gallery_id, {
+        name: trimmedName,
+        description: formData.description.trim() || null,
+        is_published: formData.is_published,
+        allow_downloads: formData.allow_downloads,
+      });
 
       setGallery(updatedGallery);
 

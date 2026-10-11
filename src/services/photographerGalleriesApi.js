@@ -1,0 +1,10 @@
+import { apiFetch } from './apiClient';
+const base='/api/photographer/galleries';
+export const apiListPhotographerGalleries=()=>apiFetch(base).then(r=>r.data);
+export const apiGetPhotographerGalleryOptions=()=>apiFetch(`${base}/options`).then(r=>r.data);
+export const apiGetPhotographerGallery=id=>apiFetch(`${base}/${encodeURIComponent(id)}`).then(r=>r.data);
+export const apiCreatePhotographerGallery=values=>apiFetch(base,{method:'POST',body:JSON.stringify(values)}).then(r=>r.data);
+export const apiUpdatePhotographerGallery=(id,values)=>apiFetch(`${base}/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(values)}).then(r=>r.data);
+export const apiCreatePhotographerGalleryMedia=(id,values)=>apiFetch(`${base}/${encodeURIComponent(id)}/media`,{method:'POST',body:JSON.stringify(values)}).then(r=>r.data);
+export const apiDeletePhotographerGalleryMedia=(id,mediaId)=>apiFetch(`${base}/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}`,{method:'DELETE'}).then(r=>r.data);
+export const apiDeletePhotographerGallery=id=>apiFetch(`${base}/${encodeURIComponent(id)}`,{method:'DELETE'}).then(r=>r.data);
