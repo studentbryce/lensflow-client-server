@@ -1,7 +1,7 @@
 import { BiImage, BiCheck, BiInfoCircle, BiImages, BiSearch, BiCalendar, BiDownload } from "react-icons/bi";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetClientGalleries } from "../../services/clientGalleriesApi";
 import { useAuth } from "../../context/AuthContext";
 import "./Galleries.css";
 
@@ -37,7 +37,6 @@ export default function Galleries() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [clientId, setClientId] = useState(null);
   const [galleries, setGalleries] = useState([]);
   const [media, setMedia] = useState([]);
 
@@ -63,200 +62,12 @@ export default function Galleries() {
         setLoading(true);
         setErrorMessage("");
 
-        // -------------------------------------------------------
-        // 1. Find the current client
-        // -------------------------------------------------------
-
-        const { data: client, error: clientError } = await supabase
-          .from("clients")
-          .select("client_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (clientError) {
-          throw clientError;
-        }
-
-        if (!client?.client_id) {
-          throw new Error("Your client profile could not be found.");
-        }
-
-        const currentClientId = client.client_id;
-
-        // -------------------------------------------------------
-        // 2. Load this client's galleries
-        //
-        // RLS remains the final security boundary.
-        // The client_id filter provides an additional application-
-        // level restriction.
-        // -------------------------------------------------------
-
-        const { data: galleryData, error: galleryError } = await supabase
-          .from("galleries")
-          .select(`
-            gallery_id,
-            photographer_id,
-            client_id,
-            booking_id,
-            name,
-            description,
-            is_published,
-            allow_downloads,
-            created_at,
-            updated_at
-          `)
-          .eq("client_id", currentClientId)
-          .eq("is_published", true)
-          .order("updated_at", { ascending: false });
-
-        if (galleryError) {
-          throw galleryError;
-        }
-
-        const loadedGalleries = galleryData || [];
-
-        // -------------------------------------------------------
-        // 3. Load related bookings
-        //
-        // Booking information is used only for presentation.
-        // -------------------------------------------------------
-
-        const bookingIds = [
-          ...new Set(
-            loadedGalleries
-              .map((gallery) => gallery.booking_id)
-              .filter(Boolean)
-          ),
-        ];
-
-        let loadedBookings = [];
-
-        if (bookingIds.length > 0) {
-          const { data: bookingData, error: bookingError } =
-            await supabase
-              .from("bookings")
-              .select(`
-                booking_id,
-                booking_date,
-                start_time,
-                end_time,
-                location,
-                status,
-                total_amount
-              `)
-              .in("booking_id", bookingIds);
-
-          if (bookingError) {
-            throw bookingError;
-          }
-
-          loadedBookings = bookingData || [];
-        }
-
-        // -------------------------------------------------------
-        // 4. Load gallery media
-        //
-        // RLS controls which media records the client can see.
-        // -------------------------------------------------------
-
-        const galleryIds = loadedGalleries.map(
-          (gallery) => gallery.gallery_id
-        );
-
-        let loadedMedia = [];
-
-        if (galleryIds.length > 0) {
-          const { data: mediaData, error: mediaError } = await supabase
-            .from("media")
-            .select(`
-              media_id,
-              gallery_id,
-              media_type,
-              file_name,
-              storage_path,
-              is_downloadable,
-              uploaded_at
-            `)
-            .in("gallery_id", galleryIds)
-            .order("uploaded_at", { ascending: true });
-
-          if (mediaError) {
-            throw mediaError;
-          }
-
-          loadedMedia = mediaData || [];
-        }
-
-        // -------------------------------------------------------
-        // 5. Create signed thumbnail URLs
-        //
-        // client-media is private, so getPublicUrl() must NOT be
-        // used here.
-        //
-        // Only the first image from each gallery is used.
-        // -------------------------------------------------------
-
-        const thumbnailMap = new Map();
-
-        const galleryImages = loadedMedia.filter(
-          (item) =>
-            item.media_type === "image" &&
-            item.storage_path
-        );
-
-        await Promise.all(
-          galleryImages.map(async (mediaItem) => {
-            if (thumbnailMap.has(mediaItem.gallery_id)) {
-              return;
-            }
-
-            const { data: signedUrlData, error: signedUrlError } =
-              await supabase.storage
-                .from("client-media")
-                .createSignedUrl(
-                  mediaItem.storage_path,
-                  60 * 60
-                );
-
-            if (signedUrlError) {
-              console.warn(
-                `Unable to create thumbnail URL for gallery ${mediaItem.gallery_id}:`,
-                signedUrlError
-              );
-
-              return;
-            }
-
-            if (signedUrlData?.signedUrl) {
-              thumbnailMap.set(mediaItem.gallery_id, {
-                url: signedUrlData.signedUrl,
-                mediaId: mediaItem.media_id,
-                fileName: mediaItem.file_name,
-              });
-            }
-          })
-        );
-
-        if (!isMounted) {
-          return;
-        }
-
-        const bookingMap = new Map();
-
-        loadedBookings.forEach((booking) => {
-          bookingMap.set(booking.booking_id, booking);
-        });
-
-        const galleryRecords = loadedGalleries.map((gallery) => ({
-          ...gallery,
-          booking: bookingMap.get(gallery.booking_id) || null,
-          thumbnail:
-            thumbnailMap.get(gallery.gallery_id) || null,
-        }));
-
-        setClientId(currentClientId);
-        setGalleries(galleryRecords);
-        setMedia(loadedMedia);
+        // Verified JWT and RLS ownership checks run inside Express.
+        // Private thumbnail URLs are signed on the server.
+        const result = await apiGetClientGalleries();
+        if (!isMounted) return;
+        setGalleries(result.data?.galleries || []);
+        setMedia(result.data?.media || []);
       } catch (error) {
         console.error("Error loading client galleries:", error);
 

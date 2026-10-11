@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetClientGallery, apiGetClientGalleryDownload } from "../../services/clientGalleriesApi";
 import "./GalleryDetails.css";
 
 const SIGNED_URL_DURATION = 60 * 60;
@@ -149,155 +149,10 @@ function GalleryDetails() {
         setError("");
 
         try {
-            /*
-             * First get the client record belonging to the
-             * currently authenticated user.
-             */
-            const { data: client, error: clientError } = await supabase
-                .from("clients")
-                .select("client_id")
-                .eq("user_id", user.id)
-                .maybeSingle();
-
-            if (clientError) {
-                throw clientError;
-            }
-
-            if (!client) {
-                throw new Error("Your client account could not be found.");
-            }
-
-            /*
-             * RLS provides the actual security boundary here.
-             * The client_id filter additionally ensures that the
-             * requested gallery belongs to this client.
-             */
-            const { data: galleryData, error: galleryError } =
-                await supabase
-                    .from("galleries")
-                    .select(`
-            gallery_id,
-            photographer_id,
-            client_id,
-            booking_id,
-            name,
-            description,
-            is_published,
-            allow_downloads,
-            created_at,
-            updated_at
-          `)
-                    .eq("gallery_id", gallery_id)
-                    .eq("client_id", client.client_id)
-                    .eq("is_published", true)
-                    .maybeSingle();
-
-            if (galleryError) {
-                throw galleryError;
-            }
-
-            if (!galleryData) {
-                throw new Error(
-                    "This gallery could not be found or is not currently available."
-                );
-            }
-
-            setGallery(galleryData);
-
-            /*
-             * Load booking information separately so the page
-             * remains compatible with the existing database schema.
-             */
-            if (galleryData.booking_id) {
-                const { data: bookingData, error: bookingError } =
-                    await supabase
-                        .from("bookings")
-                        .select(`
-              booking_id,
-              booking_date,
-              start_time,
-              end_time,
-              location,
-              status,
-              total_amount
-            `)
-                        .eq("booking_id", galleryData.booking_id)
-                        .maybeSingle();
-
-                if (bookingError) {
-                    console.warn(
-                        "Unable to load booking details:",
-                        bookingError
-                    );
-                } else {
-                    setBooking(bookingData);
-                }
-            }
-
-            /*
-             * Media RLS ensures that only media the client is
-             * permitted to access is returned.
-             */
-            const { data: mediaData, error: mediaError } =
-                await supabase
-                    .from("media")
-                    .select(`
-            media_id,
-            gallery_id,
-            photographer_id,
-            file_name,
-            storage_path,
-            media_type,
-            mime_type,
-            file_size,
-            thumbnail_path,
-            is_downloadable,
-            uploaded_at
-          `)
-                    .eq("gallery_id", gallery_id)
-                    .order("uploaded_at", { ascending: true });
-
-            if (mediaError) {
-                throw mediaError;
-            }
-
-            const mediaWithUrls = await Promise.all(
-                (mediaData || []).map(async (mediaItem) => {
-                    let previewUrl = null;
-
-                    /*
-                     * Prefer the thumbnail path when one exists.
-                     * Otherwise the original media path is used.
-                     */
-                    const previewPath =
-                        mediaItem.thumbnail_path ||
-                        mediaItem.storage_path;
-
-                    if (previewPath) {
-                        const {
-                            data: signedUrlData,
-                            error: signedUrlError,
-                        } = await supabase.storage
-                            .from("client-media")
-                            .createSignedUrl(
-                                previewPath,
-                                SIGNED_URL_DURATION
-                            );
-
-                        if (!signedUrlError) {
-                            previewUrl =
-                                signedUrlData?.signedUrl || null;
-                        }
-                    }
-
-                    return {
-                        ...mediaItem,
-                        previewUrl,
-                    };
-                })
-            );
-
-            setMedia(mediaWithUrls);
+            const result = await apiGetClientGallery(gallery_id);
+            setGallery(result.data.gallery);
+            setBooking(result.data.booking || null);
+            setMedia(result.data.media || []);
         } catch (loadError) {
             console.error(
                 "Error loading client gallery:",
@@ -440,28 +295,10 @@ function GalleryDetails() {
         setDownloadingId(mediaItem.media_id);
 
         try {
-            const {
-                data: signedUrlData,
-                error: signedUrlError,
-            } = await supabase.storage
-                .from("client-media")
-                .createSignedUrl(
-                    mediaItem.storage_path,
-                    60
-                );
-
-            if (signedUrlError) {
-                throw signedUrlError;
-            }
-
-            const downloadUrl =
-                signedUrlData?.signedUrl;
-
-            if (!downloadUrl) {
-                throw new Error(
-                    "Unable to create a download link."
-                );
-            }
+            // Server rechecks ownership, paid access and both download flags.
+            const result = await apiGetClientGalleryDownload(gallery_id, mediaItem.media_id);
+            const downloadUrl = result.data?.url;
+            if (!downloadUrl) throw new Error("Unable to create a download link.");
 
             /*
              * Fetch the private file first, then create a
@@ -540,28 +377,9 @@ function GalleryDetails() {
                 });
 
                 try {
-                    const {
-                        data: signedUrlData,
-                        error: signedUrlError,
-                    } = await supabase.storage
-                        .from("client-media")
-                        .createSignedUrl(
-                            mediaItem.storage_path,
-                            60
-                        );
-
-                    if (signedUrlError) {
-                        throw signedUrlError;
-                    }
-
-                    const downloadUrl =
-                        signedUrlData?.signedUrl;
-
-                    if (!downloadUrl) {
-                        throw new Error(
-                            "Unable to create a download link."
-                        );
-                    }
+                    const result = await apiGetClientGalleryDownload(gallery_id, mediaItem.media_id);
+                    const downloadUrl = result.data?.url;
+                    if (!downloadUrl) throw new Error("Unable to create a download link.");
 
                     const response =
                         await fetch(downloadUrl);
