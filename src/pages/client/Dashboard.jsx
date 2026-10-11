@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetClientDashboard } from "../../services/clientAccountApi";
+import { localToday } from "./bookingHelpers";
 import StatCard from "../../components/dashboard/StatCard";
 import "./Dashboard.css";
 import { BiImage } from "react-icons/bi";
@@ -31,188 +32,13 @@ export default function Dashboard() {
       setLoading(true);
       setError("");
 
-      // -------------------------------------------------------
-      // 1. Get currently authenticated user
-      // -------------------------------------------------------
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
-
-      if (!user) {
-        throw new Error("No authenticated user found.");
-      }
-
-      // -------------------------------------------------------
-      // 2. Get client profile
-      // -------------------------------------------------------
-
-      const { data: client, error: clientError } = await supabase
-        .from("clients")
-        .select(`
-          client_id,
-          photographer_id,
-          user_id,
-          profiles (
-            first_name,
-            last_name
-          )
-        `)
-        .eq("user_id", user.id)
-        .single();
-
-      if (clientError) {
-        throw clientError;
-      }
-
-      if (!client) {
-        throw new Error("Client profile could not be found.");
-      }
-
-      const clientId = client.client_id;
-
-      const clientProfile = client.profiles;
-
-      setProfile({
-        first_name: clientProfile?.first_name || "",
-        last_name: clientProfile?.last_name || "",
-      });
-
-      // -------------------------------------------------------
-      // 3. Get all bookings for this client
-      // -------------------------------------------------------
-
-      const {
-        data: allBookings,
-        error: allBookingsError,
-      } = await supabase
-        .from("bookings")
-        .select(`
-          booking_id,
-          booking_date,
-          start_time,
-          end_time,
-          status,
-          total_amount,
-
-          services (
-            service_id,
-            name
-          )
-        `)
-        .eq("client_id", clientId)
-        .order("booking_date", { ascending: false });
-
-      if (allBookingsError) {
-        throw allBookingsError;
-      }
-
-      const bookings = allBookings || [];
-
-      // -------------------------------------------------------
-      // 4. Get upcoming bookings
-      // -------------------------------------------------------
-
-      const today = new Date().toISOString().split("T")[0];
-
-      const upcoming = bookings
-        .filter(
-          (booking) =>
-            booking.booking_date >= today &&
-            ["pending", "confirmed"].includes(booking.status)
-        )
-        .sort((a, b) => {
-          const dateA = `${a.booking_date}T${a.start_time || "00:00:00"}`;
-          const dateB = `${b.booking_date}T${b.start_time || "00:00:00"}`;
-
-          return new Date(dateA) - new Date(dateB);
-        })
-        .slice(0, 5);
-
-      setUpcomingBookings(upcoming);
-
-      // -------------------------------------------------------
-      // 5. Get client's invoices
-      // -------------------------------------------------------
-
-      const {
-        data: invoices,
-        error: invoicesError,
-      } = await supabase
-        .from("invoices")
-        .select(`
-          invoice_id,
-          invoice_number,
-          issue_date,
-          due_date,
-          total_amount,
-          status
-        `)
-        .eq("client_id", clientId)
-        .order("due_date", { ascending: true });
-
-      if (invoicesError) {
-        throw invoicesError;
-      }
-
-      const clientInvoices = invoices || [];
-
-      const unpaidInvoices = clientInvoices.filter((invoice) =>
-        ["sent", "overdue"].includes(invoice.status)
-      );
-
-      const outstandingTotal = unpaidInvoices.reduce(
-        (total, invoice) =>
-          total + Number(invoice.total_amount || 0),
-        0
-      );
-
-      setOutstandingInvoices(unpaidInvoices.slice(0, 5));
-
-      // -------------------------------------------------------
-      // 6. Get published galleries available to client
-      // -------------------------------------------------------
-
-      const {
-        data: galleries,
-        error: galleriesError,
-      } = await supabase
-        .from("galleries")
-        .select(`
-          gallery_id,
-          name,
-          description,
-          is_published,
-          allow_downloads,
-          created_at
-        `)
-        .eq("client_id", clientId)
-        .eq("is_published", true)
-        .order("created_at", { ascending: false });
-
-      if (galleriesError) {
-        throw galleriesError;
-      }
-
-      const clientGalleries = galleries || [];
-
-      setRecentGalleries(clientGalleries.slice(0, 4));
-
-      // -------------------------------------------------------
-      // 7. Update dashboard statistics
-      // -------------------------------------------------------
-
-      setStats({
-        bookings: bookings.length,
-        upcomingBookings: upcoming.length,
-        outstanding: outstandingTotal,
-        galleries: clientGalleries.length,
-      });
+      // Milestone 11A: database access is through the authenticated Express API.
+      const { data } = await apiGetClientDashboard(localToday());
+      setProfile(data.profile);
+      setStats(data.stats);
+      setUpcomingBookings(data.upcomingBookings);
+      setOutstandingInvoices(data.outstandingInvoices);
+      setRecentGalleries(data.recentGalleries);
     } catch (err) {
       console.error("Client dashboard error:", err);
 

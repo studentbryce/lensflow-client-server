@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { BiUser, BiSave } from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetClientProfile, apiUpdateClientProfile } from "../../services/clientAccountApi";
 import "./Profile.css";
 
 const toForm = (profile) => ({ first_name: profile.first_name || "", last_name: profile.last_name || "", phone: profile.phone || "" });
@@ -29,10 +29,7 @@ export default function Profile() {
       setSuccess("");
       try {
         if (!user?.id) throw new Error("Sign in required.");
-        const { data, error: queryError } = await supabase.from("profiles")
-          .select("user_id, first_name, last_name, email, phone")
-          .eq("user_id", user.id).single();
-        if (queryError) throw queryError;
+        const { data } = await apiGetClientProfile();
         if (active) { setProfile(data); setForm(toForm(data)); }
       } catch (err) {
         console.error("Unable to load profile:", err);
@@ -65,10 +62,7 @@ export default function Profile() {
     submitting.current = true;
     setSaving(true);
     try {
-      const { data, error: updateError } = await supabase.from("profiles")
-        .update(values).eq("user_id", user.id)
-        .select("user_id, first_name, last_name, email, phone").single();
-      if (updateError) throw updateError;
+      const { data } = await apiUpdateClientProfile(values);
       setProfile(data);
       setForm(toForm(data));
       setSuccess("Your profile has been updated.");
