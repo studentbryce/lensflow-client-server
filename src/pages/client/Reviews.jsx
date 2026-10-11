@@ -8,7 +8,7 @@ import {
   BiX,
 } from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetClientReviews, apiCreateClientReview, apiUpdateClientReview } from "../../services/clientReviewsApi";
 import "./Reviews.css";
 
 const REVIEW_FILTERS = ["all", "pending", "approved", "rejected"];
@@ -114,79 +114,8 @@ export default function Reviews() {
           throw new Error("Please sign in to view your reviews.");
         }
 
-        // ---------------------------------------------------------
-        // 1. Find the authenticated client's LensFlow client record
-        // ---------------------------------------------------------
-
-        const { data: client, error: clientError } = await supabase
-          .from("clients")
-          .select("client_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (clientError) {
-          throw clientError;
-        }
-
-        if (!client?.client_id) {
-          throw new Error("Your client profile could not be found.");
-        }
-
-        const currentClientId = client.client_id;
-
-        // ---------------------------------------------------------
-        // 2. Load the client's bookings
-        //
-        // All bookings are loaded so existing reviews can retain their
-        // booking details. Review eligibility is derived below from
-        // bookings with a "completed" status. Database RLS independently
-        // enforces the review rules.
-        // ---------------------------------------------------------
-
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select(`
-            booking_id,
-            photographer_id,
-            client_id,
-            service_id,
-            booking_date,
-            start_time,
-            end_time,
-            location,
-            status,
-            services(name)
-          `)
-          .eq("client_id", currentClientId)
-          .order("booking_date", { ascending: false });
-
-        if (bookingError) {
-          throw bookingError;
-        }
-
-        // ---------------------------------------------------------
-        // 3. Load this client's existing reviews
-        // ---------------------------------------------------------
-
-        const { data: reviewData, error: reviewError } = await supabase
-          .from("reviews")
-          .select(`
-            review_id,
-            photographer_id,
-            client_id,
-            booking_id,
-            rating,
-            comment,
-            status,
-            created_at,
-            updated_at
-          `)
-          .eq("client_id", currentClientId)
-          .order("created_at", { ascending: false });
-
-        if (reviewError) {
-          throw reviewError;
-        }
+        const response = await apiGetClientReviews();
+        const { clientId: currentClientId, bookings: bookingData, reviews: reviewData } = response.data;
 
         if (!active) {
           return;
@@ -388,18 +317,9 @@ export default function Reviews() {
       // ---------------------------------------------------------
 
       if (editingReview) {
-        const { data: updatedReview, error: updateError } = await supabase.rpc(
-          "update_pending_review",
-          {
-            p_review_id: editingReview.review_id,
-            p_rating: rating,
-            p_comment: cleanComment || null,
-          }
+        const { data: updatedReview } = await apiUpdateClientReview(
+          editingReview.review_id, rating, cleanComment
         );
-
-        if (updateError) {
-          throw updateError;
-        }
 
         setReviews((currentReviews) =>
           currentReviews.map((review) =>
@@ -424,31 +344,9 @@ export default function Reviews() {
         return;
       }
 
-      const { data: createdReview, error: insertError } = await supabase
-        .from("reviews")
-        .insert({
-          photographer_id: selectedBooking.photographer_id,
-          client_id: clientId,
-          booking_id: selectedBooking.booking_id,
-          rating,
-          comment: cleanComment || null,
-        })
-        .select(`
-          review_id,
-          photographer_id,
-          client_id,
-          booking_id,
-          rating,
-          comment,
-          status,
-          created_at,
-          updated_at
-        `)
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
+      const { data: createdReview } = await apiCreateClientReview(
+        selectedBooking.booking_id, rating, cleanComment
+      );
 
       setReviews((currentReviews) => [
         createdReview,
@@ -464,7 +362,7 @@ export default function Reviews() {
     } catch (error) {
       console.error("Unable to save review:", error);
 
-      if (error?.code === "23505") {
+      if (error?.message === "You have already reviewed this booking.") {
         setFormError("You have already reviewed this booking.");
       } else {
         setFormError(

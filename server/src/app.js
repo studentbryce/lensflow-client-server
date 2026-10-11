@@ -15,6 +15,7 @@ import clientAccountRoutes from './routes/clientAccountRoutes.js';
 import clientInvoicesRoutes from './routes/clientInvoicesRoutes.js';
 import clientGalleriesRoutes from './routes/clientGalleriesRoutes.js';
 import clientMessagesRoutes from './routes/clientMessagesRoutes.js';
+import clientReviewsRoutes from './routes/clientReviewsRoutes.js';
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/client', clientAccountRoutes);
 app.use('/api/client/invoices', clientInvoicesRoutes);
 app.use('/api/client/galleries', clientGalleriesRoutes);
 app.use('/api/client/messages', clientMessagesRoutes);
+app.use('/api/client/reviews', clientReviewsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/photographer/clients', photographerClientsRoutes);
