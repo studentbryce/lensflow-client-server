@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { requireAuth } from '../middleware/authMiddleware.js';
+import { listMessages, createConversation, sendMessage, markRead } from '../controllers/clientMessagesController.js';
+const router = Router();
+router.use(requireAuth);
+router.get('/', listMessages);
+router.post('/conversation', createConversation);
+router.post('/', sendMessage);
+router.patch('/read', markRead);
+export default router;

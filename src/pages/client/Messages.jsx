@@ -14,7 +14,13 @@ import {
   BiSend,
 } from "react-icons/bi";
 
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient"; // Auth/Reatime subscription only
+import {
+  apiGetClientMessages,
+  apiCreateClientConversation,
+  apiSendClientMessage,
+  apiMarkClientMessagesRead,
+} from "../../services/clientMessagesApi";
 
 import "./Messages.css";
 
@@ -136,175 +142,16 @@ export default function Messages() {
         setError("");
         setMessageError("");
 
-        /* -----------------------------------------------------
-           1. Current user
-           ----------------------------------------------------- */
+        const response = await apiGetClientMessages();
+        const { currentUserId: userId, client: clientData,
+          photographer: photographerProfile, conversation: conversationData,
+          messages: messageRows } = response.data;
 
-        const {
-          data: { user },
-          error: authError,
-        } =
-          await supabase.auth.getUser();
-
-        if (authError) {
-          throw authError;
-        }
-
-        if (!user) {
-          throw new Error(
-            "No authenticated user was found."
-          );
-        }
-
-        setCurrentUserId(user.id);
-
-
-        /* -----------------------------------------------------
-           2. Client record
-           ----------------------------------------------------- */
-
-        const {
-          data: clientData,
-          error: clientError,
-        } = await supabase
-          .from("clients")
-          .select(`
-            client_id,
-            photographer_id,
-            user_id
-          `)
-          .eq("user_id", user.id)
-          .single();
-
-        if (clientError) {
-          throw clientError;
-        }
-
-        if (!clientData) {
-          throw new Error(
-            "Client profile could not be found."
-          );
-        }
-
+        setCurrentUserId(userId);
         setClient(clientData);
-
-
-        /* -----------------------------------------------------
-   3. Photographer profile
-   ----------------------------------------------------- */
-
-        const {
-          data: photographerProfile,
-          error: photographerError,
-        } = await supabase
-          .from("photographer_profiles")
-          .select(`
-    photographer_id,
-    user_id,
-    business_name
-  `)
-          .eq(
-            "photographer_id",
-            clientData.photographer_id
-          )
-          .maybeSingle();
-
-        if (photographerError) {
-          throw photographerError;
-        }
-
-        setPhotographer(
-          photographerProfile || {
-            photographer_id:
-              clientData.photographer_id,
-
-            business_name:
-              "Your photographer",
-          }
-        );
-
-
-        /* -----------------------------------------------------
-           4. Find existing conversation
-           ----------------------------------------------------- */
-
-        const {
-          data: conversationData,
-          error: conversationError,
-        } = await supabase
-          .from("conversations")
-          .select(`
-    conversation_id,
-    photographer_id,
-    client_id,
-    created_at,
-    updated_at
-  `)
-          .eq(
-            "photographer_id",
-            clientData.photographer_id
-          )
-          .eq(
-            "client_id",
-            clientData.client_id
-          )
-          .maybeSingle();
-
-        if (conversationError) {
-          throw conversationError;
-        }
-
-        setConversation(
-          conversationData || null
-        );
-
-
-        /* -----------------------------------------------------
-           5. Load conversation messages
-           ----------------------------------------------------- */
-
-        if (!conversationData) {
-          setMessages([]);
-          return;
-        }
-
-        const {
-          data: messageRows,
-          error: messagesError,
-        } = await supabase
-          .from("messages")
-          .select(`
-    message_id,
-    conversation_id,
-    sender_id,
-    message,
-    is_read,
-    created_at
-  `)
-          .eq(
-            "conversation_id",
-            conversationData.conversation_id
-          )
-          .order(
-            "created_at",
-            {
-              ascending: true,
-            }
-          );
-
-        if (messagesError) {
-          throw messagesError;
-        }
-
-        setMessages(
-          messageRows || []
-        );
-
-
-        /* -----------------------------------------------------
-           6. Load conversation messages
-           ----------------------------------------------------- */
-
+        setPhotographer(photographerProfile);
+        setConversation(conversationData);
+        setMessages(messageRows || []);
 
       } catch (loadError) {
         console.error(
@@ -344,57 +191,16 @@ export default function Messages() {
         return;
       }
 
-      const {
-        data: updatedMessages,
-        error: updateError,
-      } = await supabase
-        .from("messages")
-        .update({
-          is_read: true,
-        })
-        .eq(
-          "conversation_id",
-          conversation.conversation_id
-        )
-        .neq(
-          "sender_id",
-          currentUserId
-        )
-        .eq(
-          "is_read",
-          false
-        )
-        .select("message_id");
-
-      if (updateError) {
-        console.error(
-          "Unable to mark messages as read:",
-          updateError
-        );
-
-        return;
+      try {
+        const response = await apiMarkClientMessagesRead();
+        const updatedIds = new Set(response.data.updatedIds || []);
+        if (!updatedIds.size) return;
+        setMessages((current) => current.map((message) =>
+          updatedIds.has(message.message_id) ? { ...message, is_read: true } : message
+        ));
+      } catch (updateError) {
+        console.error("Unable to mark messages as read:", updateError);
       }
-
-      if (!updatedMessages?.length) {
-        return;
-      }
-
-      const updatedIds = new Set(
-        updatedMessages.map(
-          (message) => message.message_id
-        )
-      );
-
-      setMessages((current) =>
-        current.map((message) =>
-          updatedIds.has(message.message_id)
-            ? {
-              ...message,
-              is_read: true,
-            }
-            : message
-        )
-      );
     }, [
       conversation?.conversation_id,
       currentUserId,
@@ -541,70 +347,9 @@ export default function Messages() {
     setMessageError("");
 
     try {
-      const {
-        data: newConversation,
-        error: conversationError,
-      } = await supabase
-        .from("conversations")
-        .insert({
-          photographer_id:
-            client.photographer_id,
-
-          client_id:
-            client.client_id,
-        })
-        .select(`
-          conversation_id,
-          photographer_id,
-          client_id,
-          created_at,
-          updated_at
-        `)
-        .single();
-
-      if (conversationError) {
-        if (
-          conversationError.code ===
-          "23505"
-        ) {
-          const {
-            data: existing,
-            error: existingError,
-          } = await supabase
-            .from("conversations")
-            .select(`
-              conversation_id,
-              photographer_id,
-              client_id,
-              created_at,
-              updated_at
-            `)
-            .eq(
-              "photographer_id",
-              client.photographer_id
-            )
-            .eq(
-              "client_id",
-              client.client_id
-            )
-            .single();
-
-          if (existingError) {
-            throw existingError;
-          }
-
-          setConversation(existing);
-
-          return existing;
-        }
-
-        throw conversationError;
-      }
-
-      setConversation(
-        newConversation
-      );
-
+      const response = await apiCreateClientConversation();
+      const newConversation = response.data;
+      setConversation(newConversation);
       return newConversation;
     } catch (
     conversationError
@@ -673,34 +418,8 @@ export default function Messages() {
         }
       }
 
-      const {
-        data: createdMessage,
-        error: sendError,
-      } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id:
-            activeConversation.conversation_id,
-
-          sender_id:
-            currentUserId,
-
-          message:
-            cleanMessage,
-        })
-        .select(`
-          message_id,
-          conversation_id,
-          sender_id,
-          message,
-          is_read,
-          created_at
-        `)
-        .single();
-
-      if (sendError) {
-        throw sendError;
-      }
+      const response = await apiSendClientMessage(cleanMessage);
+      const createdMessage = response.data;
 
       setDraft("");
 
