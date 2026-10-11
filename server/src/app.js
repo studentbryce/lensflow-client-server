@@ -12,6 +12,7 @@ import photographerGalleriesRoutes from './routes/photographerGalleriesRoutes.js
 import photographerWebsiteRoutes from './routes/photographerWebsiteRoutes.js';
 import photographerSettingsRoutes from './routes/photographerSettingsRoutes.js';
 import clientAccountRoutes from './routes/clientAccountRoutes.js';
+import clientInvoicesRoutes from './routes/clientInvoicesRoutes.js';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/client/bookings', clientBookingRoutes);
 app.use('/api/client', clientAccountRoutes);
+app.use('/api/client/invoices', clientInvoicesRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/photographer/clients', photographerClientsRoutes);

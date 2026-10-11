@@ -15,10 +15,8 @@ import InvoiceDocument, {
 import { downloadInvoicePdf } from "../../utils/invoicePdf";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
-import {
-    getClient,
-    localToday,
-} from "./bookingHelpers";
+import { localToday } from "./bookingHelpers";
+import { apiGetClientInvoices, apiGetClientInvoice } from "../../services/clientInvoicesApi";
 import "./Invoices.css";
 
 const FILTERS = [
@@ -197,113 +195,16 @@ export default function Invoices() {
             setInvoices([]);
 
             try {
-                const client = await getClient(user?.id);
-
-                const {
-                    data: profileData,
-                    error: profileError,
-                } = await supabase
-                    .from("profiles")
-                    .select(
-                        "first_name, last_name, email, phone"
-                    )
-                    .eq("user_id", user.id)
-                    .single();
-
-                if (profileError) throw profileError;
-
-                let photographerData = null;
-
-                if (client?.photographer_id) {
-                    const {
-                        data,
-                        error: photographerError,
-                    } = await supabase
-                        .from("photographer_profiles")
-                        .select(
-                            "photographer_id, business_name"
-                        )
-                        .eq(
-                            "photographer_id",
-                            client.photographer_id
-                        )
-                        .maybeSingle();
-
-                    if (
-                        photographerError &&
-                        photographerError.code !==
-                            "PGRST116"
-                    ) {
-                        throw photographerError;
-                    }
-
-                    photographerData = data || null;
-                }
-
-                const {
-                    data,
-                    error: queryError,
-                } = await supabase
-                    .from("invoices")
-                    .select(`
-                        invoice_id,
-                        photographer_id,
-                        booking_id,
-                        invoice_number,
-                        issue_date,
-                        due_date,
-                        subtotal,
-                        tax_amount,
-                        tax_rate,
-                        tax_included,
-                        tax_number,
-                        total_amount,
-                        status,
-                        notes,
-                        bank_account_name,
-                        bank_name,
-                        bank_account_number,
-                        bank_payment_instructions,
-                        created_at,
-                        bookings(
-                            booking_id,
-                            booking_date,
-                            start_time,
-                            end_time,
-                            location,
-                            services(
-                                service_id,
-                                name
-                            )
-                        ),
-                        invoice_items(
-                            invoice_item_id,
-                            description,
-                            quantity,
-                            unit_price,
-                            subtotal
-                        )
-                    `)
-                    .eq(
-                        "client_id",
-                        client.client_id
-                    )
-                    .neq("status", "draft")
-                    .order("issue_date", {
-                        ascending: false,
-                    })
-                    .order("created_at", {
-                        ascending: false,
-                    });
-
-                if (queryError) throw queryError;
-
+                // Express verifies the JWT, resolves client ownership and applies RLS.
+                // The invoice-detail endpoint returns line items only for an owned,
+                // non-draft invoice; the list endpoint does not expose draft invoices.
+                const result = invoice_id
+                    ? await apiGetClientInvoice(invoice_id)
+                    : await apiGetClientInvoices();
                 if (active) {
-                    setClientProfile(profileData);
-                    setPhotographerProfile(
-                        photographerData
-                    );
-                    setInvoices(data || []);
+                    setClientProfile(result.data.clientProfile);
+                    setPhotographerProfile(result.data.photographerProfile);
+                    setInvoices(invoice_id ? [result.data.invoice] : result.data.invoices);
                 }
             } catch (err) {
                 console.error(
@@ -330,7 +231,7 @@ export default function Invoices() {
         return () => {
             active = false;
         };
-    }, [user?.id, retry]);
+    }, [user?.id, invoice_id, retry]);
 
     const today = localToday();
 
