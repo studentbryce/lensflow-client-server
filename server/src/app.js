@@ -10,6 +10,7 @@ import photographerServicesRoutes from './routes/photographerServicesRoutes.js';
 import photographerInvoicesRoutes from './routes/photographerInvoicesRoutes.js';
 import photographerGalleriesRoutes from './routes/photographerGalleriesRoutes.js';
 import photographerWebsiteRoutes from './routes/photographerWebsiteRoutes.js';
+import photographerSettingsRoutes from './routes/photographerSettingsRoutes.js';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/photographer/services', photographerServicesRoutes);
 app.use('/api/photographer/invoices', photographerInvoicesRoutes);
 app.use('/api/photographer/galleries', photographerGalleriesRoutes);
 app.use('/api/photographer/website', photographerWebsiteRoutes);
+app.use('/api/photographer/settings', photographerSettingsRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

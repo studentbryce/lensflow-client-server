@@ -26,6 +26,13 @@ import {
 
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
+import {
+  apiGetPhotographerSettings,
+  apiSavePhotographerAccount,
+  apiSavePhotographerBusiness,
+  apiSavePhotographerTax,
+  apiSavePhotographerBank,
+} from "../../services/photographerSettingsApi";
 
 import "./Settings.css";
 
@@ -135,9 +142,6 @@ export default function Settings() {
   /* =========================================================
      Photographer / business state
      ========================================================= */
-
-  const [photographerId, setPhotographerId] =
-    useState("");
 
   const [businessForm, setBusinessForm] =
     useState({
@@ -260,287 +264,38 @@ export default function Settings() {
     try {
       setLoading(true);
       setLoadError("");
-
-      const {
-        data: {
-          user,
-        },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "No authenticated photographer was found."
-        );
-      }
-
-
-      /* -----------------------------------------------------
-         Account profile
-         ----------------------------------------------------- */
-
-      const {
-        data: profileData,
-        error: profileError,
-      } = await supabase
-        .from("profiles")
-        .select(`
-          user_id,
-          role,
-          first_name,
-          last_name,
-          email,
-          phone
-        `)
-        .eq(
-          "user_id",
-          user.id
-        )
-        .single();
-
-      if (profileError) {
-        throw profileError;
-      }
-
-
-      /*
-       * Supabase Auth is the source of truth for account email.
-       *
-       * If an email confirmation has previously completed and
-       * profiles.email has not yet caught up, synchronize it.
-       */
-
-      const authEmail =
-        user.email ||
-        profileData.email ||
-        "";
-
-      if (
-        user.email &&
-        profileData.email !== user.email
-      ) {
-        const {
-          error: syncEmailError,
-        } = await supabase
-          .from("profiles")
-          .update({
-            email: user.email,
-          })
-          .eq(
-            "user_id",
-            user.id
-          );
-
-        if (syncEmailError) {
-          console.error(
-            "Unable to synchronize profile email:",
-            syncEmailError
-          );
-        }
-      }
-
-
+      const { profile, business, payment, stripe, calendar } = await apiGetPhotographerSettings();
+      const authEmail = profile.email || "";
       setAccountForm({
-        first_name:
-          profileData.first_name || "",
-
-        last_name:
-          profileData.last_name || "",
-
-        email:
-          authEmail,
-
-        phone:
-          profileData.phone || "",
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        email: authEmail,
+        phone: profile.phone || "",
       });
-
       setOriginalEmail(authEmail);
-
-
-      /* -----------------------------------------------------
-         Photographer profile
-         ----------------------------------------------------- */
-
-      const {
-        data: photographerData,
-        error: photographerError,
-      } = await supabase
-        .from("photographer_profiles")
-        .select(`
-          photographer_id,
-          user_id,
-          business_name,
-          description,
-          email,
-          phone,
-          website_url,
-          address
-        `)
-        .eq(
-          "user_id",
-          user.id
-        )
-        .single();
-
-      if (photographerError) {
-        throw photographerError;
-      }
-
-
-      setPhotographerId(
-        photographerData.photographer_id
-      );
-
       setBusinessForm({
-        business_name:
-          photographerData.business_name || "",
-
-        email:
-          photographerData.email || "",
-
-        phone:
-          photographerData.phone || "",
-
-        address:
-          photographerData.address || "",
-
-        website_url:
-          photographerData.website_url || "",
-
-        description:
-          photographerData.description || "",
+        business_name: business.business_name || "",
+        email: business.email || "",
+        phone: business.phone || "",
+        address: business.address || "",
+        website_url: business.website_url || "",
+        description: business.description || "",
       });
-
-      const {
-        data: paymentData,
-        error: paymentError,
-      } = await supabase
-        .from("photographer_payment_settings")
-        .select(`
-          bank_account_name,
-          bank_name,
-          bank_account_number,
-          bank_payment_instructions,
-          gst_tax_number,
-          default_tax_rate
-        `)
-        .eq(
-          "photographer_id",
-          photographerData.photographer_id
-        )
-        .maybeSingle();
-
-      if (paymentError) {
-        throw paymentError;
-      }
-
       setTaxForm({
-        gst_tax_number:
-          paymentData?.gst_tax_number || "",
-
-        default_tax_rate:
-          String(
-            paymentData?.default_tax_rate ?? 15
-          ),
+        gst_tax_number: payment?.gst_tax_number || "",
+        default_tax_rate: String(payment?.default_tax_rate ?? 15),
       });
-
       setPaymentForm({
-        bank_account_name:
-          paymentData?.bank_account_name || "",
-
-        bank_name:
-          paymentData?.bank_name || "",
-
-        bank_account_number:
-          paymentData?.bank_account_number || "",
-
-        bank_payment_instructions:
-          paymentData?.bank_payment_instructions || "",
+        bank_account_name: payment?.bank_account_name || "",
+        bank_name: payment?.bank_name || "",
+        bank_account_number: payment?.bank_account_number || "",
+        bank_payment_instructions: payment?.bank_payment_instructions || "",
       });
-
-
-      /* -----------------------------------------------------
-         Stripe Connect account
-         ----------------------------------------------------- */
-
-      const {
-        data: stripeAccountData,
-        error: stripeAccountError,
-      } = await supabase
-        .from("photographer_stripe_accounts")
-        .select(`
-          stripe_account_id,
-          charges_enabled,
-          payouts_enabled,
-          details_submitted
-        `)
-        .eq(
-          "photographer_id",
-          photographerData.photographer_id
-        )
-        .maybeSingle();
-
-      if (stripeAccountError) {
-        throw stripeAccountError;
-      }
-
-      setStripeAccount(
-        stripeAccountData || null
-      );
-
-
-      /* -----------------------------------------------------
-         Calendar integration
-         ----------------------------------------------------- */
-
-      const {
-        data: calendarData,
-        error: calendarError,
-      } = await supabase
-        .from("calendar_integrations")
-        .select(`
-          integration_id,
-          photographer_id,
-          provider,
-          calendar_id,
-          token_expires_at,
-          is_active,
-          created_at,
-          updated_at
-        `)
-        .eq(
-          "photographer_id",
-          photographerData.photographer_id
-        )
-        .eq(
-          "provider",
-          "google"
-        )
-        .maybeSingle();
-
-      if (calendarError) {
-        throw calendarError;
-      }
-
-      setCalendarIntegration(
-        calendarData || null
-      );
-
+      setStripeAccount(stripe || null);
+      setCalendarIntegration(calendar || null);
     } catch (error) {
-      console.error(
-        "Unable to load photographer settings:",
-        error
-      );
-
-      setLoadError(
-        error.message ||
-        "Unable to load your settings."
-      );
-
+      console.error("Unable to load photographer settings:", error);
+      setLoadError(error.message || "Unable to load your settings.");
     } finally {
       setLoading(false);
     }
@@ -638,186 +393,35 @@ export default function Settings() {
 
   async function handleSaveAccount(event) {
     event.preventDefault();
-
-    const firstName =
-      accountForm.first_name.trim();
-
-    const lastName =
-      accountForm.last_name.trim();
-
-    const email =
-      accountForm.email
-        .trim()
-        .toLowerCase();
-
-    const phone =
-      accountForm.phone.trim();
-
-
-    if (!firstName || !lastName) {
-      setAccountError(
-        "First name and last name are required."
-      );
-
-      return;
-    }
-
-
-    if (!email) {
-      setAccountError(
-        "Email address is required."
-      );
-
-      return;
-    }
-
-
+    const firstName = accountForm.first_name.trim();
+    const lastName = accountForm.last_name.trim();
+    const email = accountForm.email.trim().toLowerCase();
+    const phone = accountForm.phone.trim();
+    if (!firstName || !lastName) { setAccountError("First name and last name are required."); return; }
+    if (!email) { setAccountError("Email address is required."); return; }
     try {
       setSavingAccount(true);
-
-      setAccountMessage("");
-      setAccountError("");
-
-
-      const {
-        data: {
-          user,
-        },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "Your authenticated account could not be found."
-        );
-      }
-
-
-      /* -----------------------------------------------------
-         Save name / phone
-         ----------------------------------------------------- */
-
-      const {
-        error: profileUpdateError,
-      } = await supabase
-        .from("profiles")
-        .update({
-          first_name: firstName,
-          last_name: lastName,
-          phone:
-            phone || null,
-        })
-        .eq(
-          "user_id",
-          user.id
-        );
-
-      if (profileUpdateError) {
-        throw profileUpdateError;
-      }
-
-
-      /* -----------------------------------------------------
-         Email change
-         ----------------------------------------------------- */
-
-      if (
-        email !==
-        originalEmail.toLowerCase()
-      ) {
-        const {
-          data: authUpdateData,
-          error: emailUpdateError,
-        } = await supabase.auth.updateUser({
-          email,
-        });
-
-        if (emailUpdateError) {
-          throw emailUpdateError;
-        }
-
-
-        /*
-         * If Supabase immediately changes the email,
-         * keep profiles.email synchronized.
-         *
-         * If email confirmation is required,
-         * authUpdateData.user.email may remain the old
-         * address until confirmation is completed.
-         */
-
-        if (
-          authUpdateData?.user?.email
-            ?.toLowerCase() === email
-        ) {
-          const {
-            error: profileEmailError,
-          } = await supabase
-            .from("profiles")
-            .update({
-              email,
-            })
-            .eq(
-              "user_id",
-              user.id
-            );
-
-          if (profileEmailError) {
-            throw profileEmailError;
-          }
-
+      setAccountMessage(""); setAccountError("");
+      // Profile fields now go through Express. Auth email remains managed by Supabase Auth.
+      await apiSavePhotographerAccount({ first_name: firstName, last_name: lastName, phone });
+      if (email !== originalEmail.toLowerCase()) {
+        const { data, error } = await supabase.auth.updateUser({ email });
+        if (error) throw error;
+        if (data?.user?.email?.toLowerCase() === email) {
+          await apiSavePhotographerAccount({ first_name: firstName, last_name: lastName, phone, email });
           setOriginalEmail(email);
-
-          setAccountMessage(
-            "Account details updated successfully."
-          );
+          setAccountMessage("Account details updated successfully.");
         } else {
-          setAccountMessage(
-            "Your account details were saved. Check your email to confirm the new email address."
-          );
+          setAccountMessage("Your account details were saved. Check your email to confirm the new email address.");
         }
-
       } else {
-        setAccountMessage(
-          "Account details updated successfully."
-        );
+        setAccountMessage("Account details updated successfully.");
       }
-
-
-      setAccountForm(
-        (current) => ({
-          ...current,
-
-          first_name:
-            firstName,
-
-          last_name:
-            lastName,
-
-          email,
-
-          phone,
-        })
-      );
-
+      setAccountForm(current => ({ ...current, first_name: firstName, last_name: lastName, email, phone }));
     } catch (error) {
-      console.error(
-        "Unable to update account settings:",
-        error
-      );
-
-      setAccountError(
-        error.message ||
-        "Your account could not be updated."
-      );
-
-    } finally {
-      setSavingAccount(false);
-    }
+      console.error("Unable to update account settings:", error);
+      setAccountError(error.message || "Your account could not be updated.");
+    } finally { setSavingAccount(false); }
   }
 
 
@@ -845,156 +449,30 @@ export default function Settings() {
 
   async function handleSaveBusiness(event) {
     event.preventDefault();
-
-    const businessName =
-      businessForm.business_name.trim();
-
-    const email =
-      businessForm.email
-        .trim()
-        .toLowerCase();
-
-    const phone =
-      businessForm.phone.trim();
-
-    const address =
-      businessForm.address.trim();
-
-    const websiteUrl =
-      businessForm.website_url.trim();
-
-    const description =
-      businessForm.description.trim();
-
-
-    if (!businessName) {
-      setBusinessError(
-        "Business name is required."
-      );
-
-      return;
+    const payload = {
+      business_name: businessForm.business_name.trim(),
+      email: businessForm.email.trim().toLowerCase(),
+      phone: businessForm.phone.trim(),
+      address: businessForm.address.trim(),
+      website_url: businessForm.website_url.trim(),
+      description: businessForm.description.trim(),
+    };
+    if (!payload.business_name || !payload.email) {
+      setBusinessError("Business name and email are required."); return;
     }
-
-
-    if (!email) {
-      setBusinessError(
-        "Business email is required."
-      );
-
-      return;
+    if (payload.website_url) {
+      try { const url = new URL(payload.website_url); if (!["http:", "https:"].includes(url.protocol)) throw new Error(); }
+      catch { setBusinessError("Website URL must be a valid http:// or https:// address."); return; }
     }
-
-
-    if (websiteUrl) {
-      try {
-        const parsedUrl =
-          new URL(websiteUrl);
-
-        if (
-          ![
-            "http:",
-            "https:",
-          ].includes(
-            parsedUrl.protocol
-          )
-        ) {
-          throw new Error();
-        }
-
-      } catch {
-        setBusinessError(
-          "Website URL must be a valid http:// or https:// address."
-        );
-
-        return;
-      }
-    }
-
-
-    if (!photographerId) {
-      setBusinessError(
-        "Photographer profile could not be found."
-      );
-
-      return;
-    }
-
-
     try {
-      setSavingBusiness(true);
-
-      setBusinessMessage("");
-      setBusinessError("");
-
-
-      const {
-        error: updateError,
-      } = await supabase
-        .from("photographer_profiles")
-        .update({
-          business_name:
-            businessName,
-
-          email,
-
-          phone:
-            phone || null,
-
-          address:
-            address || null,
-
-          website_url:
-            websiteUrl || null,
-
-          description:
-            description || null,
-        })
-        .eq(
-          "photographer_id",
-          photographerId
-        );
-
-
-      if (updateError) {
-        throw updateError;
-      }
-
-
-      setBusinessForm({
-        business_name:
-          businessName,
-
-        email,
-
-        phone,
-
-        address,
-
-        website_url:
-          websiteUrl,
-
-        description,
-      });
-
-
-      setBusinessMessage(
-        "Business profile updated successfully."
-      );
-
+      setSavingBusiness(true); setBusinessMessage(""); setBusinessError("");
+      await apiSavePhotographerBusiness(payload);
+      setBusinessForm(payload);
+      setBusinessMessage("Business profile updated successfully.");
     } catch (error) {
-      console.error(
-        "Unable to update business profile:",
-        error
-      );
-
-      setBusinessError(
-        error.message ||
-        "Your business profile could not be updated."
-      );
-
-    } finally {
-      setSavingBusiness(false);
-    }
+      console.error("Unable to update business profile:", error);
+      setBusinessError(error.message || "Your business profile could not be updated.");
+    } finally { setSavingBusiness(false); }
   }
 
 
@@ -1022,83 +500,20 @@ export default function Settings() {
 
   async function handleSaveTax(event) {
     event.preventDefault();
-
-    const gstTaxNumber =
-      taxForm.gst_tax_number.trim();
-
-    const defaultTaxRate =
-      Number(taxForm.default_tax_rate);
-
-    if (
-      !Number.isFinite(defaultTaxRate) ||
-      defaultTaxRate < 0 ||
-      defaultTaxRate > 100
-    ) {
-      setTaxError(
-        "The default tax rate must be between 0% and 100%."
-      );
-
-      return;
+    const gstTaxNumber = taxForm.gst_tax_number.trim();
+    const defaultTaxRate = Number(taxForm.default_tax_rate);
+    if (taxForm.default_tax_rate === "" || !Number.isFinite(defaultTaxRate) || defaultTaxRate < 0 || defaultTaxRate > 100) {
+      setTaxError("The default tax rate must be between 0% and 100%."); return;
     }
-
-    if (!photographerId) {
-      setTaxError(
-        "Photographer profile could not be found."
-      );
-
-      return;
-    }
-
     try {
-      setSavingTax(true);
-      setTaxMessage("");
-      setTaxError("");
-
-      const {
-        error: updateError,
-      } = await supabase
-        .from("photographer_payment_settings")
-        .upsert({
-          photographer_id: photographerId,
-          gst_tax_number:
-            gstTaxNumber || null,
-
-          default_tax_rate:
-            Number(defaultTaxRate.toFixed(2)),
-        }, {
-          onConflict: "photographer_id",
-        });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      setTaxForm({
-        gst_tax_number: gstTaxNumber,
-        default_tax_rate:
-          String(
-            Number(defaultTaxRate.toFixed(2))
-          ),
-      });
-
-      setTaxMessage(
-        "Tax settings updated successfully."
-      );
-
+      setSavingTax(true); setTaxMessage(""); setTaxError("");
+      await apiSavePhotographerTax({ gst_tax_number: gstTaxNumber, default_tax_rate: defaultTaxRate });
+      setTaxForm({ gst_tax_number: gstTaxNumber, default_tax_rate: String(Number(defaultTaxRate.toFixed(2))) });
+      setTaxMessage("Tax settings updated successfully.");
     } catch (error) {
-      console.error(
-        "Unable to update tax settings:",
-        error
-      );
-
-      setTaxError(
-        error.message ||
-        "Your tax settings could not be updated."
-      );
-
-    } finally {
-      setSavingTax(false);
-    }
+      console.error("Unable to update tax settings:", error);
+      setTaxError(error.message || "Your tax settings could not be updated.");
+    } finally { setSavingTax(false); }
   }
 
 
@@ -1126,109 +541,25 @@ export default function Settings() {
 
   async function handleSavePayments(event) {
     event.preventDefault();
-
     const paymentDetails = {
-      bank_account_name:
-        paymentForm.bank_account_name.trim(),
-      bank_name:
-        paymentForm.bank_name.trim(),
-      bank_account_number:
-        paymentForm.bank_account_number.trim(),
-      bank_payment_instructions:
-        paymentForm.bank_payment_instructions.trim(),
+      bank_account_name: paymentForm.bank_account_name.trim(),
+      bank_name: paymentForm.bank_name.trim(),
+      bank_account_number: paymentForm.bank_account_number.trim(),
+      bank_payment_instructions: paymentForm.bank_payment_instructions.trim(),
     };
-
-    const hasPaymentDetails =
-      Object.values(paymentDetails).some(Boolean);
-
-    if (
-      hasPaymentDetails &&
-      (!paymentDetails.bank_account_name ||
-        !paymentDetails.bank_account_number)
-    ) {
-      setPaymentError(
-        "Enter both an account name and account number, or leave all bank fields blank."
-      );
-
-      return;
+    const hasPaymentDetails = Object.values(paymentDetails).some(Boolean);
+    if (hasPaymentDetails && (!paymentDetails.bank_account_name || !paymentDetails.bank_account_number)) {
+      setPaymentError("Enter both an account name and account number, or leave all bank fields blank."); return;
     }
-
-    if (!photographerId) {
-      setPaymentError(
-        "Photographer profile could not be found."
-      );
-
-      return;
-    }
-
     try {
-      setSavingPayments(true);
-      setPaymentMessage("");
-      setPaymentError("");
-
-      const {
-        error: updateError,
-      } = await supabase
-        .from("photographer_payment_settings")
-        .upsert({
-          photographer_id: photographerId,
-          bank_account_name:
-            paymentDetails.bank_account_name || null,
-          bank_name:
-            paymentDetails.bank_name || null,
-          bank_account_number:
-            paymentDetails.bank_account_number || null,
-          bank_payment_instructions:
-            paymentDetails.bank_payment_instructions || null,
-        }, {
-          onConflict: "photographer_id",
-        });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      const {
-        error: invoiceUpdateError,
-      } = await supabase
-        .from("invoices")
-        .update({
-          bank_account_name:
-            paymentDetails.bank_account_name || null,
-          bank_name:
-            paymentDetails.bank_name || null,
-          bank_account_number:
-            paymentDetails.bank_account_number || null,
-          bank_payment_instructions:
-            paymentDetails.bank_payment_instructions || null,
-        })
-        .eq("photographer_id", photographerId);
-
-      if (invoiceUpdateError) {
-        throw invoiceUpdateError;
-      }
-
+      setSavingPayments(true); setPaymentMessage(""); setPaymentError("");
+      await apiSavePhotographerBank(paymentDetails);
       setPaymentForm(paymentDetails);
-      setPaymentMessage(
-        hasPaymentDetails
-          ? "Bank account details updated successfully."
-          : "Bank account details removed successfully."
-      );
-
+      setPaymentMessage(hasPaymentDetails ? "Bank account details updated successfully." : "Bank account details removed successfully.");
     } catch (error) {
-      console.error(
-        "Unable to update bank account details:",
-        error
-      );
-
-      setPaymentError(
-        error.message ||
-        "Your bank account details could not be updated."
-      );
-
-    } finally {
-      setSavingPayments(false);
-    }
+      console.error("Unable to update bank account details:", error);
+      setPaymentError(error.message || "Your bank account details could not be updated.");
+    } finally { setSavingPayments(false); }
   }
 
 

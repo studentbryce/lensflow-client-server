@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { requireAuth } from '../middleware/authMiddleware.js';
+import { getSettings, patchAccount, patchBusiness, putTax, putBank } from '../controllers/photographerSettingsController.js';
+const router = Router();
+router.use(requireAuth);
+router.get('/', getSettings);
+router.patch('/account', patchAccount);
+router.patch('/business', patchBusiness);
+router.put('/tax', putTax);
+router.put('/bank', putBank);
+export default router;
