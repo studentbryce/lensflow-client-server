@@ -20,6 +20,8 @@ import {
 } from "react-icons/bi";
 
 import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerMessages, apiStartPhotographerConversation,
+    apiSendPhotographerMessage, apiMarkPhotographerMessagesRead } from "../../services/photographerMessagesApi";
 
 import "./Messages.css";
 
@@ -170,383 +172,27 @@ export default function Messages() {
        Load messaging data
        ========================================================= */
 
-    const loadMessagingData = useCallback(
-        async (showLoading = true) => {
-            try {
-                if (showLoading) {
-                    setLoading(true);
-                }
-
-                setError("");
-
-                /* -----------------------------------------------------
-                   1. Current authenticated user
-                   ----------------------------------------------------- */
-
-                const {
-                    data: { user },
-                    error: authError,
-                } =
-                    await supabase.auth.getUser();
-
-                if (authError) {
-                    throw authError;
-                }
-
-                if (!user) {
-                    throw new Error(
-                        "No authenticated user was found."
-                    );
-                }
-
-                setCurrentUserId(user.id);
-
-
-                /* -----------------------------------------------------
-                   2. Photographer profile
-                   ----------------------------------------------------- */
-
-                const {
-                    data: photographer,
-                    error: photographerError,
-                } = await supabase
-                    .from("photographer_profiles")
-                    .select(`
-            photographer_id,
-            business_name
-          `)
-                    .eq("user_id", user.id)
-                    .single();
-
-                if (photographerError) {
-                    throw photographerError;
-                }
-
-                if (!photographer) {
-                    throw new Error(
-                        "Photographer profile could not be found."
-                    );
-                }
-
-                const currentPhotographerId =
-                    photographer.photographer_id;
-
-                setPhotographerId(
-                    currentPhotographerId
-                );
-
-
-                /* -----------------------------------------------------
-                   3. Photographer's clients
-                   ----------------------------------------------------- */
-
-                const {
-                    data: clientRows,
-                    error: clientsError,
-                } = await supabase
-                    .from("clients")
-                    .select(`
-            client_id,
-            user_id
-          `)
-                    .eq(
-                        "photographer_id",
-                        currentPhotographerId
-                    );
-
-                if (clientsError) {
-                    throw clientsError;
-                }
-
-                const rawClients =
-                    clientRows || [];
-
-                const clientUserIds =
-                    rawClients
-                        .map(
-                            (client) =>
-                                client.user_id
-                        )
-                        .filter(Boolean);
-
-
-                /* -----------------------------------------------------
-                   4. Client profiles
-                   ----------------------------------------------------- */
-
-                let profileRows = [];
-
-                if (clientUserIds.length) {
-                    const {
-                        data,
-                        error:
-                        profilesError,
-                    } = await supabase
-                        .from("profiles")
-                        .select(`
-              user_id,
-              first_name,
-              last_name,
-              email
-            `)
-                        .in(
-                            "user_id",
-                            clientUserIds
-                        );
-
-                    if (profilesError) {
-                        throw profilesError;
-                    }
-
-                    profileRows =
-                        data || [];
-                }
-
-                const profileMap =
-                    new Map(
-                        profileRows.map(
-                            (profile) => [
-                                profile.user_id,
-                                profile,
-                            ]
-                        )
-                    );
-
-                const enrichedClients =
-                    rawClients.map(
-                        (client) => {
-                            const profile =
-                                profileMap.get(
-                                    client.user_id
-                                );
-
-                            return {
-                                ...client,
-
-                                first_name:
-                                    profile?.first_name ||
-                                    "",
-
-                                last_name:
-                                    profile?.last_name ||
-                                    "",
-
-                                email:
-                                    profile?.email ||
-                                    "",
-                            };
-                        }
-                    );
-
-                enrichedClients.sort(
-                    (a, b) =>
-                        getClientName(a)
-                            .localeCompare(
-                                getClientName(b)
-                            )
-                );
-
-                setClients(
-                    enrichedClients
-                );
-
-                const clientMap =
-                    new Map(
-                        enrichedClients.map(
-                            (client) => [
-                                client.client_id,
-                                client,
-                            ]
-                        )
-                    );
-
-
-                /* -----------------------------------------------------
-                   5. Conversations
-                   ----------------------------------------------------- */
-
-                const {
-                    data: conversationRows,
-                    error:
-                    conversationsError,
-                } = await supabase
-                    .from("conversations")
-                    .select(`
-            conversation_id,
-            photographer_id,
-            client_id,
-            created_at,
-            updated_at
-          `)
-                    .eq(
-                        "photographer_id",
-                        currentPhotographerId
-                    )
-                    .order(
-                        "updated_at",
-                        {
-                            ascending: false,
-                        }
-                    );
-
-                if (
-                    conversationsError
-                ) {
-                    throw conversationsError;
-                }
-
-                const rawConversations =
-                    conversationRows || [];
-
-
-                /* -----------------------------------------------------
-                   6. Messages
-                   ----------------------------------------------------- */
-
-                const conversationIds =
-                    rawConversations.map(
-                        (conversation) =>
-                            conversation.conversation_id
-                    );
-
-                let messageRows = [];
-
-                if (
-                    conversationIds.length
-                ) {
-                    const {
-                        data,
-                        error:
-                        messagesError,
-                    } = await supabase
-                        .from("messages")
-                        .select(`
-              message_id,
-              conversation_id,
-              sender_id,
-              message,
-              is_read,
-              created_at
-            `)
-                        .in(
-                            "conversation_id",
-                            conversationIds
-                        )
-                        .order(
-                            "created_at",
-                            {
-                                ascending: true,
-                            }
-                        );
-
-                    if (messagesError) {
-                        throw messagesError;
-                    }
-
-                    messageRows =
-                        data || [];
-                }
-
-
-                /* -----------------------------------------------------
-                   7. Build complete conversation objects
-                   ----------------------------------------------------- */
-
-                const builtConversations =
-                    rawConversations.map(
-                        (conversation) => {
-                            const conversationMessages =
-                                messageRows.filter(
-                                    (message) =>
-                                        message.conversation_id ===
-                                        conversation.conversation_id
-                                );
-
-                            const lastMessage =
-                                conversationMessages.length
-                                    ? conversationMessages[
-                                    conversationMessages.length -
-                                    1
-                                    ]
-                                    : null;
-
-                            const unreadCount =
-                                conversationMessages.filter(
-                                    (message) =>
-                                        !message.is_read &&
-                                        message.sender_id !==
-                                        user.id
-                                ).length;
-
-                            return {
-                                ...conversation,
-
-                                client:
-                                    clientMap.get(
-                                        conversation.client_id
-                                    ) || null,
-
-                                messages:
-                                    conversationMessages,
-
-                                lastMessage,
-
-                                unreadCount,
-                            };
-                        }
-                    );
-
-                builtConversations.sort(
-                    (a, b) =>
-                        new Date(
-                            b.updated_at ||
-                            b.created_at
-                        ) -
-                        new Date(
-                            a.updated_at ||
-                            a.created_at
-                        )
-                );
-
-                setConversations(
-                    builtConversations
-                );
-
-                setSelectedConversationId(
-                    (current) => {
-                        if (
-                            current &&
-                            builtConversations.some(
-                                (conversation) =>
-                                    conversation.conversation_id ===
-                                    current
-                            )
-                        ) {
-                            return current;
-                        }
-
-                        return "";
-                    }
-                );
-            } catch (loadError) {
-                console.error(
-                    "Photographer messaging error:",
-                    loadError
-                );
-
-                setError(
-                    loadError.message ||
-                    "Unable to load your messages."
-                );
-            } finally {
-                if (showLoading) {
-                    setLoading(false);
-                }
-            }
-        },
-        []
-    );
-
+    const loadMessagingData = useCallback(async (showLoading = true) => {
+        try {
+            if (showLoading) setLoading(true);
+            setError("");
+            const response = await apiGetPhotographerMessages();
+            const data = response.data;
+            setCurrentUserId(data.currentUserId);
+            setPhotographerId(data.photographerId);
+            setClients(data.clients || []);
+            setConversations(data.conversations || []);
+            setSelectedConversationId(current =>
+                current && (data.conversations || []).some(c => c.conversation_id === current)
+                    ? current : ""
+            );
+        } catch (loadError) {
+            console.error("Photographer messaging error:", loadError);
+            setError(loadError.message || "Unable to load your messages.");
+        } finally {
+            if (showLoading) setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         loadMessagingData();
@@ -690,33 +336,10 @@ export default function Messages() {
                     return;
                 }
 
-                const {
-                    error:
-                    updateError,
-                } = await supabase
-                    .from("messages")
-                    .update({
-                        is_read: true,
-                    })
-                    .eq(
-                        "conversation_id",
-                        conversationId
-                    )
-                    .neq(
-                        "sender_id",
-                        currentUserId
-                    )
-                    .eq(
-                        "is_read",
-                        false
-                    );
-
-                if (updateError) {
-                    console.error(
-                        "Unable to mark messages as read:",
-                        updateError
-                    );
-
+                try {
+                    await apiMarkPhotographerMessagesRead(conversationId);
+                } catch (updateError) {
+                    console.error("Unable to mark messages as read:", updateError);
                     return;
                 }
 
@@ -1067,34 +690,7 @@ export default function Messages() {
                 return;
             }
 
-            const {
-                data:
-                newConversation,
-                error:
-                conversationError,
-            } = await supabase
-                .from("conversations")
-                .insert({
-                    photographer_id:
-                        photographerId,
-
-                    client_id:
-                        client.client_id,
-                })
-                .select(`
-          conversation_id,
-          photographer_id,
-          client_id,
-          created_at,
-          updated_at
-        `)
-                .single();
-
-            if (
-                conversationError
-            ) {
-                throw conversationError;
-            }
+            const { data: newConversation } = await apiStartPhotographerConversation(client.client_id);
 
             const builtConversation = {
                 ...newConversation,
@@ -1104,12 +700,8 @@ export default function Messages() {
                 unreadCount: 0,
             };
 
-            setConversations(
-                (current) => [
-                    builtConversation,
-                    ...current,
-                ]
-            );
+            setConversations(current => current.some(c => c.conversation_id === newConversation.conversation_id)
+                ? current : [builtConversation, ...current]);
 
             setSelectedConversationId(
                 newConversation.conversation_id
@@ -1131,18 +723,6 @@ export default function Messages() {
              * same moment.
              */
 
-            if (
-                conversationError.code ===
-                "23505"
-            ) {
-                await loadMessagingData(
-                    false
-                );
-
-                setComposeOpen(false);
-
-                return;
-            }
 
             setMessageError(
                 conversationError.message ||
@@ -1192,34 +772,9 @@ export default function Messages() {
         setMessageError("");
 
         try {
-            const {
-                data: createdMessage,
-                error: sendError,
-            } = await supabase
-                .from("messages")
-                .insert({
-                    conversation_id:
-                        selectedConversation.conversation_id,
-
-                    sender_id:
-                        currentUserId,
-
-                    message:
-                        cleanMessage,
-                })
-                .select(`
-          message_id,
-          conversation_id,
-          sender_id,
-          message,
-          is_read,
-          created_at
-        `)
-                .single();
-
-            if (sendError) {
-                throw sendError;
-            }
+            const { data: createdMessage } = await apiSendPhotographerMessage(
+                selectedConversation.conversation_id, cleanMessage
+            );
 
             setDraft("");
 

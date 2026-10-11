@@ -30,7 +30,7 @@ export async function requireAuth(req, res, next) {
         }
 
         req.user = data.user;
-        req.accessToken = match[1]; // Used in Milestone 3 for user-scoped RLS queries.
+        req.accessToken = match[1]; // Used for user-scoped RLS queries.
         next();
     } catch (error) {
         next(error);

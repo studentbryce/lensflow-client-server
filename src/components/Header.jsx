@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { apiGetUnreadMessageCount } from "../services/photographerMessagesApi";
 
 import brandLogo from "../assets/images/Lensflow_brand_logo-transparent.png";
 
@@ -73,53 +74,8 @@ function Header() {
 
 	const loadUnreadMessageCount = useCallback(async () => {
 		try {
-			const {
-				data: { user },
-				error: authError,
-			} = await supabase.auth.getUser();
-
-			if (authError) {
-				throw authError;
-			}
-
-			if (!user) {
-				setUnreadMessageCount(0);
-				return;
-			}
-
-
-			/*
-			 * RLS restricts the messages query to conversations
-			 * the currently authenticated user participates in.
-			 *
-			 * We only count:
-			 * - unread messages
-			 * - messages sent by somebody else
-			 */
-
-			const {
-				count,
-				error: countError,
-			} = await supabase
-				.from("messages")
-				.select(
-					"message_id",
-					{
-						count: "exact",
-						head: true,
-					}
-				)
-				.eq("is_read", false)
-				.neq("sender_id", user.id);
-
-
-			if (countError) {
-				throw countError;
-			}
-
-			setUnreadMessageCount(
-				count || 0
-			);
+            const response = await apiGetUnreadMessageCount();
+            setUnreadMessageCount(response.data?.count ?? 0);
 		} catch (error) {
 			console.error(
 				"Unable to load unread message count:",
