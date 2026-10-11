@@ -9,7 +9,7 @@ import {
   BiPlus,
   BiCircle,
 } from "react-icons/bi";
-import { supabase } from "../../lib/supabaseClient";
+import { apiListPhotographerPortfolio, apiUpdatePortfolioItem, apiDeletePortfolioItem, apiReorderPortfolio } from "../../services/photographerWebsiteApi";
 import "./Portfolio.css";
 
 export default function Portfolio() {
@@ -44,63 +44,9 @@ export default function Portfolio() {
       setError("");
       setOrderChanged(false);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "You must be logged in to manage your portfolio."
-        );
-      }
-
-      const { data: photographer, error: photographerError } =
-        await supabase
-          .from("photographer_profiles")
-          .select("photographer_id")
-          .eq("user_id", user.id)
-          .single();
-
-      if (photographerError) {
-        throw photographerError;
-      }
-
-      setPhotographerId(photographer.photographer_id);
-
-      const { data, error: portfolioError } = await supabase
-        .from("portfolio_items")
-        .select(`
-          portfolio_id,
-          photographer_id,
-          title,
-          description,
-          media_url,
-          thumbnail_url,
-          category,
-          display_order,
-          published,
-          created_at,
-          updated_at
-        `)
-        .eq(
-          "photographer_id",
-          photographer.photographer_id
-        )
-        .order("display_order", {
-          ascending: true,
-        })
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (portfolioError) {
-        throw portfolioError;
-      }
+      const response = await apiListPhotographerPortfolio();
+      setPhotographerId(response.photographer_id);
+      const data = response.items;
 
       /*
        * The display order is normalised in the UI.
@@ -289,79 +235,7 @@ export default function Portfolio() {
        * 2. Assign the final 0,1,2... values.
        */
 
-      const temporaryUpdates =
-        portfolioItems.map(
-          (item, index) => ({
-            portfolio_id:
-              item.portfolio_id,
-            temporaryOrder:
-              -(index + 1),
-          })
-        );
-
-      /*
-       * STEP 1
-       * Give every item a unique temporary order.
-       */
-      for (const item of temporaryUpdates) {
-        const {
-          error: temporaryError,
-        } = await supabase
-          .from("portfolio_items")
-          .update({
-            display_order:
-              item.temporaryOrder,
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "portfolio_id",
-            item.portfolio_id
-          )
-          .eq(
-            "photographer_id",
-            photographerId
-          );
-
-        if (temporaryError) {
-          throw temporaryError;
-        }
-      }
-
-      /*
-       * STEP 2
-       * Apply the final sequential order.
-       */
-      for (
-        let index = 0;
-        index < portfolioItems.length;
-        index += 1
-      ) {
-        const item =
-          portfolioItems[index];
-
-        const {
-          error: finalError,
-        } = await supabase
-          .from("portfolio_items")
-          .update({
-            display_order: index,
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "portfolio_id",
-            item.portfolio_id
-          )
-          .eq(
-            "photographer_id",
-            photographerId
-          );
-
-        if (finalError) {
-          throw finalError;
-        }
-      }
+      await apiReorderPortfolio(portfolioItems.map(item => item.portfolio_id));
 
       /*
        * Keep local state aligned with the database.
@@ -406,30 +280,7 @@ export default function Portfolio() {
     try {
       setError("");
 
-      const {
-        data,
-        error: updateError,
-      } = await supabase
-        .from("portfolio_items")
-        .update({
-          published: !item.published,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "portfolio_id",
-          item.portfolio_id
-        )
-        .eq(
-          "photographer_id",
-          photographerId
-        )
-        .select()
-        .single();
-
-      if (updateError) {
-        throw updateError;
-      }
+      const data = await apiUpdatePortfolioItem(item.portfolio_id, { published: !item.published });
 
       setPortfolioItems(
         (currentItems) =>
@@ -471,23 +322,7 @@ export default function Portfolio() {
       setDeleting(true);
       setError("");
 
-      const {
-        error: deleteError,
-      } = await supabase
-        .from("portfolio_items")
-        .delete()
-        .eq(
-          "portfolio_id",
-          deleteItem.portfolio_id
-        )
-        .eq(
-          "photographer_id",
-          photographerId
-        );
-
-      if (deleteError) {
-        throw deleteError;
-      }
+      await apiDeletePortfolioItem(deleteItem.portfolio_id);
 
       /*
        * Remove the item locally and immediately

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient"; // Storage operations only
+import { apiGetPortfolioOptions, apiCreatePortfolioItem } from "../../services/photographerWebsiteApi";
 import "./NewPortfolioItem.css";
 
 const EMPTY_FORM = {
@@ -124,152 +125,13 @@ export default function NewPortfolioItem() {
       setLoading(true);
       setError("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        navigate("/login");
-        return;
-      }
-
-      /*
-       * Find the photographer profile belonging to
-       * the currently authenticated Supabase user.
-       */
-
-      const {
-        data: photographerProfile,
-        error: profileError,
-      } = await supabase
-        .from("photographer_profiles")
-        .select(
-          "photographer_id, business_name"
-        )
-        .eq("user_id", user.id)
-        .single();
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      if (!photographerProfile?.photographer_id) {
-        throw new Error(
-          "Photographer profile could not be found."
-        );
-      }
-
-      const currentPhotographerId =
-        photographerProfile.photographer_id;
-
-      setPhotographerId(
-        currentPhotographerId
-      );
-
-      /*
-       * We deliberately do not store display_order
-       * in the form anymore.
-       *
-       * Portfolio ordering is now controlled from
-       * the Portfolio page using drag-and-drop.
-       *
-       * The new item is automatically appended to
-       * the end when it is created.
-       */
-
-      /*
-       * Get all galleries owned by this photographer.
-       */
-
-      const {
-        data: galleryData,
-        error: galleryError,
-      } = await supabase
-        .from("galleries")
-        .select(
-          `
-            gallery_id,
-            name,
-            description,
-            is_published,
-            created_at
-          `
-        )
-        .eq(
-          "photographer_id",
-          currentPhotographerId
-        )
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (galleryError) {
-        throw galleryError;
-      }
-
-      const loadedGalleries =
-        galleryData || [];
-
+      const options = await apiGetPortfolioOptions();
+      const currentPhotographerId = options.photographer_id;
+      setPhotographerId(currentPhotographerId);
+      const loadedGalleries = options.galleries;
       setGalleries(loadedGalleries);
-
-      if (loadedGalleries.length === 0) {
-        setMedia([]);
-        return;
-      }
-
-      const galleryIds =
-        loadedGalleries.map(
-          (gallery) =>
-            gallery.gallery_id
-        );
-
-      /*
-       * Get image media belonging to the
-       * photographer's galleries.
-       *
-       * Videos are deliberately excluded because
-       * portfolio items currently use images.
-       */
-
-      const {
-        data: mediaData,
-        error: mediaError,
-      } = await supabase
-        .from("media")
-        .select(
-          `
-            media_id,
-            gallery_id,
-            photographer_id,
-            file_name,
-            storage_path,
-            media_type,
-            mime_type,
-            file_size,
-            uploaded_at
-          `
-        )
-        .eq(
-          "photographer_id",
-          currentPhotographerId
-        )
-        .eq("media_type", "image")
-        .in(
-          "gallery_id",
-          galleryIds
-        )
-        .order("uploaded_at", {
-          ascending: false,
-        });
-
-      if (mediaError) {
-        throw mediaError;
-      }
+      if (loadedGalleries.length === 0) { setMedia([]); return; }
+      const mediaData = options.media;
 
       /*
        * Create signed URLs for displaying the
@@ -447,34 +309,7 @@ export default function NewPortfolioItem() {
    * ---------------------------------------------------------
    */
 
-  async function getNextDisplayOrder() {
-    const {
-      data: latestPortfolioItem,
-      error: orderError,
-    } = await supabase
-      .from("portfolio_items")
-      .select("display_order")
-      .eq(
-        "photographer_id",
-        photographerId
-      )
-      .order("display_order", {
-        ascending: false,
-      })
-      .limit(1)
-      .maybeSingle();
-
-    if (orderError) {
-      throw orderError;
-    }
-
-    return latestPortfolioItem?.display_order !=
-      null
-      ? Number(
-          latestPortfolioItem.display_order
-        ) + 1
-      : 0;
-  }
+  // Display order is assigned by the Express API on creation.
 
   /*
    * ---------------------------------------------------------
@@ -536,9 +371,7 @@ export default function NewPortfolioItem() {
        * -------------------------------------------------------
        */
 
-      const nextDisplayOrder =
-        await getNextDisplayOrder();
-
+      // Express assigns the next display order after validating ownership.
       /*
        * -------------------------------------------------------
        * Step 2: Download the original image from
@@ -644,42 +477,18 @@ export default function NewPortfolioItem() {
        * -------------------------------------------------------
        */
 
-      const {
-        error: insertError,
-      } = await supabase
-        .from("portfolio_items")
-        .insert({
-          photographer_id:
-            photographerId,
-
-          title:
-            formData.title.trim(),
-
-          description:
-            formData.description.trim() ||
-            null,
-
+      let insertError = null;
+      try {
+        await apiCreatePortfolioItem({
+          title: formData.title.trim(),
+          description: formData.description.trim() || null,
           media_url: publicUrl,
-
           thumbnail_url: publicUrl,
-
-          category:
-            formData.category.trim() ||
-            null,
-
-          /*
-           * Automatically append the new item
-           * to the end of the portfolio.
-           */
-          display_order:
-            nextDisplayOrder,
-
-          published:
-            formData.published,
-
-          source_media_id:
-            selectedMedia.media_id,
+          category: formData.category.trim() || null,
+          published: formData.published,
+          source_media_id: selectedMedia.media_id,
         });
+      } catch (error) { insertError = error; }
 
       /*
        * -------------------------------------------------------

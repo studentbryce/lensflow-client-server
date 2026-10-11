@@ -10,7 +10,8 @@ import {
 } from "react-icons/bi";
 
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient"; // Storage uploads only
+import { apiGetPhotographerWebsite, apiSavePhotographerWebsite } from "../../services/photographerWebsiteApi";
 import {
   websiteDefaults,
   websiteFonts,
@@ -80,64 +81,12 @@ export default function WebsiteBuilder() {
           throw new Error("Please sign in.");
         }
 
-        const { data: owner, error: ownerError } = await supabase
-          .from("photographer_profiles")
-          .select(
-            "photographer_id, business_name, slug, published"
-          )
-          .eq("user_id", user.id)
-          .single();
-
-        if (ownerError) {
-          throw ownerError;
-        }
-
-        const [config, content, publicReviews, featuredReviews] =
-          await Promise.all([
-            supabase
-              .from("website_settings")
-              .select("*")
-              .eq("photographer_id", owner.photographer_id)
-              .maybeSingle(),
-
-            supabase
-              .from("website_content")
-              .select(
-                "content_id, title, content, image_url"
-              )
-              .eq("photographer_id", owner.photographer_id)
-              .eq("section", "about")
-              .order("display_order", { ascending: true })
-              .order("created_at", { ascending: true })
-              .limit(1)
-              .maybeSingle(),
-
-            supabase.rpc("get_public_reviews", {
-              p_photographer_id: owner.photographer_id,
-            }),
-
-            supabase
-              .from("website_featured_reviews")
-              .select("review_id, display_order")
-              .eq("photographer_id", owner.photographer_id)
-              .order("display_order", { ascending: true }),
-          ]);
-
-        if (config.error) {
-          throw config.error;
-        }
-
-        if (content.error) {
-          throw content.error;
-        }
-
-        if (publicReviews.error) {
-          throw publicReviews.error;
-        }
-
-        if (featuredReviews.error) {
-          throw featuredReviews.error;
-        }
+        const response = await apiGetPhotographerWebsite();
+        const owner = response.profile;
+        const config = { data: response.settings };
+        const content = { data: response.about };
+        const publicReviews = { data: response.approved_reviews };
+        const featuredReviews = { data: response.featured_review_ids.map(review_id => ({ review_id })) };
 
         if (!active) {
           return;
@@ -418,144 +367,26 @@ export default function WebsiteBuilder() {
       const photographerId =
         profile.photographer_id;
 
-      const {
-        error: settingsError,
-      } = await supabase
-        .from("website_settings")
-        .upsert(
-          {
-            ...settings,
-
-            photographer_id:
-              photographerId,
-
-            hero_image_url:
-              heroUrl || null,
-
-            heading_font:
-              settings.heading_font ||
-              websiteDefaults.heading_font,
-
-            body_font:
-              settings.body_font ||
-              websiteDefaults.body_font,
-
-            navigation_font:
-              settings.navigation_font ||
-              websiteDefaults.navigation_font,
-          },
-          {
-            onConflict:
-              "photographer_id",
-          }
-        );
-
-      if (settingsError) {
-        throw settingsError;
-      }
-
-      const { error: clearFeaturedError } = await supabase
-        .from("website_featured_reviews")
-        .delete()
-        .eq("photographer_id", photographerId);
-
-      if (clearFeaturedError) {
-        throw clearFeaturedError;
-      }
-
-      if (featuredReviewIds.length > 0) {
-        const featuredRows = featuredReviewIds.map(
-          (reviewId, index) => ({
-            photographer_id: photographerId,
-            review_id: reviewId,
-            display_order: index + 1,
-          })
-        );
-
-        const { error: featuredInsertError } = await supabase
-          .from("website_featured_reviews")
-          .insert(featuredRows);
-
-        if (featuredInsertError) {
-          throw featuredInsertError;
-        }
-      }
-
-      const aboutValues = {
-        title:
-          about.title.trim() ||
-          "About me",
-
-        content:
-          about.content.trim(),
-
-        image_url:
-          aboutUrl || null,
-
-        photographer_id:
-          photographerId,
-
-        section: "about",
-
-        published: true,
-      };
-
-      let aboutQuery;
-
-      if (aboutId) {
-        aboutQuery = supabase
-          .from("website_content")
-          .update(aboutValues)
-          .eq("content_id", aboutId)
-          .eq(
-            "photographer_id",
-            photographerId
-          );
-      } else {
-        aboutQuery = supabase
-          .from("website_content")
-          .insert(aboutValues);
-      }
-
-      const {
-        data: savedAbout,
-        error: contentError,
-      } = await aboutQuery
-        .select("content_id")
-        .single();
-
-      if (contentError) {
-        throw contentError;
-      }
-
-      setAboutId(
-        savedAbout.content_id
-      );
-
-      const {
-        data: savedProfile,
-        error: profileError,
-      } = await supabase
-        .from(
-          "photographer_profiles"
-        )
-        .update({
-          slug: nextSlug,
-          published,
-        })
-        .eq(
-          "photographer_id",
-          photographerId
-        )
-        .eq("user_id", user.id)
-        .select(
-          "photographer_id, business_name, slug, published"
-        )
-        .single();
-
-      if (profileError) {
-        throw profileError;
-      }
+      const saved = await apiSavePhotographerWebsite({
+        slug: nextSlug,
+        published,
+        settings: {
+          ...settings,
+          hero_image_url: heroUrl || null,
+          heading_font: settings.heading_font || websiteDefaults.heading_font,
+          body_font: settings.body_font || websiteDefaults.body_font,
+          navigation_font: settings.navigation_font || websiteDefaults.navigation_font,
+        },
+        about: {
+          title: about.title.trim() || "About me",
+          content: about.content.trim(),
+          image_url: aboutUrl || null,
+        },
+        about_id: aboutId,
+        featured_review_ids: featuredReviewIds,
+      });
+      const savedProfile = saved.profile;
+      setAboutId(saved.about_id);
 
       setProfile(savedProfile);
       setSlug(nextSlug);
@@ -589,17 +420,12 @@ export default function WebsiteBuilder() {
         saveError
       );
 
-      if (
-        saveError.code === "23505"
-      ) {
-        setError(
-          "That slug is already taken. Content settings may have saved; choose another slug and save again."
-        );
-      } else {
-        setError(
-          "Unable to finish saving. Some settings may have saved. Please try again."
-        );
-      }
+      // Show the API's safe validation/conflict message instead of hiding it.
+      // The Express global error handler sanitises unexpected server errors.
+      setError(
+        saveError.message ||
+        "Unable to finish saving. Some settings may have saved. Please try again."
+      );
     } finally {
       saveLock.current = false;
       setSaving(false);

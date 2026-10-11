@@ -1,0 +1,10 @@
+import { apiFetch } from './apiClient';
+const base='/api/photographer/website';
+export const apiGetPhotographerWebsite=()=>apiFetch(base).then(r=>r.data);
+export const apiSavePhotographerWebsite=data=>apiFetch(base,{method:'PUT',body:JSON.stringify(data)}).then(r=>r.data);
+export const apiListPhotographerPortfolio=()=>apiFetch(`${base}/portfolio`).then(r=>r.data);
+export const apiGetPortfolioOptions=()=>apiFetch(`${base}/portfolio/options`).then(r=>r.data);
+export const apiCreatePortfolioItem=data=>apiFetch(`${base}/portfolio`,{method:'POST',body:JSON.stringify(data)}).then(r=>r.data);
+export const apiUpdatePortfolioItem=(id,data)=>apiFetch(`${base}/portfolio/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(data)}).then(r=>r.data);
+export const apiDeletePortfolioItem=id=>apiFetch(`${base}/portfolio/${encodeURIComponent(id)}`,{method:'DELETE'}).then(r=>r.data);
+export const apiReorderPortfolio=ids=>apiFetch(`${base}/portfolio/order`,{method:'PUT',body:JSON.stringify({ids})}).then(r=>r.data);
