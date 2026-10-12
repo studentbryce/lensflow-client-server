@@ -3,7 +3,7 @@ Conservative source audit; not a substitute for network-tab or RLS testing.
 """
 from pathlib import Path
 import re
-ROOT = Path(__file__).resolve().parents[1] / 'src'
+ROOT = Path(__file__).resolve().parents[2] / 'src'
 issues, storage, realtime, auth, edge = [], [], [], [], []
 for file in sorted(ROOT.rglob('*')):
     if file.suffix not in ('.js', '.jsx', '.ts', '.tsx'):
