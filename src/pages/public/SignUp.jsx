@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { apiGetPublicPhotographers } from "../../services/publicWebsiteApi";
 import "./Login.css";
 import brandLogo from "../../assets/images/Lensflow_brand_logo-transparent.png";
 
@@ -26,8 +27,7 @@ export default function SignUp() {
     async function load() {
       setLoading(true); setLoadError("");
       try {
-        const { data, error } = await supabase.from("photographer_profiles").select("photographer_id, business_name").eq("published", true).order("business_name");
-        if (error) throw error;
+        const data = await apiGetPublicPhotographers();
         if (active) setPhotographers(data || []);
       } catch { if (active) setLoadError("Unable to load photographers. Please try again."); }
       finally { if (active) setLoading(false); }

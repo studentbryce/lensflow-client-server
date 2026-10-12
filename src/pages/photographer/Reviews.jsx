@@ -9,7 +9,7 @@ import {
   BiX,
 } from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPhotographerReviews, apiModeratePhotographerReview } from "../../services/photographerReviewsApi";
 import "./Reviews.css";
 
 const REVIEW_FILTERS = ["all", "pending", "approved", "rejected"];
@@ -93,7 +93,6 @@ function StarDisplay({ rating }) {
 export default function Reviews() {
   const { user } = useAuth();
 
-  const [photographerId, setPhotographerId] = useState(null);
   const [reviews, setReviews] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -117,161 +116,14 @@ export default function Reviews() {
           throw new Error("Please sign in to manage your reviews.");
         }
 
-        // ---------------------------------------------------------
-        // 1. Find the authenticated photographer
-        // ---------------------------------------------------------
-
-        const {
-          data: photographer,
-          error: photographerError,
-        } = await supabase
-          .from("photographer_profiles")
-          .select("photographer_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (photographerError) {
-          throw photographerError;
-        }
-
-        if (!photographer?.photographer_id) {
-          throw new Error("Your photographer profile could not be found.");
-        }
-
-        const currentPhotographerId = photographer.photographer_id;
-
-        // ---------------------------------------------------------
-        // 2. Load reviews belonging to this photographer
-        //
-        // The photographer SELECT RLS policy independently ensures
-        // that photographers can only read their own reviews.
-        // ---------------------------------------------------------
-
-        const {
-          data: reviewData,
-          error: reviewError,
-        } = await supabase
-          .from("reviews")
-          .select(`
-            review_id,
-            photographer_id,
-            client_id,
-            booking_id,
-            rating,
-            comment,
-            status,
-            created_at,
-            updated_at
-          `)
-          .eq("photographer_id", currentPhotographerId)
-          .order("created_at", { ascending: false });
-
-        if (reviewError) {
-          throw reviewError;
-        }
-
-        const loadedReviews = reviewData || [];
-
-        // ---------------------------------------------------------
-        // 3. Load clients referenced by the reviews
-        // ---------------------------------------------------------
-
-        const clientIds = [
-          ...new Set(
-            loadedReviews
-              .map((review) => review.client_id)
-              .filter(Boolean)
-          ),
-        ];
-
-        let clients = [];
-
-        if (clientIds.length > 0) {
-          const {
-            data: clientData,
-            error: clientError,
-          } = await supabase
-            .from("clients")
-            .select(`
-              client_id,
-              user_id,
-              profiles(
-                first_name,
-                last_name
-              )
-            `)
-            .in("client_id", clientIds);
-
-          if (clientError) {
-            throw clientError;
-          }
-
-          clients = clientData || [];
-        }
-
-        // ---------------------------------------------------------
-        // 4. Load bookings referenced by the reviews
-        // ---------------------------------------------------------
-
-        const bookingIds = [
-          ...new Set(
-            loadedReviews
-              .map((review) => review.booking_id)
-              .filter(Boolean)
-          ),
-        ];
-
-        let bookings = [];
-
-        if (bookingIds.length > 0) {
-          const {
-            data: bookingData,
-            error: bookingError,
-          } = await supabase
-            .from("bookings")
-            .select(`
-              booking_id,
-              booking_date,
-              start_time,
-              end_time,
-              location,
-              status,
-              service_id,
-              services(name)
-            `)
-            .eq("photographer_id", currentPhotographerId)
-            .in("booking_id", bookingIds);
-
-          if (bookingError) {
-            throw bookingError;
-          }
-
-          bookings = bookingData || [];
-        }
-
-        // ---------------------------------------------------------
-        // 5. Combine the related records in React
-        // ---------------------------------------------------------
-
-        const clientMap = new Map(
-          clients.map((client) => [client.client_id, client])
-        );
-
-        const bookingMap = new Map(
-          bookings.map((booking) => [booking.booking_id, booking])
-        );
-
-        const enrichedReviews = loadedReviews.map((review) => ({
-          ...review,
-          client: clientMap.get(review.client_id) || null,
-          booking: bookingMap.get(review.booking_id) || null,
-        }));
+        // All review, client and booking data comes from the authenticated Express API.
+        const result = await apiGetPhotographerReviews();
+        const enrichedReviews = result?.data?.reviews || [];
 
         if (!active) {
           return;
         }
 
-        setPhotographerId(currentPhotographerId);
         setReviews(enrichedReviews);
       } catch (error) {
         console.error("Unable to load photographer reviews:", error);
@@ -355,21 +207,10 @@ export default function Reviews() {
       setErrorMessage("");
       setSuccessMessage("");
 
-      // The RPC identifies the photographer using auth.uid()
-      // and changes only the review's moderation status.
-      const { data, error } = await supabase.rpc("moderate_review", {
-        p_review_id: review.review_id,
-        p_status: newStatus,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Depending on PostgREST's representation of a composite
-      // return type, the RPC may return the row directly or as
-      // the first item of an array.
-      const moderatedReview = Array.isArray(data) ? data[0] : data;
+      // Express verifies JWT, role and review ownership, then calls the existing
+      // auth-scoped moderate_review RPC. Never send moderation directly from React.
+      const result = await apiModeratePhotographerReview(review.review_id, newStatus);
+      const moderatedReview = result?.data;
 
       setReviews((currentReviews) =>
         currentReviews.map((currentReview) =>

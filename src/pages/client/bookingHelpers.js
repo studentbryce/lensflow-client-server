@@ -1,14 +1,3 @@
-import { supabase } from "../../lib/supabaseClient";
-
-export async function getClient(userId) {
-  if (!userId) throw new Error("Please sign in to view your bookings.");
-  const { data, error } = await supabase.from("clients")
-    .select("client_id, photographer_id").eq("user_id", userId).single();
-  if (error) throw error;
-  if (!data) throw new Error("Your client profile could not be found.");
-  return data;
-}
-
 export function formatCurrency(value) {
   return value == null ? "To be confirmed" : new Intl.NumberFormat("en-NZ", {
     style: "currency", currency: "NZD",

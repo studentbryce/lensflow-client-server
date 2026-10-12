@@ -7,7 +7,7 @@ import {
   BiX,
 } from "react-icons/bi";
 
-import { supabase } from "../../lib/supabaseClient";
+import { apiGetPublicWebsite } from "../../services/publicWebsiteApi";
 import {
   websiteDefaults,
   safeImageUrl,
@@ -36,156 +36,12 @@ export default function PhotographerWebsite() {
       setSite(null);
 
       try {
-        const {
-          data: profile,
-          error: profileError,
-        } = await supabase
-          .from("photographer_profiles")
-          .select(`
-            photographer_id,
-            business_name,
-            description,
-            email,
-            phone
-          `)
-          .eq("slug", photographerSlug)
-          .eq("published", true)
-          .maybeSingle();
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        if (!profile) {
-          return;
-        }
-
-        const photographerId =
-          profile.photographer_id;
-
-        const results = await Promise.all([
-          supabase
-            .from("website_settings")
-            .select(`
-              primary_colour,
-              secondary_colour,
-              heading_font,
-              body_font,
-              navigation_font,
-              hero_title,
-              hero_description,
-              hero_image_url,
-              show_about,
-              show_services,
-              show_portfolio,
-              show_reviews,
-              show_contact
-            `)
-            .eq(
-              "photographer_id",
-              photographerId
-            )
-            .maybeSingle(),
-
-          supabase
-            .from("website_content")
-            .select(`
-              content_id,
-              title,
-              content,
-              image_url
-            `)
-            .eq(
-              "photographer_id",
-              photographerId
-            )
-            .eq("section", "about")
-            .eq("published", true)
-            .order("display_order", {
-              ascending: true,
-            })
-            .order("created_at", {
-              ascending: true,
-            }),
-
-          supabase
-            .from("portfolio_items")
-            .select(`
-              portfolio_id,
-              title,
-              description,
-              media_url,
-              thumbnail_url
-            `)
-            .eq(
-              "photographer_id",
-              photographerId
-            )
-            .eq("published", true)
-            .order("display_order", {
-              ascending: true,
-            }),
-
-          supabase.rpc("get_featured_reviews", {
-            p_photographer_id: photographerId,
-          }),
-
-          supabase.rpc("get_public_reviews", {
-            p_photographer_id: photographerId,
-          }),
-
-          supabase
-            .from("services")
-            .select(`
-              service_id,
-              name,
-              description,
-              price,
-              duration_minutes,
-              image_url
-            `)
-            .eq(
-              "photographer_id",
-              photographerId
-            )
-            .eq("is_active", true)
-            .order("name", {
-              ascending: true,
-            }),
-        ]);
-
-        for (const result of results) {
-          if (result.error) {
-            throw result.error;
-          }
-        }
-
-        if (!active) {
-          return;
-        }
-
+        const data = await apiGetPublicWebsite(photographerSlug);
+        if (!active) return;
+        if (!data) return; // Unpublished or unknown photographer => existing not-found UI.
         setSite({
-          profile,
-
-          settings: {
-            ...websiteDefaults,
-            ...(results[0].data || {}),
-          },
-
-          about:
-            results[1].data || [],
-
-          portfolio:
-            results[2].data || [],
-
-          reviews:
-            results[3].data || [],
-
-          allReviews:
-            results[4].data || [],
-
-          services:
-            results[5].data || [],
+          ...data,
+          settings: { ...websiteDefaults, ...(data.settings || {}) },
         });
       } catch (loadError) {
         console.error(

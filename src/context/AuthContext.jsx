@@ -7,6 +7,7 @@ import {
 
 import { supabase } from '../lib/supabaseClient';
 import { completeAccountSignup } from '../lib/completeAccountSignup';
+import { apiFetch } from '../services/apiClient';
 
 const AuthContext = createContext();
 
@@ -22,19 +23,13 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('Account setup failed:', error);
     }
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
+    try {
+      const result = await apiFetch('/api/auth/profile');
+      setProfile(result?.data ?? null);
+    } catch (error) {
       console.error('Profile loading error:', error);
       setProfile(null);
-      return;
     }
-
-    setProfile(data);
   }
 
   useEffect(() => {

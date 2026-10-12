@@ -18,12 +18,15 @@ import clientMessagesRoutes from './routes/clientMessagesRoutes.js';
 import clientReviewsRoutes from './routes/clientReviewsRoutes.js';
 import photographerMessagesRoutes from './routes/photographerMessagesRoutes.js';
 import messageNotificationRoutes from './routes/messageNotificationRoutes.js';
+import photographerReviewsRoutes from './routes/photographerReviewsRoutes.js';
+import publicWebsiteRoutes from './routes/publicWebsiteRoutes.js';
 
 const app = express();
 
 app.use(express.json());
 
 app.use('/api/health', healthRoutes);
+app.use('/api/public', publicWebsiteRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/client/bookings', clientBookingRoutes);
@@ -33,6 +36,7 @@ app.use('/api/client/galleries', clientGalleriesRoutes);
 app.use('/api/client/messages', clientMessagesRoutes);
 app.use('/api/client/reviews', clientReviewsRoutes);
 app.use('/api/photographer/messages', photographerMessagesRoutes);
+app.use('/api/photographer/reviews', photographerReviewsRoutes);
 app.use('/api/messages', messageNotificationRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/dashboard', dashboardRoutes);
