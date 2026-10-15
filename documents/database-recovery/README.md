@@ -1,37 +1,68 @@
-# Create and validate a new LensFlow database
+# Create and verify a LensFlow Supabase database
 
-This is a **guided setup reference for a new disposable Supabase project**, not a one-click restore. The SQL files have descriptive names and must be reviewed before execution.
+This folder contains a **guided, schema-first setup** for a new disposable Supabase project. It is not an automated production restore, and the SQL is not intended to be rerun against an existing LensFlow database.
 
-## Workflow
+> **Status (15 October 2026):** The recovery environment has passed structural, identity and Storage verification. The consolidated setup files have **not** all been replayed as one complete installer on an entirely fresh project; in particular, the merged Storage policy setup needs an independent fresh-project test before it is approved for production recovery.
 
-| Order | File / action | Type | Expected outcome |
-|---|---|---|---|
-| 1 | Create a NEW disposable Supabase project; record its project ref | Manual | Original project untouched |
-| 2 | `verify/01_environment_READONLY.sql` | Read only | Confirm project and inspect existing state; project ref must also be checked in dashboard |
-| 3 | `setup/01_schema_baseline_FRESH_DATABASE_ONLY.sql` | **Write** | Core LensFlow schema, RLS and functions created |
-| 4 | `setup/02_identity_protection_FRESH_DATABASE_ONLY.sql` | **Write** | Identity guards and recursion-safe registration logic applied |
-| 5 | `setup/03_storage_buckets_FRESH_DATABASE_ONLY.sql` | **Write** | Four expected Storage buckets created |
-| 6 | `setup/04_storage_policies_FRESH_DATABASE_ONLY.sql` | **Write** | Sixteen Storage object policies created |
-| 7 | Run `verify/02_...sql` through `verify/05_...sql` | Read only | Review structure, identity, bucket and policy checks |
-| 8 | Perform authenticated positive and negative API/Storage tests | Manual | Verify enforcement, not merely policy presence |
-| 9 | Review `../edge-functions/README.md`; configure and deploy five Edge Functions separately, using Stripe test-mode credentials | **External deployment, not SQL** | Payment integration available only after verified deployment |
-| 10 | Follow `DATA_RESTORE_CHECKLIST.md` if original data must be recovered | Separate reviewed process | Data, Auth and media handled deliberately |
-| 11 | Follow `../application-testing/README.md` | Staged tests | App connections and workflows validated without touching original |
+## What this setup contains
 
-## Important limitations
+- PostgreSQL tables, relationships, indexes, database functions and RLS policies.
+- Identity-protection functions/triggers.
+- Four Storage buckets and their object access policies.
+- Read-only checks to inspect the resulting configuration.
 
-- `01_schema_baseline` is a **schema snapshot**, not an idempotent patch. It has not been revalidated against every new Supabase platform version; review dependencies, privileges, extensions and generated objects.
-- `02_identity_protection` was previously used for a disposable baseline recovery, but its SQL object names retain legacy suffixes because those are real database identifiers. **Do not rename SQL identifiers merely to improve file names.**
-- `04_storage_policies` merges the previously used Storage policy definitions with their path-qualification correction into one clean-install file. The individual policy behaviour was tested, but **this merged file has not been independently replay-tested end-to-end**. It is a candidate for fresh-disposable-project validation, not an approved production migration.
-- Existing databases with tables, buckets, policies or data are **not** valid targets for blindly replaying these files. Use a reviewed migration/backup strategy instead.
-- The original Auth accounts, business records, uploaded media, provider settings and external integration secrets are **not** included here. Five Edge Function **source files** are included under `../../supabase/functions/` but are **not deployed** by running the SQL.
+**Not included in SQL:** original Auth identities, customer/business records, uploaded file bytes, project-specific Auth settings, Stripe credentials, webhook registration or deployment of the five Edge Functions. See [data restore checklist](DATA_RESTORE_CHECKLIST.md) and [Edge Function guide](../edge-functions/README.md).
 
-## Expected structural verification after setup
+## Setup order (new disposable project only)
 
-- 24 public tables; all 24 RLS enabled
-- 75 public RLS policies
-- 3 identity-protection triggers
-- 4 Storage buckets and 16 Storage object policies
-- 0 public tables without RLS; 0 unvalidated public foreign keys
+| Step | Action | Type |
+|---|---|---|
+| 1 | Create a **new** Supabase project; verify its project reference in the Dashboard | Manual |
+| 2 | Run `verify/01_environment_READONLY.sql` and inspect existing objects | Read-only |
+| 3 | Review and run `setup/01_schema_baseline_FRESH_DATABASE_ONLY.sql` | **Modifies database** |
+| 4 | Review and run `setup/02_identity_protection_FRESH_DATABASE_ONLY.sql` | **Modifies database** |
+| 5 | Review and run `setup/03_storage_buckets_FRESH_DATABASE_ONLY.sql` | **Modifies Storage configuration** |
+| 6 | Review and run `setup/04_storage_policies_FRESH_DATABASE_ONLY.sql` | **Modifies Storage policies** |
+| 7 | Run `verify/02_structure_and_security_READONLY.sql` | Read-only |
+| 8 | Run `verify/03_identity_and_relationships_READONLY.sql` | Read-only |
+| 9 | Run `verify/04_storage_readiness_READONLY.sql` | Read-only |
+| 10 | Run `verify/05_gallery_policy_paths_READONLY.sql` | Read-only |
+| 11 | Create disposable Auth users and perform authenticated positive/negative tests | Manual, controlled writes |
+| 12 | Deploy Edge Functions **separately**, only if Stripe integration is required | External deployment |
 
-Counts are smoke checks, not proof of security. Review SQL function ownership and `SECURITY DEFINER` settings, and run authenticated cross-tenant tests before using any environment for real data.
+A new empty project will not have the same Auth-user counts as the previously tested recovery project. Review expected outcomes in context; do not try to force historical row counts into a new installation.
+
+## Expected structural checks
+
+The tested configuration contained:
+
+| Component | Expected reference count |
+|---|---:|
+| Public tables | 24 |
+| Public tables with RLS | 24 |
+| Public RLS policies | 75 |
+| Identity-protection triggers | 3 |
+| Storage buckets | 4 |
+| Storage object policies | 16 |
+| Public tables without RLS | 0 |
+| Unvalidated public foreign keys | 0 |
+
+These counts are **sanity checks**, not a substitute for examining function privileges, policy expressions, ownership or authenticated cross-tenant behaviour. A successful query is not proof that the complete fresh setup has been replay-tested.
+
+## Important SQL cautions
+
+- `01_schema_baseline_FRESH_DATABASE_ONLY.sql` is a snapshot, not an idempotent migration. Review dependencies and compatibility with the target Supabase/PostgreSQL version.
+- PostgreSQL **functions are already part of the schema setup**. They are distinct from the five Deno/TypeScript Supabase Edge Functions in `../../supabase/functions/`.
+- `02_identity_protection_FRESH_DATABASE_ONLY.sql` includes real SQL identifiers with historical suffixes. Renaming them without a reviewed migration could break references; descriptive filenames do not require changing database object names.
+- `04_storage_policies_FRESH_DATABASE_ONLY.sql` combines policy definitions with an earlier path-qualification correction. The tested policy behaviour passed, but the **combined installer has not been independently replay-tested**.
+- For an existing database, use a separately reviewed migration or backup/restore procedure; do not rerun the fresh-install scripts.
+
+## Verified recovery-test evidence (15 October 2026)
+
+- Structure: 24/24 public tables RLS enabled, 75 public policies, three identity triggers, four buckets, 16 Storage policies; no unvalidated public foreign keys.
+- Identity: six Auth users and six profiles (three photographers, three clients); zero detected orphaned or role-mismatched records.
+- Storage: bucket limits/MIME types matched the expected configuration; zero objects with nonexistent buckets.
+- Private gallery: 30/30 access checks across unpublished, unpaid and paid states, plus one successful synthetic-file cleanup check. The five disposable database records were subsequently removed.
+- Application: frontend and Express connectivity, test-account login and client linking were reported working against Recovery-Test.
+
+**Still outstanding:** replay validation of the combined setup, original data/media restoration, Edge Function deployment/Stripe integration, and full production readiness testing. These are documented future steps, not prerequisites for retaining the recovery source files in the capstone repository.

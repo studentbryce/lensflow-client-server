@@ -1,39 +1,40 @@
 # Application integration test checklist
 
-**Status: NOT STARTED.** Target: disposable Supabase project only.
+**Snapshot: 15 October 2026.** This checklist records what was reported or verified during the disposable Recovery-Test exercise and what should be revisited before production. Checked items are **not** a certification of production readiness.
 
-## A. Connection safety — no application writes
+## A. Connections and authentication
 
-- [ ] Back up or commit the current working app; keep `.env` secrets outside Git.
-- [ ] Locate frontend Supabase initialization and its environment variable names.
-- [ ] Locate Express Supabase initialization and its environment variable names.
-- [ ] Find any service-role client, webhook, background job, email sender or calendar/Stripe integration.
-- [ ] Create local test-only configuration without overwriting production settings.
-- [ ] Check frontend and Express project refs against the **same disposable project** in the Supabase dashboard.
-- [ ] Confirm neither process loads original project credentials or live external integration secrets.
-- [ ] Disable/sandbox Stripe, email, calendar and other side effects.
-- [ ] Confirm a safe command to start **only** test-configured processes.
-- [ ] STOP if any connection target or external side effect is uncertain.
+- [x] Frontend Supabase URL/public key manually switched to Recovery-Test.
+- [x] Express Supabase URL/public key manually switched to Recovery-Test.
+- [x] Disposable account login and correct client linking worked.
+- [x] Application pages/data were reported to load through Express.
+- [ ] Add or verify a repeatable environment-isolation procedure for future developers; do not rely on manually swapped `.env` values.
+- [ ] Audit other integrations and any service-role connections for accidental production targeting.
+- [ ] Check live Stripe, email, calendar, background jobs and webhooks are disabled or sandboxed during future test runs.
 
-## B. Read-only smoke tests — after A passes
+## B. Database and Storage evidence
 
-- [ ] Public pages render without creating records.
-- [ ] Express health/API endpoint responds; its database target is confirmed.
-- [ ] Disposable photographer signs in and sees only their own records.
-- [ ] Disposable client signs in and sees only their own records.
-- [ ] Unauthenticated and cross-tenant access to private data is denied.
-- [ ] Browser and server logs have no unexplained errors.
+- [x] 24 public tables, 24 with RLS and 75 public policies confirmed by read-only SQL.
+- [x] Six Auth users and six profiles (three photographers, three clients); no detected orphan/role mismatches.
+- [x] Four Storage buckets and 16 object policies confirmed; no objects referencing missing buckets.
+- [x] Private-gallery access checks: 30/30 passed across five publication/payment states.
+- [x] Synthetic image cleanup: 1/1 passed; five synthetic database records removed; private media bucket empty.
+- [ ] Replay the merged fresh-install SQL on an entirely new disposable project before relying on it for production recovery.
 
-## C. Synthetic write tests — approve separately
+## C. Additional application testing (future work)
 
-- [ ] Agree on exact test records, ownership and cleanup SQL first.
-- [ ] Test service, availability and booking workflows with disposable accounts.
-- [ ] Verify row ownership and RLS isolation.
-- [ ] Clean up the exact synthetic records and re-run read-only checks.
-- [ ] Do not trigger real payments, customer messages or calendar events.
+- [ ] Independently verify frontend and Express active project references at startup.
+- [ ] Check representative public and authenticated API routes, including unauthorized and cross-tenant access.
+- [ ] Run and document current backend automated tests and frontend build on the final submitted commit.
+- [ ] Test controlled synthetic service/availability/booking/invoice/gallery workflows and clean up exact records.
+- [ ] Test responsive UI, error handling, browser navigation and password recovery.
+- [ ] Deploy and test Stripe Edge Functions with **test-mode** secrets, including webhook signature verification.
+- [ ] Validate deployed `/api` routing, Supabase Auth redirect URLs and other external integrations before production.
 
-## D. Record evidence
+## D. Record and release decision
 
-- [ ] Record date, project reference, app commit, commands, test outcomes and cleanup status (never keys/passwords).
-- [ ] Identify any missing original data, media, Auth settings, Edge Functions and external integrations.
-- [ ] Do not approve production cutover based only on disposable smoke tests.
+- [ ] Record date, project reference, code commit, commands, outcomes and cleanup for each new test (no secrets).
+- [ ] Confirm original data/media restoration requirements separately if planning a disaster recovery.
+- [ ] Perform a reviewed security and deployment gate before any production cutover.
+
+**Current decision:** retain the documented recovery files and completed test evidence; defer additional deployment and Stripe testing until a future production-readiness phase.
