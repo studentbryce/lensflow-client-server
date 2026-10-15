@@ -7,7 +7,7 @@ import {
   BiTimeFive,
   BiX,
 } from "react-icons/bi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { apiGetPhotographerReviews, apiModeratePhotographerReview } from "../../services/photographerReviewsApi";
 import "./Reviews.css";
 

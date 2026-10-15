@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./ForgotPassword.css";
 import brandLogo from "../../assets/images/Lensflow_brand_logo-transparent.png";
 

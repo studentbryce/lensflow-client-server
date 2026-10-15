@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { apiGetClientBookingById } from "../../services/clientBookingApi";
 import { formatCurrency, formatDate, formatTime } from "./bookingHelpers";
 import "./Bookings.css";

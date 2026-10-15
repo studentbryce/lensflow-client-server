@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {Link, useNavigate, useSearchParams} from "react-router-dom";
 import {BiCalendar, BiCheckCircle, BiInfoCircle, BiTimeFive} from "react-icons/bi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { apiGetClientBookingForm, apiGetClientBookingAvailability, apiCreateClientBooking } from "../../services/clientBookingApi";
 
 import {formatCurrency, formatDate, formatTime, localToday} from "./bookingHelpers";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGetPhotographerInvoices } from "../../services/photographerInvoicesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./Invoices.css";
 
 const STATUS_OPTIONS = [

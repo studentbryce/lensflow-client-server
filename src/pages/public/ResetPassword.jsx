@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./ResetPassword.css";
 import brandLogo from "../../assets/images/Lensflow_brand_logo-transparent.png";
 
@@ -45,12 +45,6 @@ export default function ResetPassword() {
       "This password reset link is invalid or has expired."
     );
   }, []);
-
-  useEffect(() => {
-    if (linkError) {
-      setError("This password reset link is invalid or has expired. Please request a new one.");
-    }
-  }, [linkError]);
 
   function validatePassword() {
     if (password.length < MIN_PASSWORD_LENGTH) {

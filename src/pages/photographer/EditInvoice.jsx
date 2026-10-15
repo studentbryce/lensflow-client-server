@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiGetPhotographerInvoiceOptions, apiGetPhotographerInvoice, apiUpdatePhotographerInvoice } from "../../services/photographerInvoicesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./EditInvoice.css";
 
 const EMPTY_ITEM = {

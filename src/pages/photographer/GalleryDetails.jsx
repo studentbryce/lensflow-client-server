@@ -27,7 +27,7 @@ import {
 } from "react-icons/bi";
 import { supabase } from "../../lib/supabaseClient";
 import { apiGetPhotographerGallery, apiUpdatePhotographerGallery, apiCreatePhotographerGalleryMedia, apiDeletePhotographerGalleryMedia, apiDeletePhotographerGallery } from "../../services/photographerGalleriesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./GalleryDetails.css";
 
 const MAX_PHOTO_SIZE = 25 * 1024 * 1024; // 25 MB

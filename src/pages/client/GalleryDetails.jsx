@@ -2,7 +2,7 @@ import { BiPlay, BiImage, BiErrorCircle, BiArrowBack, BiDownload, BiCalendar, Bi
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { apiGetClientGallery, apiGetClientGalleryDownload } from "../../services/clientGalleriesApi";
 import "./GalleryDetails.css";
 

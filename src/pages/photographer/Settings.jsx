@@ -25,7 +25,7 @@ import {
 } from "react-router-dom";
 
 import { supabase } from "../../lib/supabaseClient";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import {
   apiGetPhotographerSettings,
   apiSavePhotographerAccount,

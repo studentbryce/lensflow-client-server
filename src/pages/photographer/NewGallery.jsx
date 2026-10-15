@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiGetPhotographerGalleryOptions, apiCreatePhotographerGallery } from "../../services/photographerGalleriesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./Galleries.css";
 
 function getClientName(profile) {

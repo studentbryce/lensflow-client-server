@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BiCalendar as CalendarDays, BiTimeFive as Clock, BiMap as MapPin, BiSearch as Search } from "react-icons/bi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { apiGetClientBookings } from "../../services/clientBookingApi";
 import "./Bookings.css";
 

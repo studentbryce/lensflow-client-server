@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { BiUser, BiSave } from "react-icons/bi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { apiGetClientProfile, apiUpdateClientProfile } from "../../services/clientAccountApi";
 import "./Profile.css";
 

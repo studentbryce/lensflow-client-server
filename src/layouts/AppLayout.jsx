@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { BiMenu as Menu } from "react-icons/bi";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authStore";
 
 import PhotographerSidebar from "../components/PhotographerSidebar";
 import ClientSidebar from "../components/ClientSidebar";

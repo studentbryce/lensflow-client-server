@@ -7,7 +7,7 @@ import {
 } from "../../components/invoices/invoiceFormatters";
 import { downloadInvoicePdf } from "../../utils/invoicePdf";
 import { apiGetPhotographerInvoice, apiUpdatePhotographerInvoiceStatus, apiDeletePhotographerInvoice } from "../../services/photographerInvoicesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./InvoiceDetails.css";
 
 export default function InvoiceDetails() {

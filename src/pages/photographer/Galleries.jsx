@@ -15,7 +15,7 @@ import {
 } from "react-icons/bi";
 import { supabase } from "../../lib/supabaseClient";
 import { apiListPhotographerGalleries } from "../../services/photographerGalleriesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./Galleries.css";
 
 function formatDate(date) {

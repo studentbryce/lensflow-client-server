@@ -9,7 +9,7 @@ import {
   BiTrash,
 } from "react-icons/bi";
 
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { supabase } from "../../lib/supabaseClient"; // Storage uploads only
 import { apiGetPhotographerWebsite, apiSavePhotographerWebsite } from "../../services/photographerWebsiteApi";
 import {

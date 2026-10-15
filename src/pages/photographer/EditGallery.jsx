@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiGetPhotographerGallery, apiUpdatePhotographerGallery } from "../../services/photographerGalleriesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./EditGallery.css";
 
 const formatDate = (value) => {

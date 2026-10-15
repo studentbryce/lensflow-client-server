@@ -14,7 +14,7 @@ import {
     formatInvoiceDate,
 } from "../../components/invoices/invoiceFormatters";
 import { downloadInvoicePdf } from "../../utils/invoicePdf";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import { supabase } from "../../lib/supabaseClient";
 import { localToday } from "./bookingHelpers";
 import { apiGetClientInvoices, apiGetClientInvoice } from "../../services/clientInvoicesApi";

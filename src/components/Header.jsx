@@ -5,7 +5,7 @@ import {
 } from "react-icons/bi";
 import { Link } from "react-router-dom";
 
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authStore";
 import { supabase } from "../lib/supabaseClient";
 import { apiGetUnreadMessageCount } from "../services/photographerMessagesApi";
 

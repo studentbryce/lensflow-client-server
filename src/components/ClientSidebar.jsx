@@ -10,7 +10,7 @@ import {
   BiUser,
   BiX as X,
 } from "react-icons/bi";
-import { useAuth } from "./../context/AuthContext";
+import { useAuth } from "./../context/authStore";
 import brandLogo from "../assets/images/Lensflow_brand_logo-transparent.png";
 
 function ClientSidebar({ isOpen, onClose }) {

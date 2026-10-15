@@ -2,7 +2,7 @@ import { BiImage, BiCheck, BiInfoCircle, BiImages, BiSearch, BiCalendar, BiDownl
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGetClientGalleries } from "../../services/clientGalleriesApi";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authStore";
 import "./Galleries.css";
 
 function formatDate(date) {

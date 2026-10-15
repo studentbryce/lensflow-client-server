@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
 } from 'react';
@@ -9,7 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 import { completeAccountSignup } from '../lib/completeAccountSignup';
 import { apiFetch } from '../services/apiClient';
 
-const AuthContext = createContext();
+import { AuthContext } from "./authStore";
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -131,6 +129,3 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
