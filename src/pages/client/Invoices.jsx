@@ -8,10 +8,11 @@ import {
     BiReceipt as Receipt,
     BiSearch as Search,
 } from "react-icons/bi";
-import InvoiceDocument, {
+import InvoiceDocument from "../../components/invoices/InvoiceDocument";
+import {
     formatInvoiceCurrency,
     formatInvoiceDate,
-} from "../../components/invoices/InvoiceDocument";
+} from "../../components/invoices/invoiceFormatters";
 import { downloadInvoicePdf } from "../../utils/invoicePdf";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabaseClient";

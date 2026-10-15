@@ -71,7 +71,6 @@ export default function Galleries() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [photographerId, setPhotographerId] = useState(null);
   const [galleries, setGalleries] = useState([]);
   const [clients, setClients] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -101,7 +100,6 @@ export default function Galleries() {
 
         // Photographer-owned gallery data now comes from Express (JWT + RLS).
         const payload = await apiListPhotographerGalleries();
-        const currentPhotographerId = payload.photographer_id;
         const loadedGalleries = payload.galleries || [];
         const loadedClients = payload.clients || [];
         const loadedProfiles = payload.profiles || [];
@@ -156,7 +154,6 @@ export default function Galleries() {
 
         if (!isMounted) return;
 
-        setPhotographerId(currentPhotographerId);
         setGalleries(loadedGalleries);
         setClients(loadedClients);
         setProfiles(loadedProfiles);

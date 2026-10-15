@@ -6,8 +6,6 @@ import { useAuth } from "../../context/AuthContext";
 import { apiGetClientGallery, apiGetClientGalleryDownload } from "../../services/clientGalleriesApi";
 import "./GalleryDetails.css";
 
-const SIGNED_URL_DURATION = 60 * 60;
-
 const formatDate = (value) => {
     if (!value) return "Not specified";
 
@@ -81,6 +79,7 @@ const getMediaIcon = (media) => {
 const sanitizeFileName = (value, fallback = "lensflow-gallery") => {
     const cleaned = String(value || fallback)
         .trim()
+        // eslint-disable-next-line no-control-regex -- Deliberately remove ASCII control characters from downloaded filenames.
         .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
         .replace(/\s+/g, " ")
         .replace(/\.+$/g, "");

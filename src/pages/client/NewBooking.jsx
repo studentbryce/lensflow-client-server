@@ -14,11 +14,6 @@ import "./NewBooking.css";
 
 const SLOT_INTERVAL_MINUTES = 30;
 
-const BLOCKING_BOOKING_STATUSES = [
-  "pending",
-  "confirmed",
-];
-
 
 /* ============================================================
    TIME HELPERS

@@ -58,6 +58,8 @@ app.use((req, res) => {
 });
 
 // Consistent server-side error response. Avoid leaking internal details.
+// Express identifies error middleware by its four-argument signature.
+// eslint-disable-next-line no-unused-vars
 app.use((error, req, res, next) => {
     console.error('API request failed:', error.message);
     if (error.cause?.code) {

@@ -1,5 +1,5 @@
 /** Milestone 11A: client dashboard and own profile, using a verified user JWT + RLS. */
-import { findAuthenticatedClient, ClientBookingError } from './clientBookingService.js';
+import { findAuthenticatedClient } from './clientBookingService.js';
 
 export class ClientAccountError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }

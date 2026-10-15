@@ -1,5 +1,5 @@
 /** Client booking form data and pending booking requests, always under the caller's JWT/RLS. */
-import { BookingRequestError, validateCreateBookingBody, minutesFromTime, slotIsAvailable } from './bookingCreateService.js';
+import { BookingRequestError, validateCreateBookingBody, slotIsAvailable } from './bookingCreateService.js';
 import { getBusyTimes } from './bookingBusyTimesService.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

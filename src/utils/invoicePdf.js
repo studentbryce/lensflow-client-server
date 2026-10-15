@@ -88,6 +88,7 @@ function clientName(profile) {
 function cleanFileName(value) {
     return String(value || "invoice")
         .replace(
+            // eslint-disable-next-line no-control-regex -- Deliberately remove ASCII control characters from downloaded filenames.
             /[<>:"/\\|?*\u0000-\u001F]/g,
             "-"
         )

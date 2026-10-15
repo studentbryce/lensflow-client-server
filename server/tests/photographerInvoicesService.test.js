@@ -34,7 +34,6 @@ function mock({role='photographer',ownerId=owner,initialInvoices=[invoice],payme
    maybeSingle(){if(table==='photographer_profiles')return Promise.resolve({data:ownerId?{photographer_id:ownerId,business_name:'Test Studio'}:null,error:null});return this.then(x=>({data:x.data[0]??null,error:x.error}));},
    single(){return this.then(x=>({data:x.data[0]??null,error:x.error}));},
    then(resolve,reject){
-    if(table==='profiles'&&filters.some(f=>f({user_id:uid}))){};
     if(table==='profiles'&&filters.length===1&&calls.at(-1)?.table==='profiles'&&calls.at(-1)?.k==='user_id'){
       // role/profile lookup is fulfilled from data rows below
     }
@@ -42,7 +41,7 @@ function mock({role='photographer',ownerId=owner,initialInvoices=[invoice],payme
     const result={data:rows,error:table===failTable&&operation===failOp?{code:'MOCK_ERROR',message:'mock failure'}:null};
     if(!result.error){
       if(operation==='insert'){
-        const added=(Array.isArray(payload)?payload:[payload]).map((v,i)=>({...v,...(table==='invoices'?{invoice_id:invoiceId}:{})}));
+        const added=(Array.isArray(payload)?payload:[payload]).map(v=>({...v,...(table==='invoices'?{invoice_id:invoiceId}:{})}));
         data[table].push(...added);result.data=added;
       }
       if(operation==='update'){rows.forEach(r=>Object.assign(r,payload));}
@@ -58,7 +57,6 @@ function mock({role='photographer',ownerId=owner,initialInvoices=[invoice],payme
  db.from=function(table){
   const q=old.call(db,table);
   if(table==='profiles'){
-   const single=q.maybeSingle.bind(q);
    q.maybeSingle=()=>Promise.resolve({data:{role},error:null});
   }
   return q;

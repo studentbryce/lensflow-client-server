@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import InvoiceDocument, {
+import InvoiceDocument from "../../components/invoices/InvoiceDocument";
+import {
     formatInvoiceCurrency,
     formatInvoiceStatus,
-} from "../../components/invoices/InvoiceDocument";
+} from "../../components/invoices/invoiceFormatters";
 import { downloadInvoicePdf } from "../../utils/invoicePdf";
 import { apiGetPhotographerInvoice, apiUpdatePhotographerInvoiceStatus, apiDeletePhotographerInvoice } from "../../services/photographerInvoicesApi";
 import { useAuth } from "../../context/AuthContext";

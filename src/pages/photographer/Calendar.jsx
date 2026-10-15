@@ -318,18 +318,6 @@ function formatCurrency(value) {
 }
 
 
-function getDayLabel(dayNumber) {
-  return (
-    AVAILABILITY_DAYS.find(
-      (day) =>
-        day.value ===
-        Number(dayNumber)
-    )?.label ||
-    "Unknown day"
-  );
-}
-
-
 function getClientName(booking) {
   const firstName =
     booking.client?.first_name || "";

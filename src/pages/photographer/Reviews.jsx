@@ -5,7 +5,6 @@ import {
   BiMessageSquareDetail,
   BiStar,
   BiTimeFive,
-  BiUser,
   BiX,
 } from "react-icons/bi";
 import { useAuth } from "../../context/AuthContext";

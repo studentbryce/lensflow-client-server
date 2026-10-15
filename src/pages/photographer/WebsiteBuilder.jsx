@@ -364,9 +364,6 @@ export default function WebsiteBuilder() {
     setSaving(true);
 
     try {
-      const photographerId =
-        profile.photographer_id;
-
       const saved = await apiSavePhotographerWebsite({
         slug: nextSlug,
         published,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ClientReviewError, validateReviewInput, listClientReviews,
+  validateReviewInput, listClientReviews,
   createClientReview, updateClientReview,
 } from '../src/services/clientReviewsService.js';
 

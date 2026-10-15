@@ -70,17 +70,6 @@ export default function Bookings() {
     return bookingDate < new Date();
   });
 
-  function formatDate(dateString) {
-    return new Date(`${dateString}T00:00:00`).toLocaleDateString(
-      "en-NZ",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    );
-  }
-
   function formatTime(timeString) {
     if (!timeString) return "";
 

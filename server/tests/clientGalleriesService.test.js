@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { listClientGalleries, getClientGallery, getClientGalleryDownload, ClientGalleryError } from '../src/services/clientGalleriesService.js';
+import { listClientGalleries, getClientGallery, getClientGalleryDownload } from '../src/services/clientGalleriesService.js';
 const G = '11111111-1111-4111-8111-111111111111';
 const M = '22222222-2222-4222-8222-222222222222';
-const OTHER = '33333333-3333-4333-8333-333333333333';
 const gallery = { gallery_id: G, booking_id: 'booking1', client_id: 'client1', is_published: true, allow_downloads: true };
 const item = { media_id: M, gallery_id: G, storage_path: 'private/asset.jpg', thumbnail_path: 'private/thumb.jpg', media_type: 'image', file_name: 'asset.jpg', is_downloadable: true };
 function mockDb(overrides={}) {

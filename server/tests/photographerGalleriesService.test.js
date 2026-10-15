@@ -31,7 +31,6 @@ function dbMock(tables={}) {
       const source=tables[this.name];
       let result=typeof source==='function'?source(this):source;
       if (result===undefined)result=[];
-      const single = !Array.isArray(result);
       const promise=Promise.resolve({data:result,error:null});
       return promise.then(ok,bad);
     }
