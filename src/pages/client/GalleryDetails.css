@@ -1278,3 +1278,82 @@
   .gallery-info-icon { flex-basis: auto; width: 40px; height: 40px; }
   .gallery-info-icon svg { width: 20px; height: 20px; }
 }
+
+/* Stage 2A: client image export choice */
+.gallery-export-backdrop {
+  position: fixed;
+  z-index: 10020;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.65);
+}
+.gallery-export-dialog {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.3);
+}
+.gallery-export-dialog h2 {
+  margin: 0 0 6px;
+  color: var(--text-h);
+  font-family: var(--gallery-font-heading, serif);
+  font-size: 1.35rem;
+}
+.gallery-export-dialog > p {
+  margin: 0 0 18px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+.gallery-export-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.gallery-export-option:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+}
+.gallery-export-option input {
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.gallery-export-option strong,
+.gallery-export-option small { display: block; }
+.gallery-export-option strong { color: var(--text-h); font-size: 0.86rem; }
+.gallery-export-option small { margin-top: 4px; font-size: 0.77rem; line-height: 1.5; opacity: 0.7; }
+.gallery-export-dialog .gallery-export-note { margin: 12px 0; font-size: 0.76rem; }
+.gallery-export-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.gallery-export-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gallery-export-cancel { border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.gallery-export-confirm { border: 1px solid var(--accent); background: var(--accent); color: white; }
+.gallery-export-confirm svg { width: 17px; height: 17px; }
+@media (max-width: 480px) {
+  .gallery-export-dialog { padding: 18px; }
+  .gallery-export-actions button { flex: 1; }
+}

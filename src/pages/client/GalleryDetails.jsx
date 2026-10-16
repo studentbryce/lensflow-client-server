@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
 import { useAuth } from "../../context/authStore";
-import { apiGetClientGallery, apiGetClientGalleryDownload } from "../../services/clientGalleriesApi";
+import { apiGetClientGallery, apiGetClientGalleryDownload, apiGetClientGallerySocialExport } from "../../services/clientGalleriesApi";
 import "./GalleryDetails.css";
 
 const formatDate = (value) => {
@@ -57,6 +57,11 @@ const isVideoMedia = (media) => {
         media.media_type === "video" ||
         media.mime_type?.startsWith("video/")
     );
+};
+
+const socialFileName = (name) => {
+    const base = sanitizeFileName(name || 'lensflow-photo').replace(/\.[^.]+$/, '');
+    return `${base}-social.jpg`;
 };
 
 const getMediaLabel = (media) => {
@@ -134,6 +139,8 @@ function GalleryDetails() {
 
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
+    const [downloadDialog, setDownloadDialog] = useState(null);
+    const [downloadQuality, setDownloadQuality] = useState("social");
 
     const [downloadingAll, setDownloadingAll] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({
@@ -183,19 +190,23 @@ function GalleryDetails() {
     useEffect(() => {
         const handleKeyDown = (event) => {
             if (event.key === "Escape") {
-                setSelectedMedia(null);
+                if (downloadDialog) {
+                    setDownloadDialog(null);
+                } else {
+                    setSelectedMedia(null);
+                }
             }
 
             if (
                 event.key === "ArrowRight" &&
-                selectedMedia
+                selectedMedia && !downloadDialog
             ) {
                 navigateMedia(1);
             }
 
             if (
                 event.key === "ArrowLeft" &&
-                selectedMedia
+                selectedMedia && !downloadDialog
             ) {
                 navigateMedia(-1);
             }
@@ -243,7 +254,7 @@ function GalleryDetails() {
     const downloadableMedia = useMemo(
         () =>
             media.filter(
-                (item) => item.is_downloadable !== false
+                (item) => item.is_downloadable === true
             ),
         [media]
     );
@@ -287,32 +298,40 @@ function GalleryDetails() {
     /*
      * Download one individual media file.
      */
-    const handleDownload = async (mediaItem) => {
+    const openDownloadChoice = (mediaItem = null) => {
         if (!gallery?.allow_downloads) return;
-        if (mediaItem.is_downloadable === false) return;
+        if (mediaItem && mediaItem.is_downloadable !== true) return;
+        if (mediaItem && isVideoMedia(mediaItem)) {
+            void handleDownload(mediaItem, "original");
+            return;
+        }
+        if (!mediaItem && photos.length === 0) {
+            void handleDownloadAll("original");
+            return;
+        }
+        setDownloadQuality("social");
+        setDownloadDialog(mediaItem ? { type: "single", mediaItem } : { type: "all" });
+    };
+
+    const handleDownload = async (mediaItem, quality = "original") => {
+        if (!gallery?.allow_downloads) return;
+        if (mediaItem.is_downloadable !== true) return;
 
         setDownloadingId(mediaItem.media_id);
 
         try {
-            // Server rechecks ownership, paid access and both download flags.
-            const result = await apiGetClientGalleryDownload(gallery_id, mediaItem.media_id);
-            const downloadUrl = result.data?.url;
-            if (!downloadUrl) throw new Error("Unable to create a download link.");
-
-            /*
-             * Fetch the private file first, then create a
-             * temporary browser download. This avoids navigating
-             * the client away from the gallery.
-             */
-            const response = await fetch(downloadUrl);
-
-            if (!response.ok) {
-                throw new Error(
-                    "Unable to download this file."
-                );
+            let blob;
+            if (quality === "social" && !isVideoMedia(mediaItem)) {
+                blob = await apiGetClientGallerySocialExport(gallery_id, mediaItem.media_id);
+            } else {
+                // Existing Express-authorized original download is unchanged.
+                const result = await apiGetClientGalleryDownload(gallery_id, mediaItem.media_id);
+                const downloadUrl = result.data?.url;
+                if (!downloadUrl) throw new Error("Unable to create a download link.");
+                const response = await fetch(downloadUrl);
+                if (!response.ok) throw new Error("Unable to download this file.");
+                blob = await response.blob();
             }
-
-            const blob = await response.blob();
             const blobUrl =
                 URL.createObjectURL(blob);
 
@@ -321,8 +340,9 @@ function GalleryDetails() {
 
             link.href = blobUrl;
             link.download =
-                mediaItem.file_name ||
-                "lensflow-gallery-file";
+                quality === "social" && !isVideoMedia(mediaItem)
+                    ? socialFileName(mediaItem.file_name)
+                    : (mediaItem.file_name || "lensflow-gallery-file");
 
             document.body.appendChild(link);
             link.click();
@@ -336,7 +356,7 @@ function GalleryDetails() {
             );
 
             window.alert(
-                "Unable to download this file right now. Please try again."
+                downloadError?.message || "Unable to download this file right now. Please try again."
             );
         } finally {
             setDownloadingId(null);
@@ -346,7 +366,7 @@ function GalleryDetails() {
     /*
      * Download all downloadable gallery media as a ZIP file.
      */
-    const handleDownloadAll = async () => {
+    const handleDownloadAll = async (quality = "original") => {
         if (!gallery?.allow_downloads) return;
         if (downloadableMedia.length === 0) return;
         if (downloadingAll) return;
@@ -376,26 +396,23 @@ function GalleryDetails() {
                 });
 
                 try {
-                    const result = await apiGetClientGalleryDownload(gallery_id, mediaItem.media_id);
-                    const downloadUrl = result.data?.url;
-                    if (!downloadUrl) throw new Error("Unable to create a download link.");
-
-                    const response =
-                        await fetch(downloadUrl);
-
-                    if (!response.ok) {
-                        throw new Error(
-                            "Unable to download the file."
-                        );
+                    const optimize = quality === "social" && !isVideoMedia(mediaItem);
+                    let blob;
+                    if (optimize) {
+                        blob = await apiGetClientGallerySocialExport(gallery_id, mediaItem.media_id);
+                    } else {
+                        const result = await apiGetClientGalleryDownload(gallery_id, mediaItem.media_id);
+                        const downloadUrl = result.data?.url;
+                        if (!downloadUrl) throw new Error("Unable to create a download link.");
+                        const response = await fetch(downloadUrl);
+                        if (!response.ok) throw new Error("Unable to download the file.");
+                        blob = await response.blob();
                     }
-
-                    const blob =
-                        await response.blob();
 
                     const fileName =
                         getUniqueFileName(
-                            mediaItem.file_name ||
-                            `${getMediaLabel(mediaItem).toLowerCase()}-${index + 1}`,
+                            optimize ? socialFileName(mediaItem.file_name) : (
+                                mediaItem.file_name || `${getMediaLabel(mediaItem).toLowerCase()}-${index + 1}`),
                             usedFileNames
                         );
 
@@ -449,7 +466,7 @@ function GalleryDetails() {
             link.download = `${sanitizeFileName(
                 gallery.name,
                 "lensflow-gallery"
-            )}.zip`;
+            )}${quality === "social" ? "-social" : ""}.zip`;
 
             document.body.appendChild(link);
             link.click();
@@ -486,6 +503,18 @@ function GalleryDetails() {
                 current: 0,
                 total: 0,
             });
+        }
+    };
+
+    const confirmDownloadChoice = () => {
+        if (!downloadDialog) return;
+        const choice = downloadQuality;
+        const action = downloadDialog;
+        setDownloadDialog(null);
+        if (action.type === "all") {
+            void handleDownloadAll(choice);
+        } else {
+            void handleDownload(action.mediaItem, choice);
         }
     };
 
@@ -577,7 +606,7 @@ function GalleryDetails() {
                                 <button
                                     type="button"
                                     className="gallery-details-download-all"
-                                    onClick={handleDownloadAll}
+                                    onClick={() => openDownloadChoice()}
                                     disabled={downloadingAll}
                                 >
                                     {downloadingAll ? (
@@ -859,13 +888,13 @@ function GalleryDetails() {
                                             </div>
 
                                             {gallery.allow_downloads &&
-                                                mediaItem.is_downloadable !==
-                                                false && (
+                                                mediaItem.is_downloadable ===
+                                                true && (
                                                     <button
                                                         type="button"
                                                         className="gallery-media-download"
                                                         onClick={() =>
-                                                            handleDownload(
+                                                            openDownloadChoice(
                                                                 mediaItem
                                                             )
                                                         }
@@ -916,6 +945,42 @@ function GalleryDetails() {
                 </footer>
             </div>
 
+            {/* Image export quality choice; videos remain original quality. */}
+            {downloadDialog && (
+                <div className="gallery-export-backdrop" onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) setDownloadDialog(null);
+                }}>
+                    <div className="gallery-export-dialog" role="dialog" aria-modal="true"
+                        aria-labelledby="gallery-export-heading">
+                        <h2 id="gallery-export-heading">{downloadDialog.type === "all" ? "Download gallery" : "Download photo"}</h2>
+                        <p>Choose the quality that works best for you.</p>
+                        <label className="gallery-export-option">
+                            <input type="radio" name="gallery-export-quality" value="social"
+                                checked={downloadQuality === "social"}
+                                onChange={() => setDownloadQuality("social")} autoFocus />
+                            <span><strong>Social media optimized</strong>
+                                <small>Smaller JPG for sharing, messaging and saving to your phone.</small></span>
+                        </label>
+                        <label className="gallery-export-option">
+                            <input type="radio" name="gallery-export-quality" value="original"
+                                checked={downloadQuality === "original"}
+                                onChange={() => setDownloadQuality("original")} />
+                            <span><strong>Original quality</strong>
+                                <small>Full-resolution file for printing or editing.</small></span>
+                        </label>
+                        {downloadDialog.type === "all" && videos.length > 0 && (
+                            <p className="gallery-export-note">Videos are always downloaded in their original quality.</p>
+                        )}
+                        <div className="gallery-export-actions">
+                            <button type="button" className="gallery-export-cancel"
+                                onClick={() => setDownloadDialog(null)}>Cancel</button>
+                            <button type="button" className="gallery-export-confirm"
+                                onClick={confirmDownloadChoice}><BiDownload aria-hidden="true" /> Download</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Lightbox */}
             {selectedMedia && (
                 <div
@@ -949,13 +1014,13 @@ function GalleryDetails() {
 
                         <div className="gallery-lightbox-actions">
                             {gallery.allow_downloads &&
-                                selectedMedia.is_downloadable !==
-                                false && (
+                                selectedMedia.is_downloadable ===
+                                true && (
                                     <button
                                         type="button"
                                         className="gallery-lightbox-button"
                                         onClick={() =>
-                                            handleDownload(
+                                            openDownloadChoice(
                                                 selectedMedia
                                             )
                                         }

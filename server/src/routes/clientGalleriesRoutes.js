@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/authMiddleware.js';
-import { listGalleries, getGallery, downloadMedia } from '../controllers/clientGalleriesController.js';
+import { listGalleries, getGallery, downloadMedia, exportSocialMedia } from '../controllers/clientGalleriesController.js';
 const router = Router();
 router.use(requireAuth);
 router.get('/', listGalleries);
 router.get('/:id/media/:mediaId/download', downloadMedia);
+router.get('/:id/media/:mediaId/export', exportSocialMedia);
 router.get('/:id', getGallery);
 export default router;

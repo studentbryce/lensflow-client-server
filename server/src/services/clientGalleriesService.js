@@ -3,6 +3,7 @@
  * Database RLS enforces paid invoice + successful payment + published status. */
 import { findAuthenticatedClient } from './clientBookingService.js';
 import { clientDisplayAsset } from './clientMediaAccess.js';
+import { originalPathIsValid } from './mediaPreviewPaths.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE_SIZE = 250;
@@ -114,13 +115,16 @@ export async function getClientGalleryDownload(db, userId, galleryId, mediaId) {
   if (!gallery.allow_downloads) {
     throw new ClientGalleryError(403, 'DOWNLOADS_DISABLED', 'Downloads are disabled for this gallery.');
   }
-  const item = await read(db.from('media').select('media_id,gallery_id,file_name,storage_path,is_downloadable')
+  const item = await read(db.from('media').select('media_id,gallery_id,photographer_id,file_name,storage_path,is_downloadable')
     .eq('gallery_id', gallery.gallery_id).eq('media_id', mediaId).maybeSingle(), 'media');
   if (!item) throw new ClientGalleryError(404, 'MEDIA_NOT_FOUND', 'Media not found.');
-  if (item.is_downloadable === false) {
+  if (item.is_downloadable !== true) {
     throw new ClientGalleryError(403, 'DOWNLOADS_DISABLED', 'Downloads are disabled for this file.');
   }
-  if (!item.storage_path) throw new ClientGalleryError(404, 'MEDIA_NOT_FOUND', 'Media file not found.');
+  if (item.photographer_id !== gallery.photographer_id ||
+      !originalPathIsValid(item.storage_path, gallery.photographer_id, gallery.gallery_id)) {
+    throw new ClientGalleryError(404, 'MEDIA_NOT_FOUND', 'Media file not found.');
+  }
   const { data, error } = await db.storage.from('client-media').createSignedUrl(item.storage_path, 60);
   if (error || !data?.signedUrl) throw dbError('download link', error);
   return { url: data.signedUrl, fileName: item.file_name };
