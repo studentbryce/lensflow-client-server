@@ -13,7 +13,10 @@ const file={file_name:'a.jpg',storage_path:`${P}/${G}/file.jpg`,media_type:'imag
 function rejects(fn,code){assert.throws(fn,e=>e instanceof BookingRequestError && e.code===code);}
 function dbMock(tables={}) {
   const calls=[];
-  const db={from(name){return new Query(name);}};
+  const db={
+    from(name){return new Query(name);},
+    storage:{from(bucket){calls.push({table:'storage',op:'bucket',bucket});return {remove(paths){calls.push({table:'storage',op:'remove',paths});return Promise.resolve({data:paths,error:null});}};}}
+  };
   class Query {
     constructor(name){this.name=name;this.operation='select';this.filters=[];this.data=undefined;}
     select(){return this;}
@@ -64,5 +67,28 @@ test('create rejects duplicate booking gallery',async()=>{const {db}=context({cl
 test('update applies only permitted gallery changes',async()=>{const {db,calls}=context({galleries:{gallery_id:G}});await updatePhotographerGallery(db,U,G,{is_published:true});const c=calls.find(x=>x.op==='update');assert.deepEqual(c.data,{is_published:true});assert(c.filters.some(([k,v])=>k==='photographer_id'&&v===P));});
 test('media creation checks gallery ownership first',async()=>{const {db}=context({galleries:null});await assert.rejects(createPhotographerGalleryMedia(db,U,G,file),e=>e.code==='GALLERY_NOT_FOUND');});
 test('media creation rejects duplicate storage path',async()=>{const {db}=context({galleries:{gallery_id:G},media:{media_id:M}});await assert.rejects(createPhotographerGalleryMedia(db,U,G,file),e=>e.code==='MEDIA_EXISTS');});
-test('media deletion verifies gallery and media ownership',async()=>{const {db,calls}=context({galleries:{gallery_id:G},media:{media_id:M}});await deletePhotographerGalleryMedia(db,U,G,M);assert(calls.some(c=>c.table==='media'&&c.op==='delete'&&c.filters.some(([k,v])=>k==='photographer_id'&&v===P)));});
+test('media deletion verifies gallery and media ownership',async()=>{
+  const ownedMedia={media_id:M,gallery_id:G,photographer_id:P,storage_path:`${P}/${G}/file.jpg`,thumbnail_path:null,media_type:'image'};
+  const {db,calls}=context({galleries:{gallery_id:G},media:ownedMedia});
+  await deletePhotographerGalleryMedia(db,U,G,M);
+  assert(calls.some(c=>c.table==='storage'&&c.op==='remove'&&c.paths.length===1&&c.paths[0]===ownedMedia.storage_path));
+  assert(calls.some(c=>c.table==='media'&&c.op==='delete'&&c.filters.some(([k,v])=>k==='photographer_id'&&v===P)));
+  assert(calls.findIndex(c=>c.op==='remove')<calls.findIndex(c=>c.table==='media'&&c.op==='delete'));
+});
 test('gallery deletion verifies ownership and deletes media before gallery',async()=>{const {db,calls}=context({galleries:{gallery_id:G}});await deletePhotographerGallery(db,U,G);const deletes=calls.filter(c=>c.op==='delete');assert.deepEqual(deletes.map(c=>c.table),['media','galleries']);});
+
+
+test('media deletion rejects foreign registered media without touching Storage or DB',async()=>{
+  const foreign={media_id:M,gallery_id:G,photographer_id:C,storage_path:`${C}/${G}/file.jpg`,thumbnail_path:null,media_type:'image'};
+  const {db,calls}=context({galleries:{gallery_id:G},media:foreign});
+  await assert.rejects(deletePhotographerGalleryMedia(db,U,G,M),e=>e.code==='INVALID_MEDIA_PATH');
+  assert(!calls.some(c=>c.op==='remove'||c.op==='delete'));
+});
+
+test('media deletion keeps DB record when Storage deletion fails',async()=>{
+  const owned={media_id:M,gallery_id:G,photographer_id:P,storage_path:`${P}/${G}/file.jpg`,thumbnail_path:null,media_type:'image'};
+  const {db,calls}=context({galleries:{gallery_id:G},media:owned});
+  db.storage.from=()=>({remove:async()=>({data:null,error:new Error('storage unavailable')})});
+  await assert.rejects(deletePhotographerGalleryMedia(db,U,G,M),e=>e.code==='STORAGE_DELETE_FAILED');
+  assert(!calls.some(c=>c.table==='media'&&c.op==='delete'));
+});

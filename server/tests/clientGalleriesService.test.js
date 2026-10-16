@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { listClientGalleries, getClientGallery, getClientGalleryDownload } from '../src/services/clientGalleriesService.js';
 const G = '11111111-1111-4111-8111-111111111111';
 const M = '22222222-2222-4222-8222-222222222222';
-const gallery = { gallery_id: G, booking_id: 'booking1', client_id: 'client1', is_published: true, allow_downloads: true };
-const item = { media_id: M, gallery_id: G, storage_path: 'private/asset.jpg', thumbnail_path: 'private/thumb.jpg', media_type: 'image', file_name: 'asset.jpg', is_downloadable: true };
+const P = '33333333-3333-4333-8333-333333333333';
+const gallery = { gallery_id: G, photographer_id: P, booking_id: 'booking1', client_id: 'client1', is_published: true, allow_downloads: true };
+const item = { media_id: M, gallery_id: G, photographer_id: P, storage_path: `${P}/${G}/asset.jpg`, thumbnail_path: `${P}/${G}/previews/${M}.webp`, media_type: 'image', file_name: 'asset.jpg', is_downloadable: true };
 function mockDb(overrides={}) {
   const calls = [];
   const values = {
@@ -72,7 +73,7 @@ test('invalid gallery ID is rejected before database lookup',async()=>{
   await assert.rejects(()=>getClientGallery(db,'user1','../../x'),e=>e.status===400);
   assert.ok(!db.calls.some(c=>c[1]==='galleries'));
 });
-test('detail only queries owned published gallery and returns signed previews',async()=>{
+test('detail only queries owned published gallery and signs permitted original media',async()=>{
   const db=mockDb(); const data=await getClientGallery(db,'user1',G);
   assert.equal(data.gallery.gallery_id,G);
   assert.equal(data.media[0].previewUrl,'https://example.invalid/signed');
@@ -80,7 +81,7 @@ test('detail only queries owned published gallery and returns signed previews',a
   assert.ok(has(db,'eq','galleries','client_id','client1'));
   assert.ok(has(db,'eq','galleries','is_published',true));
   assert.ok(has(db,'eq','media','gallery_id',G));
-  assert.ok(db.calls.some(c=>c[0]==='sign'&&c[1]==='private/thumb.jpg'&&c[2]===3600));
+  assert.ok(db.calls.some(c=>c[0]==='sign'&&c[1]===`${P}/${G}/asset.jpg`&&c[2]===60));
 });
 test('foreign, unpaid or unpublished gallery is hidden with 404',async()=>{
   const db=mockDb({ galleries:{data:null,error:null} });
@@ -104,7 +105,7 @@ test('download signs server-read storage path for owned media with short TTL',as
   assert.equal(data.url,'https://example.invalid/signed');
   assert.ok(has(db,'eq','media','media_id',M));
   assert.ok(has(db,'eq','media','gallery_id',G));
-  assert.ok(db.calls.some(c=>c[0]==='sign'&&c[1]==='private/asset.jpg'&&c[2]===60));
+  assert.ok(db.calls.some(c=>c[0]==='sign'&&c[1]===`${P}/${G}/asset.jpg`&&c[2]===60));
 });
 test('download blocked when gallery disallows downloads before media lookup',async()=>{
   const db=mockDb({galleries:{data:{...gallery,allow_downloads:false},error:null}});
@@ -138,4 +139,46 @@ test('storage signing failure does not leak private details',async()=>{
 test('database failure does not leak internal error message',async()=>{
   const db=mockDb({galleries:{data:null,error:{message:'secret SQL'}}});
   await assert.rejects(()=>getClientGallery(db,'user1',G),e=>e.message==='Unable to load gallery.');
+});
+
+// Regression coverage: the server must never fall back to an original
+// when the gallery or individual media is view-only.
+test('view-only gallery signs only the registered watermarked image preview', async () => {
+  const db = mockDb({ galleries: { data: { ...gallery, allow_downloads: false }, error: null } });
+  const result = await getClientGallery(db, 'user1', G);
+  assert.equal(result.media[0].previewUrl, 'https://example.invalid/signed');
+  assert.equal(result.media[0].storage_path, undefined);
+  assert.ok(db.calls.some(c => c[0] === 'sign' && c[1] === `${P}/${G}/previews/${M}.webp` && c[2] === 300));
+  assert.ok(!db.calls.some(c => c[0] === 'sign' && c[1] === `${P}/${G}/asset.jpg`));
+});
+
+test('view-only gallery never signs original when preview is missing', async () => {
+  const db = mockDb({ galleries: { data: { ...gallery, allow_downloads: false }, error: null },
+    media: { data: [{ ...item, thumbnail_path: null }], error: null } });
+  const result = await getClientGallery(db, 'user1', G);
+  assert.equal(result.media[0].previewUrl, null);
+  assert.ok(!db.calls.some(c => c[0] === 'sign'));
+});
+
+test('view-only video has no signed playback URL', async () => {
+  const db = mockDb({ galleries: { data: { ...gallery, allow_downloads: false }, error: null },
+    media: { data: [{ ...item, media_type: 'video', storage_path: `${P}/${G}/clip.mp4`, thumbnail_path: null }], error: null } });
+  const result = await getClientGallery(db, 'user1', G);
+  assert.equal(result.media[0].previewUrl, null);
+  assert.ok(!db.calls.some(c => c[0] === 'sign'));
+});
+
+test('download rejects mismatched registered storage ownership without signing', async () => {
+  const db = mockDb({ media: { data: { ...item, photographer_id: '44444444-4444-4444-8444-444444444444' }, error: null } });
+  await assert.rejects(() => getClientGalleryDownload(db, 'user1', G, M), e => e.status === 404 && e.code === 'MEDIA_NOT_FOUND');
+  assert.ok(!db.calls.some(c => c[0] === 'sign'));
+});
+
+
+test('individually view-only image signs preview even when gallery allows downloads', async () => {
+  const db = mockDb({ media: { data: [{ ...item, is_downloadable: false }], error: null } });
+  const result = await getClientGallery(db, 'user1', G);
+  assert.equal(result.media[0].previewUrl, 'https://example.invalid/signed');
+  assert.ok(db.calls.some(c => c[0] === 'sign' && c[1] === `${P}/${G}/previews/${M}.webp` && c[2] === 300));
+  assert.ok(!db.calls.some(c => c[0] === 'sign' && c[1] === `${P}/${G}/asset.jpg`));
 });

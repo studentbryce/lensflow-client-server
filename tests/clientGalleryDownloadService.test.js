@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getClientGalleryDownload } from '../src/services/clientGalleriesService.js';
+import { getClientGalleryDownload } from '../server/src/services/clientGalleriesService.js';
 
 const photographer_id = '07475e7a-e35b-4811-8390-38ba6c0f0bd6';
 const gallery_id = '5595d51e-1a03-4190-949e-fecf5d38f610';

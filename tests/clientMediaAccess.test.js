@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clientDisplayAsset, clientDownloadAsset } from '../src/services/clientMediaAccess.js';
+import { clientDisplayAsset } from '../server/src/services/clientMediaAccess.js';
 
 const photographer_id = '07475e7a-e35b-4811-8390-38ba6c0f0bd6';
 const gallery_id = '5595d51e-1a03-4190-949e-fecf5d38f610';
@@ -34,14 +34,7 @@ test('cross-gallery and malformed original paths cannot be signed', () => {
   assert.equal(clientDisplayAsset({ ...image, storage_path: `${photographer_id}/${gallery_id}/previews/${media_id}.webp` }, { ...gallery, allow_downloads: true }), null);
 });
 
-test('explicit download helper requires both flags and a gallery-owned original', () => {
-  const downloadable = { ...gallery, allow_downloads: true };
-  assert.deepEqual(clientDownloadAsset(image, downloadable), { path: original, expiresIn: 60 });
-  assert.equal(clientDownloadAsset(image, gallery), null);
-  assert.equal(clientDownloadAsset({ ...image, is_downloadable: null }, downloadable), null);
-  assert.equal(clientDownloadAsset({ ...image, is_downloadable: false }, downloadable), null);
-  assert.equal(clientDownloadAsset({ ...image, storage_path: preview }, downloadable), null);
-  assert.equal(clientDownloadAsset({ ...image, storage_path: `${photographer_id}/other/secret.png` }, downloadable), null);
-  assert.equal(clientDownloadAsset({ ...image, photographer_id: '00000000-0000-0000-0000-000000000000' }, downloadable), null);
-  assert.equal(clientDownloadAsset({ ...image, gallery_id: '00000000-0000-0000-0000-000000000000' }, downloadable), null);
+test('view-only image preview rejects wrong owner and gallery identifiers', () => {
+  assert.equal(clientDisplayAsset({ ...image, photographer_id: '00000000-0000-0000-0000-000000000000' }, gallery), null);
+  assert.equal(clientDisplayAsset({ ...image, gallery_id: '00000000-0000-0000-0000-000000000000' }, gallery), null);
 });
