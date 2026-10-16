@@ -15,6 +15,7 @@ import {
 } from "react-icons/bi";
 import { supabase } from "../../lib/supabaseClient";
 import { apiListPhotographerGalleries } from "../../services/photographerGalleriesApi";
+import { selectGalleryCoverMedia } from "../../utils/selectGalleryCoverMedia.mjs";
 import { useAuth } from "../../context/authStore";
 import "./Galleries.css";
 
@@ -106,66 +107,53 @@ export default function Galleries() {
         const loadedBookings = payload.bookings || [];
         const loadedMedia = payload.media || [];
 
-        // -------------------------------------------------------
-        // 7. Generate signed thumbnail URLs
-        //
-        // client-media is PRIVATE, so we cannot use getPublicUrl().
-        //
-        // We use the first image uploaded to each gallery.
-        // Videos are intentionally ignored for the gallery thumbnail.
-        // -------------------------------------------------------
-
-        const thumbnailMap = new Map();
-
-        const galleryImageMedia = loadedMedia.filter(
-          (item) => item.media_type === "image" && (item.storage_path || item.thumbnail_path)
-        );
-
-        await Promise.all(
-          galleryImageMedia.map(async (mediaItem) => {
-            // Only use the first image for each gallery.
-            if (thumbnailMap.has(mediaItem.gallery_id)) {
-              return;
-            }
-
-            const { data: signedUrlData, error: signedUrlError } =
-              await supabase.storage
-                .from("client-media")
-                .createSignedUrl(mediaItem.storage_path || mediaItem.thumbnail_path, 60 * 60);
-
-            if (signedUrlError) {
-              console.warn(
-                `Unable to create thumbnail URL for gallery ${mediaItem.gallery_id}:`,
-                signedUrlError
-              );
-
-              return;
-            }
-
-            if (signedUrlData?.signedUrl) {
-              thumbnailMap.set(mediaItem.gallery_id, {
-                url: signedUrlData.signedUrl,
-                mediaId: mediaItem.media_id,
-                fileName: mediaItem.file_name,
-              });
-            }
-          })
-        );
-
+        // Show the gallery list immediately. Covers are signed progressively,
+        // so one slow image or Storage request cannot block the whole page.
         if (!isMounted) return;
-
         setGalleries(loadedGalleries);
         setClients(loadedClients);
         setProfiles(loadedProfiles);
         setBookings(loadedBookings);
         setMedia(loadedMedia);
+        setLoading(false);
 
-        // Store thumbnail information directly on the gallery records.
-        setGalleries(
-          loadedGalleries.map((gallery) => ({
-            ...gallery,
-            thumbnail: thumbnailMap.get(gallery.gallery_id) || null,
-          }))
+        // Select exactly ONE original image per gallery BEFORE starting any
+        // asynchronous requests. The previous check inside Promise.all raced,
+        // causing multiple signed URLs to be requested for the same gallery.
+        const galleryCoverMedia = selectGalleryCoverMedia(loadedGalleries, loadedMedia);
+
+        await Promise.all(
+          galleryCoverMedia.map(async (mediaItem) => {
+            try {
+              const { data, error } = await supabase.storage
+                .from("client-media")
+                .createSignedUrl(mediaItem.storage_path, 60 * 60);
+
+              if (error) {
+                console.warn(`Unable to sign gallery cover for ${mediaItem.gallery_id}:`, error);
+                return;
+              }
+              if (!isMounted || !data?.signedUrl) return;
+
+              // Populate this one cover without waiting for the other galleries.
+              setGalleries((current) =>
+                current.map((gallery) =>
+                  gallery.gallery_id === mediaItem.gallery_id
+                    ? {
+                        ...gallery,
+                        thumbnail: {
+                          url: data.signedUrl,
+                          mediaId: mediaItem.media_id,
+                          fileName: mediaItem.file_name,
+                        },
+                      }
+                    : gallery
+                )
+              );
+            } catch (signError) {
+              console.warn(`Unable to sign gallery cover for ${mediaItem.gallery_id}:`, signError);
+            }
+          })
         );
       } catch (error) {
         console.error("Error loading galleries:", error);
@@ -188,7 +176,7 @@ export default function Galleries() {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user?.id]);
 
   // -------------------------------------------------------------
   // Create lookup maps
@@ -607,6 +595,7 @@ export default function Galleries() {
                             alt={`${gallery.name} gallery`}
                             className="gallery-card-thumbnail"
                             loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <div className="gallery-preview-placeholder">
