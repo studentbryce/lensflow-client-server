@@ -113,6 +113,9 @@ export default function Settings() {
   const [loadError, setLoadError] =
     useState("");
 
+  const [settingsRetry, setSettingsRetry] =
+    useState(0);
+
 
   /* =========================================================
      Account state
@@ -260,51 +263,65 @@ export default function Settings() {
      Load settings
      ========================================================= */
 
-  async function loadSettings() {
-    try {
-      setLoading(true);
-      setLoadError("");
-      const { profile, business, payment, stripe, calendar } = await apiGetPhotographerSettings();
-      const authEmail = profile.email || "";
-      setAccountForm({
-        first_name: profile.first_name || "",
-        last_name: profile.last_name || "",
-        email: authEmail,
-        phone: profile.phone || "",
-      });
-      setOriginalEmail(authEmail);
-      setBusinessForm({
-        business_name: business.business_name || "",
-        email: business.email || "",
-        phone: business.phone || "",
-        address: business.address || "",
-        website_url: business.website_url || "",
-        description: business.description || "",
-      });
-      setTaxForm({
-        gst_tax_number: payment?.gst_tax_number || "",
-        default_tax_rate: String(payment?.default_tax_rate ?? 15),
-      });
-      setPaymentForm({
-        bank_account_name: payment?.bank_account_name || "",
-        bank_name: payment?.bank_name || "",
-        bank_account_number: payment?.bank_account_number || "",
-        bank_payment_instructions: payment?.bank_payment_instructions || "",
-      });
-      setStripeAccount(stripe || null);
-      setCalendarIntegration(calendar || null);
-    } catch (error) {
-      console.error("Unable to load photographer settings:", error);
-      setLoadError(error.message || "Unable to load your settings.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-
+  // Initial settings loading belongs to the effect. Keep state updates after
+  // the external API response and ignore responses from an obsolete request.
   useEffect(() => {
-    loadSettings();
-  }, []);
+    let active = true;
+
+    async function loadInitialSettings() {
+      try {
+        const { profile, business, payment, stripe, calendar } =
+          await apiGetPhotographerSettings();
+        if (!active) return;
+
+        const authEmail = profile.email || "";
+        setAccountForm({
+          first_name: profile.first_name || "",
+          last_name: profile.last_name || "",
+          email: authEmail,
+          phone: profile.phone || "",
+        });
+        setOriginalEmail(authEmail);
+        setBusinessForm({
+          business_name: business.business_name || "",
+          email: business.email || "",
+          phone: business.phone || "",
+          address: business.address || "",
+          website_url: business.website_url || "",
+          description: business.description || "",
+        });
+        setTaxForm({
+          gst_tax_number: payment?.gst_tax_number || "",
+          default_tax_rate: String(payment?.default_tax_rate ?? 15),
+        });
+        setPaymentForm({
+          bank_account_name: payment?.bank_account_name || "",
+          bank_name: payment?.bank_name || "",
+          bank_account_number: payment?.bank_account_number || "",
+          bank_payment_instructions: payment?.bank_payment_instructions || "",
+        });
+        setStripeAccount(stripe || null);
+        setCalendarIntegration(calendar || null);
+      } catch (error) {
+        if (!active) return;
+        console.error("Unable to load photographer settings:", error);
+        setLoadError(error.message || "Unable to load your settings.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadInitialSettings();
+    return () => { active = false; };
+  }, [settingsRetry]);
+
+  // Retry is a user event, so clearing the error/loading state is not an
+  // effect-driven synchronous update.
+  function retryLoadSettings() {
+    setLoading(true);
+    setLoadError("");
+    setSettingsRetry((current) => current + 1);
+  }
 
 
   /* =========================================================
@@ -312,60 +329,50 @@ export default function Settings() {
      ========================================================= */
 
   useEffect(() => {
-    // Wait until the normal Settings data has loaded before
-    // performing a Stripe return sync. This prevents the initial
-    // database read from overwriting freshly synchronised status.
-    if (loading) {
-      return;
+    // Wait for the initial settings fetch before processing a Stripe
+    // return. Otherwise the fetch could overwrite freshly synced status.
+    if (loading) return;
+
+    let active = true;
+
+    // URL navigation is an external event. Process its state changes in
+    // a cancellable continuation, rather than synchronously in the
+    // effect setup. A superseded URL or unmount cancels the continuation.
+    async function processSettingsUrl() {
+      await Promise.resolve();
+      if (!active) return;
+
+      const requestedSection = searchParams.get("tab");
+      const isValidSection = SETTINGS_SECTIONS.some(
+        (section) => section.id === requestedSection
+      );
+      if (isValidSection) {
+        setActiveSection(requestedSection);
+      }
+
+      const stripeReturn = searchParams.get("stripe");
+      if (stripeReturn === "return") {
+        setActiveSection("payments");
+        setStripeError("");
+        setStripeMessage(
+          "You have returned from Stripe successfully. Checking your Stripe account status..."
+        );
+
+        // Keep the existing Stripe status sync and one-time URL cleanup.
+        void handleSyncStripeStatus({ returningFromStripe: true });
+        navigate("/photographer/settings", { replace: true });
+      } else if (stripeReturn === "refresh") {
+        setActiveSection("payments");
+        setStripeMessage("");
+        setStripeError(
+          "Your Stripe setup link expired or could not be reused. Select Continue Stripe Setup to create a new secure onboarding link."
+        );
+        navigate("/photographer/settings", { replace: true });
+      }
     }
 
-    const requestedSection =
-      searchParams.get("tab");
-
-    const isValidSection =
-      SETTINGS_SECTIONS.some(
-        (section) =>
-          section.id === requestedSection
-      );
-
-    if (isValidSection) {
-      setActiveSection(requestedSection);
-    }
-
-    const stripeReturn =
-      searchParams.get("stripe");
-
-    if (stripeReturn === "return") {
-      setActiveSection("payments");
-      setStripeError("");
-      setStripeMessage(
-        "You have returned from Stripe successfully. Checking your Stripe account status..."
-      );
-
-      // Synchronise the authoritative account state from Stripe.
-      handleSyncStripeStatus({
-        returningFromStripe: true,
-      });
-
-      // Remove one-time return parameters so refreshing the
-      // Settings page does not repeat the return action.
-      navigate(
-        "/photographer/settings",
-        { replace: true }
-      );
-
-    } else if (stripeReturn === "refresh") {
-      setActiveSection("payments");
-      setStripeMessage("");
-      setStripeError(
-        "Your Stripe setup link expired or could not be reused. Select Continue Stripe Setup to create a new secure onboarding link."
-      );
-
-      navigate(
-        "/photographer/settings",
-        { replace: true }
-      );
-    }
+    void processSettingsUrl();
+    return () => { active = false; };
   }, [loading, navigate, searchParams]);
 
 
@@ -1039,7 +1046,7 @@ export default function Settings() {
           <button
             type="button"
             onClick={
-              loadSettings
+              retryLoadSettings
             }
           >
             <BiRefresh

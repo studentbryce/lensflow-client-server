@@ -24,31 +24,30 @@ export default function Dashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    let cancelled = false;
 
-  async function loadDashboard() {
-    try {
-      setLoading(true);
-      setError("");
-
-      // Milestone 11A: database access is through the authenticated Express API.
-      const { data } = await apiGetClientDashboard(localToday());
-      setProfile(data.profile);
-      setStats(data.stats);
-      setUpcomingBookings(data.upcomingBookings);
-      setOutstandingInvoices(data.outstandingInvoices);
-      setRecentGalleries(data.recentGalleries);
-    } catch (err) {
-      console.error("Client dashboard error:", err);
-
-      setError(
-        err.message || "Unable to load dashboard data."
-      );
-    } finally {
-      setLoading(false);
+    async function loadDashboard() {
+      try {
+        // Milestone 11A: database access is through the authenticated Express API.
+        const { data } = await apiGetClientDashboard(localToday());
+        if (cancelled) return;
+        setProfile(data.profile);
+        setStats(data.stats);
+        setUpcomingBookings(data.upcomingBookings);
+        setOutstandingInvoices(data.outstandingInvoices);
+        setRecentGalleries(data.recentGalleries);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Client dashboard error:", err);
+        setError(err.message || "Unable to load dashboard data.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }
+
+    void loadDashboard();
+    return () => { cancelled = true; };
+  }, []);
 
   // -----------------------------------------------------------
   // Loading state

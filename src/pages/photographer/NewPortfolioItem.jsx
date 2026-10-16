@@ -117,78 +117,63 @@ export default function NewPortfolioItem() {
    */
 
   useEffect(() => {
-    loadPortfolioData();
-  }, []);
+    let active = true;
 
-  async function loadPortfolioData() {
-    try {
-      setLoading(true);
-      setError("");
+    async function loadPortfolioData() {
+      try {
+        const options = await apiGetPortfolioOptions();
+        if (!active) return;
 
-      const options = await apiGetPortfolioOptions();
-      const currentPhotographerId = options.photographer_id;
-      setPhotographerId(currentPhotographerId);
-      const loadedGalleries = options.galleries;
-      setGalleries(loadedGalleries);
-      if (loadedGalleries.length === 0) { setMedia([]); return; }
-      const mediaData = options.media;
+        const currentPhotographerId = options.photographer_id;
+        setPhotographerId(currentPhotographerId);
+        const loadedGalleries = options.galleries;
+        setGalleries(loadedGalleries);
+        if (loadedGalleries.length === 0) {
+          setMedia([]);
+          return;
+        }
+        const mediaData = options.media;
 
-      /*
-       * Create signed URLs for displaying the
-       * private client-media images.
-       */
-
-      const mediaWithUrls =
-        await Promise.all(
-          (mediaData || []).map(
-            async (item) => {
-              const {
-                data: signedUrlData,
-                error: signedUrlError,
-              } = await supabase.storage
+        // Signed URLs are still created only for the existing portfolio
+        // options, using the same private client-media Storage bucket.
+        const mediaWithUrls = await Promise.all(
+          (mediaData || []).map(async (item) => {
+            const { data: signedUrlData, error: signedUrlError } =
+              await supabase.storage
                 .from("client-media")
-                .createSignedUrl(
-                  item.storage_path,
-                  60 * 60
-                );
+                .createSignedUrl(item.storage_path, 60 * 60);
 
-              if (signedUrlError) {
-                console.warn(
-                  `Could not create preview URL for ${item.file_name}:`,
-                  signedUrlError
-                );
-
-                return {
-                  ...item,
-                  preview_url: null,
-                };
-              }
-
-              return {
-                ...item,
-                preview_url:
-                  signedUrlData?.signedUrl ||
-                  null,
-              };
+            if (signedUrlError) {
+              console.warn(
+                `Could not create preview URL for ${item.file_name}:`,
+                signedUrlError
+              );
+              return { ...item, preview_url: null };
             }
-          )
+
+            return {
+              ...item,
+              preview_url: signedUrlData?.signedUrl || null,
+            };
+          })
         );
 
-      setMedia(mediaWithUrls);
-    } catch (err) {
-      console.error(
-        "Error loading portfolio data:",
-        err
-      );
-
-      setError(
-        err?.message ||
-          "Unable to load your portfolio media. Please try again."
-      );
-    } finally {
-      setLoading(false);
+        if (active) setMedia(mediaWithUrls);
+      } catch (err) {
+        if (!active) return;
+        console.error("Error loading portfolio data:", err);
+        setError(
+          err?.message ||
+            "Unable to load your portfolio media. Please try again."
+        );
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
+
+    void loadPortfolioData();
+    return () => { active = false; };
+  }, []);
 
   /*
    * ---------------------------------------------------------

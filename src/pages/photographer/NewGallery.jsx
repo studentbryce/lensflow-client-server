@@ -108,6 +108,33 @@ export default function NewGallery() {
         setProfiles(profileData || []);
         setBookings(bookingData || []);
         setExistingGalleries(galleryData || []);
+
+        // Preselect only a booking returned in this photographer's authorised options.
+        // Applying this after the await avoids a synchronous state update in an effect.
+        const validClient = (clientData || []).some(
+          (client) => client.client_id === requestedClientId
+        );
+        const validBooking = (bookingData || []).some(
+          (booking) =>
+            booking.booking_id === requestedBookingId &&
+            booking.client_id === requestedClientId
+        );
+        const alreadyHasGallery = (galleryData || []).some(
+          (gallery) => gallery.booking_id === requestedBookingId
+        );
+
+        if (requestedClientId && requestedBookingId &&
+            validClient && validBooking && !alreadyHasGallery) {
+          setFormData((current) => {
+            if (current.client_id === requestedClientId &&
+                current.booking_id === requestedBookingId) return current;
+            return {
+              ...current,
+              client_id: requestedClientId,
+              booking_id: requestedBookingId,
+            };
+          });
+        }
       } catch (err) {
         console.error("Error loading new gallery data:", err);
 
@@ -129,7 +156,7 @@ export default function NewGallery() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user?.id, requestedClientId, requestedBookingId]);
 
   /*
    * Create a quick lookup set containing every booking that already
@@ -142,59 +169,6 @@ export default function NewGallery() {
         .filter(Boolean)
     );
   }, [existingGalleries]);
-
-  /*
-   * Apply a client/booking passed from Booking Details once all of
-   * the photographer's data has loaded.
-   *
-   * If the booking is invalid, belongs to another client, or already
-   * has a gallery, nothing is preselected.
-   */
-  useEffect(() => {
-    if (loading || !requestedClientId || !requestedBookingId) {
-      return;
-    }
-
-    const validClient = clients.some(
-      (client) => client.client_id === requestedClientId
-    );
-
-    const validBooking = bookings.find(
-      (booking) =>
-        booking.booking_id === requestedBookingId &&
-        booking.client_id === requestedClientId
-    );
-
-    const alreadyHasGallery = existingGalleries.some(
-      (gallery) => gallery.booking_id === requestedBookingId
-    );
-
-    if (!validClient || !validBooking || alreadyHasGallery) {
-      return;
-    }
-
-    setFormData((current) => {
-      if (
-        current.client_id === requestedClientId &&
-        current.booking_id === requestedBookingId
-      ) {
-        return current;
-      }
-
-      return {
-        ...current,
-        client_id: requestedClientId,
-        booking_id: requestedBookingId,
-      };
-    });
-  }, [
-    loading,
-    requestedClientId,
-    requestedBookingId,
-    clients,
-    bookings,
-    existingGalleries,
-  ]);
 
   /*
    * Create a lookup map for client profiles.

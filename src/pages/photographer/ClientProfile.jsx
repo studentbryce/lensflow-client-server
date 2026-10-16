@@ -3,9 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiGetPhotographerClient } from "../../services/photographerClientsApi";
 import "./ClientProfile.css";
 
+// Remount when the route ID changes to reset loading and avoid stale details.
 export default function PhotographerClientProfile() {
-  const navigate = useNavigate();
   const { client_id } = useParams();
+  return <ClientProfileContent key={client_id} client_id={client_id} />;
+}
+
+function ClientProfileContent({ client_id }) {
+  const navigate = useNavigate();
 
   const [client, setClient] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -14,33 +19,26 @@ export default function PhotographerClientProfile() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (client_id) {
-      fetchClient();
+    let active = true;
+
+    async function loadClient() {
+      try {
+        const response = await apiGetPhotographerClient(client_id);
+        if (!active) return;
+        setClient(response.data.client);
+        setBookings(response.data.bookings || []);
+      } catch (err) {
+        if (!active) return;
+        console.error("Error loading client profile:", err);
+        setError(err.message || "Unable to load client profile.");
+      } finally {
+        if (active) setLoading(false);
+      }
     }
+
+    void loadClient();
+    return () => { active = false; };
   }, [client_id]);
-
-  async function fetchClient() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await apiGetPhotographerClient(client_id);
-      setClient(response.data.client);
-      setBookings(response.data.bookings || []);
-    } catch (err) {
-      console.error(
-        "Error loading client profile:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to load client profile."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function getClientName() {
     const profile = client?.profile;

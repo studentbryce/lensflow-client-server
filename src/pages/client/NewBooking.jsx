@@ -267,6 +267,250 @@ function subtractRanges(
 }
 
 
+// A pure range calculation shared by the slot display and submit-time recheck.
+// Pass rules explicitly so React can track all dependencies correctly.
+function calculateAvailableRanges(
+  selectedDate,
+  exceptions,
+  blockingBookings,
+  availabilityRules
+) {
+  if (
+    !selectedDate
+  ) {
+    return [];
+  }
+
+
+  const dayOfWeek =
+    getDayOfWeek(
+      selectedDate
+    );
+
+
+  const rulesForDay =
+    availabilityRules.filter(
+      (rule) =>
+        Number(
+          rule.day_of_week
+        ) ===
+        dayOfWeek
+    );
+
+
+  /* -------------------------------------------------------
+     Normal working hours
+     ------------------------------------------------------- */
+
+  let availableRanges =
+    rulesForDay
+      .filter(
+        (rule) =>
+          rule.is_available
+      )
+      .map(
+        (rule) => ({
+          start:
+            timeToMinutes(
+              rule.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              rule.end_time
+            ),
+        })
+      );
+
+
+  availableRanges =
+    mergeRanges(
+      availableRanges
+    );
+
+
+  /* -------------------------------------------------------
+     Weekly unavailable blocks
+     ------------------------------------------------------- */
+
+  const unavailableRules =
+    rulesForDay
+      .filter(
+        (rule) =>
+          !rule.is_available
+      )
+      .map(
+        (rule) => ({
+          start:
+            timeToMinutes(
+              rule.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              rule.end_time
+            ),
+        })
+      );
+
+
+  availableRanges =
+    subtractRanges(
+      availableRanges,
+      unavailableRules
+    );
+
+
+  /* -------------------------------------------------------
+     Full-day unavailable exception overrides everything
+     ------------------------------------------------------- */
+
+  const fullDayUnavailable =
+    exceptions.some(
+      (exception) =>
+        !exception.is_available &&
+        !exception.start_time &&
+        !exception.end_time
+    );
+
+
+  if (
+    fullDayUnavailable
+  ) {
+    return [];
+  }
+
+
+  /* -------------------------------------------------------
+     Full-day available exception
+     ------------------------------------------------------- */
+
+  const fullDayAvailable =
+    exceptions.some(
+      (exception) =>
+        exception.is_available &&
+        !exception.start_time &&
+        !exception.end_time
+    );
+
+
+  if (
+    fullDayAvailable
+  ) {
+    availableRanges = [
+      {
+        start: 0,
+        end: 1440,
+      },
+    ];
+  }
+
+
+  /* -------------------------------------------------------
+     Available exceptions ADD time
+     ------------------------------------------------------- */
+
+  const availableExceptions =
+    exceptions
+      .filter(
+        (exception) =>
+          exception.is_available &&
+          exception.start_time &&
+          exception.end_time
+      )
+      .map(
+        (exception) => ({
+          start:
+            timeToMinutes(
+              exception.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              exception.end_time
+            ),
+        })
+      );
+
+
+  availableRanges =
+    mergeRanges([
+      ...availableRanges,
+      ...availableExceptions,
+    ]);
+
+
+  /* -------------------------------------------------------
+     Unavailable exceptions REMOVE time
+     ------------------------------------------------------- */
+
+  const unavailableExceptions =
+    exceptions
+      .filter(
+        (exception) =>
+          !exception.is_available &&
+          exception.start_time &&
+          exception.end_time
+      )
+      .map(
+        (exception) => ({
+          start:
+            timeToMinutes(
+              exception.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              exception.end_time
+            ),
+        })
+      );
+
+
+  availableRanges =
+    subtractRanges(
+      availableRanges,
+      unavailableExceptions
+    );
+
+
+  /* -------------------------------------------------------
+     Existing pending / confirmed bookings REMOVE time
+     ------------------------------------------------------- */
+
+  const occupiedRanges =
+    blockingBookings.map(
+      (booking) => ({
+        start:
+          timeToMinutes(
+            booking.start_time
+          ),
+
+        end:
+          timeToMinutes(
+            booking.end_time
+          ),
+      })
+    );
+
+
+  availableRanges =
+    subtractRanges(
+      availableRanges,
+      occupiedRanges
+    );
+
+
+  return availableRanges;
+}
+
+
+async function fetchSelectedDateData(selectedDate) {
+  // The Express API returns occupied intervals without exposing other clients.
+  const { data } = await apiGetClientBookingAvailability(selectedDate);
+  return { exceptions: data.exceptions || [], bookings: data.bookings || [] };
+}
+
 /* ============================================================
    COMPONENT
    ============================================================ */
@@ -364,10 +608,7 @@ export default function NewBooking() {
     setDayBookings,
   ] = useState([]);
 
-  const [
-    loadingAvailability,
-    setLoadingAvailability,
-  ] = useState(false);
+  const [availabilityLoadedKey, setAvailabilityLoadedKey] = useState("");
 
 
   /* =========================================================
@@ -566,341 +807,53 @@ export default function NewBooking() {
 
 
   /* =========================================================
-     Reset time if service changes
-     ========================================================= */
-
-  useEffect(
-    () => {
-      setStart("");
-    },
-    [serviceId]
-  );
-
-
-  /* =========================================================
      Selected date data
      ========================================================= */
 
-  useEffect(
-    () => {
-      setStart("");
-
-
-      if (
-        !client ||
-        !date
-      ) {
-        setDayExceptions(
-          []
-        );
-
-        setDayBookings(
-          []
-        );
-
-        return;
-      }
-
-
-      loadSelectedDate(date);
-    },
-    [
-      client,
-      date,
-    ]
+  // The response is tagged with its date and client so an old day's occupied
+  // intervals cannot be shown as available slots while a new request is pending.
+  const availabilityKey = client && date
+    ? `${client.client_id}:${date}`
+    : "";
+  const loadingAvailability = Boolean(
+    availabilityKey && availabilityLoadedKey !== availabilityKey
   );
 
+  useEffect(() => {
+    if (!client || !date) return;
 
-  async function fetchSelectedDateData(selectedDate) {
-    // Express derives the assigned photographer from the authenticated JWT.
-    // Busy times include other clients' occupied intervals without exposing identities.
-    const { data } = await apiGetClientBookingAvailability(selectedDate);
-    return { exceptions: data.exceptions || [], bookings: data.bookings || [] };
-  }
-
-
-  async function loadSelectedDate(selectedDate) {
-    try {
-      setLoadingAvailability(
-        true
-      );
-
-      setError("");
-
-
-      const result =
-        await fetchSelectedDateData(selectedDate);
-
-
-      setDayExceptions(
-        result.exceptions
-      );
-
-      setDayBookings(
-        result.bookings
-      );
-
-    } catch (err) {
-      console.error(
-        "Unable to load booking availability:",
-        err
-      );
-
-      // Fail closed: never show open slots when the busy-time lookup failed.
-      setDayBookings([]);
-      setDayExceptions([{ is_available: false, start_time: null, end_time: null }]);
-      setStart("");
-
-
-      setError(
-        "We couldn't check availability for this date. Please try again."
-      );
-
-    } finally {
-      setLoadingAvailability(
-        false
-      );
+    let active = true;
+    async function loadSelectedDate() {
+      try {
+        const result = await fetchSelectedDateData(date);
+        if (!active) return;
+        setDayExceptions(result.exceptions);
+        setDayBookings(result.bookings);
+        setError("");
+      } catch (err) {
+        if (!active) return;
+        console.error("Unable to load booking availability:", err);
+        // Fail closed: a failed lookup must never show an available slot.
+        setDayBookings([]);
+        setDayExceptions([
+          { is_available: false, start_time: null, end_time: null },
+        ]);
+        setStart("");
+        setError("We couldn't check availability for this date. Please try again.");
+      } finally {
+        if (active) setAvailabilityLoadedKey(availabilityKey);
+      }
     }
-  }
+
+    void loadSelectedDate();
+    return () => { active = false; };
+  }, [client, date, availabilityKey]);
 
 
   /* =========================================================
      Calculate available ranges
      ========================================================= */
 
-  function calculateAvailableRanges(
-    selectedDate,
-    exceptions,
-    blockingBookings
-  ) {
-    if (
-      !selectedDate
-    ) {
-      return [];
-    }
-
-
-    const dayOfWeek =
-      getDayOfWeek(
-        selectedDate
-      );
-
-
-    const rulesForDay =
-      availabilityRules.filter(
-        (rule) =>
-          Number(
-            rule.day_of_week
-          ) ===
-          dayOfWeek
-      );
-
-
-    /* -------------------------------------------------------
-       Normal working hours
-       ------------------------------------------------------- */
-
-    let availableRanges =
-      rulesForDay
-        .filter(
-          (rule) =>
-            rule.is_available
-        )
-        .map(
-          (rule) => ({
-            start:
-              timeToMinutes(
-                rule.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                rule.end_time
-              ),
-          })
-        );
-
-
-    availableRanges =
-      mergeRanges(
-        availableRanges
-      );
-
-
-    /* -------------------------------------------------------
-       Weekly unavailable blocks
-       ------------------------------------------------------- */
-
-    const unavailableRules =
-      rulesForDay
-        .filter(
-          (rule) =>
-            !rule.is_available
-        )
-        .map(
-          (rule) => ({
-            start:
-              timeToMinutes(
-                rule.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                rule.end_time
-              ),
-          })
-        );
-
-
-    availableRanges =
-      subtractRanges(
-        availableRanges,
-        unavailableRules
-      );
-
-
-    /* -------------------------------------------------------
-       Full-day unavailable exception overrides everything
-       ------------------------------------------------------- */
-
-    const fullDayUnavailable =
-      exceptions.some(
-        (exception) =>
-          !exception.is_available &&
-          !exception.start_time &&
-          !exception.end_time
-      );
-
-
-    if (
-      fullDayUnavailable
-    ) {
-      return [];
-    }
-
-
-    /* -------------------------------------------------------
-       Full-day available exception
-       ------------------------------------------------------- */
-
-    const fullDayAvailable =
-      exceptions.some(
-        (exception) =>
-          exception.is_available &&
-          !exception.start_time &&
-          !exception.end_time
-      );
-
-
-    if (
-      fullDayAvailable
-    ) {
-      availableRanges = [
-        {
-          start: 0,
-          end: 1440,
-        },
-      ];
-    }
-
-
-    /* -------------------------------------------------------
-       Available exceptions ADD time
-       ------------------------------------------------------- */
-
-    const availableExceptions =
-      exceptions
-        .filter(
-          (exception) =>
-            exception.is_available &&
-            exception.start_time &&
-            exception.end_time
-        )
-        .map(
-          (exception) => ({
-            start:
-              timeToMinutes(
-                exception.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                exception.end_time
-              ),
-          })
-        );
-
-
-    availableRanges =
-      mergeRanges([
-        ...availableRanges,
-        ...availableExceptions,
-      ]);
-
-
-    /* -------------------------------------------------------
-       Unavailable exceptions REMOVE time
-       ------------------------------------------------------- */
-
-    const unavailableExceptions =
-      exceptions
-        .filter(
-          (exception) =>
-            !exception.is_available &&
-            exception.start_time &&
-            exception.end_time
-        )
-        .map(
-          (exception) => ({
-            start:
-              timeToMinutes(
-                exception.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                exception.end_time
-              ),
-          })
-        );
-
-
-    availableRanges =
-      subtractRanges(
-        availableRanges,
-        unavailableExceptions
-      );
-
-
-    /* -------------------------------------------------------
-       Existing pending / confirmed bookings REMOVE time
-       ------------------------------------------------------- */
-
-    const occupiedRanges =
-      blockingBookings.map(
-        (booking) => ({
-          start:
-            timeToMinutes(
-              booking.start_time
-            ),
-
-          end:
-            timeToMinutes(
-              booking.end_time
-            ),
-        })
-      );
-
-
-    availableRanges =
-      subtractRanges(
-        availableRanges,
-        occupiedRanges
-      );
-
-
-    return availableRanges;
-  }
 
 
   /* =========================================================
@@ -910,16 +863,18 @@ export default function NewBooking() {
   const availableRanges =
     useMemo(
       () =>
-        calculateAvailableRanges(
+        loadingAvailability ? [] : calculateAvailableRanges(
           date,
           dayExceptions,
-          dayBookings
+          dayBookings,
+          availabilityRules
         ),
       [
         date,
         dayExceptions,
         dayBookings,
         availabilityRules,
+        loadingAvailability,
       ]
     );
 
@@ -1177,7 +1132,8 @@ export default function NewBooking() {
         calculateAvailableRanges(
           date,
           freshData.exceptions,
-          freshData.bookings
+          freshData.bookings,
+          availabilityRules
         );
 
 
@@ -1381,12 +1337,10 @@ export default function NewBooking() {
                 value={
                   serviceId
                 }
-                onChange={
-                  (event) =>
-                    setServiceId(
-                      event.target.value
-                    )
-                }
+                onChange={(event) => {
+                  setServiceId(event.target.value);
+                  setStart("");
+                }}
               >
 
                 <option value="">
@@ -1463,12 +1417,10 @@ export default function NewBooking() {
                 value={
                   date
                 }
-                onChange={
-                  (event) =>
-                    setDate(
-                      event.target.value
-                    )
-                }
+                onChange={(event) => {
+                  setDate(event.target.value);
+                  setStart("");
+                }}
               />
 
             </div>

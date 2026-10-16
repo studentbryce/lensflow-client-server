@@ -4,8 +4,12 @@ import { apiGetPhotographerClient, apiUpdatePhotographerClient } from "../../ser
 import "./EditClient.css";
 
 export default function EditClient() {
-    const navigate = useNavigate();
     const { client_id } = useParams();
+    return <EditClientContent key={client_id} client_id={client_id} />;
+}
+
+function EditClientContent({ client_id }) {
+    const navigate = useNavigate();
 
     const [client, setClient] = useState(null);
 
@@ -25,35 +29,45 @@ export default function EditClient() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    useEffect(() => {
-        fetchClient();
-    }, [client_id]);
+    const [retryCount, setRetryCount] = useState(0);
 
-    async function fetchClient() {
+    useEffect(() => {
+        let active = true;
+
+        async function loadClient() {
+            try {
+                const response = await apiGetPhotographerClient(client_id);
+                if (!active) return;
+
+                const clientData = response.data.client;
+                const profileData = clientData.profile;
+                setClient(clientData);
+                setBookings(response.data.bookings || []);
+                setFormData({
+                    first_name: profileData?.first_name || "",
+                    last_name: profileData?.last_name || "",
+                    email: profileData?.email || "",
+                    phone: profileData?.phone || "",
+                    notes: clientData?.notes || "",
+                });
+            } catch (err) {
+                if (!active) return;
+                console.error("Error loading client:", err);
+                setError(err.message || "Unable to load client.");
+            } finally {
+                if (active) setLoading(false);
+            }
+        }
+
+        void loadClient();
+        return () => { active = false; };
+    }, [client_id, retryCount]);
+
+    function retryLoadClient() {
         setLoading(true);
         setError("");
         setSuccess("");
-
-        try {
-            const response = await apiGetPhotographerClient(client_id);
-            const clientData = response.data.client;
-            const profileData = clientData.profile;
-            setClient(clientData);
-            setBookings(response.data.bookings || []);
-
-            setFormData({
-                first_name: profileData?.first_name || "",
-                last_name: profileData?.last_name || "",
-                email: profileData?.email || "",
-                phone: profileData?.phone || "",
-                notes: clientData?.notes || "",
-            });
-        } catch (err) {
-            console.error("Error loading client:", err);
-            setError(err.message || "Unable to load client.");
-        } finally {
-            setLoading(false);
-        }
+        setRetryCount((count) => count + 1);
     }
 
     function handleChange(event) {
@@ -186,7 +200,7 @@ export default function EditClient() {
                     <button
                         type="button"
                         className="secondary-button"
-                        onClick={fetchClient}
+                        onClick={retryLoadClient}
                     >
                         Try Again
                     </button>

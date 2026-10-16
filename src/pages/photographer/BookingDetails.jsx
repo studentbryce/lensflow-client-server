@@ -3,8 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiDeleteBooking, apiGetBookingById, apiGetBookingRelated, apiUpdateBooking, apiUpdateBookingStatus } from "../../services/bookingApi";
 import "./BookingDetails.css";
 
+// Key the detail view by route ID so a different booking starts with fresh
+// loading state instead of briefly displaying the previous booking.
 export default function BookingDetails() {
   const { booking_id } = useParams();
+  return <BookingDetailsContent key={booking_id} booking_id={booking_id} />;
+}
+
+function BookingDetailsContent({ booking_id }) {
   const navigate = useNavigate();
 
   const [booking, setBooking] = useState(null);
@@ -25,35 +31,35 @@ export default function BookingDetails() {
   });
 
   useEffect(() => {
-    fetchBooking();
-  }, [booking_id]);
+    let active = true;
 
-  async function fetchBooking() {
-    setLoading(true);
-    setError("");
-    setSuccess("");
+    async function loadBooking() {
+      try {
+        // Booking data, service and client contact details come through Express.
+        const response = await apiGetBookingById(booking_id);
+        if (!active) return;
+        const data = response.data;
+        setBooking(data);
+        setService(data.services ?? null);
+        setClient(data.photographerClientProfile ?? null);
 
-    try {
-      // Booking data, service and client contact details come through Express.
-      const response = await apiGetBookingById(booking_id);
-      const data = response.data;
-      setBooking(data);
-      setService(data.services ?? null);
-      setClient(data.photographerClientProfile ?? null);
-
-      // Linked invoice/gallery summaries are retrieved through Express.
-      // Keep both null when no related record exists.
-      const relatedResponse = await apiGetBookingRelated(data.booking_id);
-      setExistingInvoice(relatedResponse.data?.invoice ?? null);
-      setExistingGallery(relatedResponse.data?.gallery ?? null);
-
-    } catch (err) {
-      console.error("Error loading booking:", err);
-      setError(err.message || "Unable to load booking.");
-    } finally {
-      setLoading(false);
+        // Keep both null when no related record exists.
+        const relatedResponse = await apiGetBookingRelated(data.booking_id);
+        if (!active) return;
+        setExistingInvoice(relatedResponse.data?.invoice ?? null);
+        setExistingGallery(relatedResponse.data?.gallery ?? null);
+      } catch (err) {
+        if (!active) return;
+        console.error("Error loading booking:", err);
+        setError(err.message || "Unable to load booking.");
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
+
+    void loadBooking();
+    return () => { active = false; };
+  }, [booking_id]);
 
   function beginEdit() {
     if (!booking || !["pending", "confirmed"].includes(booking.status)) return;

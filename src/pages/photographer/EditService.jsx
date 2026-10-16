@@ -22,8 +22,12 @@ const ALLOWED_IMAGE_TYPES = {
 };
 
 export default function EditService() {
-  const navigate = useNavigate();
   const { service_id } = useParams();
+  return <EditServiceContent key={service_id} service_id={service_id} />;
+}
+
+function EditServiceContent({ service_id }) {
+  const navigate = useNavigate();
 
   const [service, setService] =
     useState(null);
@@ -74,30 +78,72 @@ export default function EditService() {
   ] = useState(false);
 
   const [loading, setLoading] =
-    useState(true);
+    useState(Boolean(service_id));
 
   const [saving, setSaving] =
     useState(false);
 
   const [error, setError] =
-    useState("");
+    useState(service_id ? "" : "No service was specified.");
 
   const [success, setSuccess] =
     useState("");
 
   const saveLock = useRef(false);
 
-  useEffect(() => {
-    if (service_id) {
-      fetchService();
-    } else {
-      setError(
-        "No service was specified."
-      );
+  const [retryCount, setRetryCount] = useState(0);
 
-      setLoading(false);
+  // Load the requested service. Guard late responses when changing records
+  // or leaving the page so they cannot overwrite the next record's state.
+  useEffect(() => {
+    if (!service_id) return;
+    let active = true;
+
+    async function loadService() {
+      try {
+        const { data } = await apiGetPhotographerService(service_id);
+        if (!active) return;
+        if (!data) throw new Error("Service could not be found.");
+
+        setService(data);
+        setFormData({
+          name: data.name || "",
+          description: data.description || "",
+          price: data.price != null ? String(data.price) : "",
+          duration_minutes: data.duration_minutes != null
+            ? String(data.duration_minutes) : "",
+          deposit_amount: data.deposit_amount != null
+            ? String(data.deposit_amount) : "",
+          is_active: data.is_active ?? true,
+        });
+        setExistingImageUrl(data.image_url || "");
+        setRemoveCurrentImage(false);
+        setImageFile(null);
+        setImagePreview("");
+      } catch (err) {
+        if (!active) return;
+        console.error("Error loading service:", err);
+        if (err.code === "PGRST116") {
+          setError("Service could not be found or you do not have permission to access it.");
+        } else {
+          setError(err.message || "Unable to load the service.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }, [service_id]);
+
+    void loadService();
+    return () => { active = false; };
+  }, [service_id, retryCount]);
+
+  function retryLoadService() {
+    if (!service_id) return;
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    setRetryCount((count) => count + 1);
+  }
 
   /*
    * Clean up browser preview URL when
@@ -116,93 +162,6 @@ export default function EditService() {
   function clearMessages() {
     setError("");
     setSuccess("");
-  }
-
-  async function fetchService() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const { data } = await apiGetPhotographerService(service_id);
-      if (!data) throw new Error("Service could not be found.");
-
-      setService(data);
-
-      setFormData({
-        name: data.name || "",
-
-        description:
-          data.description || "",
-
-        price:
-          data.price !== null &&
-          data.price !== undefined
-            ? String(data.price)
-            : "",
-
-        duration_minutes:
-          data.duration_minutes !==
-            null &&
-          data.duration_minutes !==
-            undefined
-            ? String(
-                data.duration_minutes
-              )
-            : "",
-
-        deposit_amount:
-          data.deposit_amount !==
-            null &&
-          data.deposit_amount !==
-            undefined
-            ? String(
-                data.deposit_amount
-              )
-            : "",
-
-        is_active:
-          data.is_active ?? true,
-      });
-
-      setExistingImageUrl(
-        data.image_url || ""
-      );
-
-      setRemoveCurrentImage(false);
-
-      /*
-       * Clear any replacement selection
-       * if the service is reloaded.
-       */
-      if (imagePreview) {
-        URL.revokeObjectURL(
-          imagePreview
-        );
-      }
-
-      setImageFile(null);
-      setImagePreview("");
-    } catch (err) {
-      console.error(
-        "Error loading service:",
-        err
-      );
-
-      if (
-        err.code === "PGRST116"
-      ) {
-        setError(
-          "Service could not be found or you do not have permission to access it."
-        );
-      } else {
-        setError(
-          err.message ||
-            "Unable to load the service."
-        );
-      }
-    } finally {
-      setLoading(false);
-    }
   }
 
   function handleChange(event) {
@@ -783,9 +742,7 @@ export default function EditService() {
             <button
               type="button"
               className="primary-button"
-              onClick={
-                fetchService
-              }
+              onClick={retryLoadService}
             >
               Try Again
             </button>

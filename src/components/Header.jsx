@@ -90,15 +90,21 @@ function Header() {
 	   ========================================================= */
 
 	useEffect(() => {
-		if (!profile?.role) {
-			return;
+		if (!profile?.role) return undefined;
+
+		let active = true;
+		async function loadInitialUnreadCount() {
+			try {
+				const response = await apiGetUnreadMessageCount();
+				if (active) setUnreadMessageCount(response.data?.count ?? 0);
+			} catch (error) {
+				if (active) console.error("Unable to load unread message count:", error);
+			}
 		}
 
-		loadUnreadMessageCount();
-	}, [
-		profile?.role,
-		loadUnreadMessageCount,
-	]);
+		void loadInitialUnreadCount();
+		return () => { active = false; };
+	}, [profile?.role]);
 
 
 	/* =========================================================

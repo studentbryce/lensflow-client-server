@@ -55,8 +55,12 @@ function formatDate(date) {
 }
 
 export default function NewInvoice() {
-    const navigate = useNavigate();
     const { user } = useAuth();
+    return <NewInvoiceContent key={user?.id ?? "guest"} user={user} />;
+}
+
+function NewInvoiceContent({ user }) {
+    const navigate = useNavigate();
 
     const [clients, setClients] = useState([]);
     const [bookings, setBookings] = useState([]);
@@ -92,45 +96,48 @@ export default function NewInvoice() {
      * client-side photographer_id filtering for security.
      */
     useEffect(() => {
-        if (!user) {
-            setLoading(false);
-            return;
+        // Loading is initially true; only asynchronous responses update state.
+        // Ignore results from an old session if the authenticated user changes.
+        if (!user?.id) return;
+        let active = true;
+
+        async function loadInvoiceData() {
+            try {
+                const { data } = await apiGetPhotographerInvoiceOptions();
+                if (!active) return;
+                const clientData = data.clients || [];
+                const bookingData = data.bookings || [];
+                const serviceData = data.services || [];
+                setClients(clientData);
+                setBookings(bookingData);
+                setServices(serviceData);
+                setFormData(current => ({ ...current, tax_rate: String(data.default_tax_rate ?? 15) }));
+
+                const searchParams = new URLSearchParams(window.location.search);
+                const requestedBookingId = searchParams.get("booking_id");
+                const requestedClientId = searchParams.get("client_id");
+                if (requestedBookingId) {
+                    const selected = bookingData.find(b => b.booking_id === requestedBookingId);
+                    if (selected && (!requestedClientId || selected.client_id === requestedClientId)) {
+                        setFormData(current => ({ ...current, client_id: selected.client_id, booking_id: selected.booking_id }));
+                        const bookedService = serviceData.find(s => s.service_id === selected.service_id);
+                        if (bookedService) setItems([{ service_id: bookedService.service_id,
+                            description: bookedService.description || bookedService.name || "",
+                            quantity: 1, unit_price: selected.total_amount ?? bookedService.price ?? "" }]);
+                    }
+                }
+            } catch (err) {
+                if (!active) return;
+                console.error("Error loading invoice data:", err);
+                setError(err.message || "Unable to load invoice options.");
+            } finally {
+                if (active) setLoading(false);
+            }
         }
 
-        loadInvoiceData();
-    }, [user]);
-
-    async function loadInvoiceData() {
-        try {
-            setLoading(true);
-            setError("");
-            const { data } = await apiGetPhotographerInvoiceOptions();
-            const clientData = data.clients || [];
-            const bookingData = data.bookings || [];
-            const serviceData = data.services || [];
-            setClients(clientData);
-            setBookings(bookingData);
-            setServices(serviceData);
-            setFormData(current => ({ ...current, tax_rate: String(data.default_tax_rate ?? 15) }));
-
-            const searchParams = new URLSearchParams(window.location.search);
-            const requestedBookingId = searchParams.get("booking_id");
-            const requestedClientId = searchParams.get("client_id");
-            if (requestedBookingId) {
-                const selected = bookingData.find(b => b.booking_id === requestedBookingId);
-                if (selected && (!requestedClientId || selected.client_id === requestedClientId)) {
-                    setFormData(current => ({ ...current, client_id: selected.client_id, booking_id: selected.booking_id }));
-                    const bookedService = serviceData.find(s => s.service_id === selected.service_id);
-                    if (bookedService) setItems([{ service_id: bookedService.service_id,
-                        description: bookedService.description || bookedService.name || "",
-                        quantity: 1, unit_price: selected.total_amount ?? bookedService.price ?? "" }]);
-                }
-            }
-        } catch (err) {
-            console.error("Error loading invoice data:", err);
-            setError(err.message || "Unable to load invoice options.");
-        } finally { setLoading(false); }
-    }
+        void loadInvoiceData();
+        return () => { active = false; };
+    }, [user?.id]);
 
     const selectedClientBookings = useMemo(() => {
         if (!formData.client_id) return [];
@@ -480,7 +487,7 @@ export default function NewInvoice() {
         } finally { setSaving(false); }
     }
 
-    if (loading) {
+    if (loading && user?.id) {
         return (
             <main className="new-invoice-page">
                 <div className="new-invoice-state">

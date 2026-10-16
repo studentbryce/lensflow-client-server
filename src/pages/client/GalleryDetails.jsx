@@ -1,5 +1,5 @@
 import { BiPlay, BiImage, BiErrorCircle, BiArrowBack, BiDownload, BiCalendar, BiTimeFive, BiMap, BiImages, BiLockAlt, BiLinkExternal, BiPlusCircle, BiX, BiChevronLeft, BiChevronRight } from "react-icons/bi";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
 import { useAuth } from "../../context/authStore";
@@ -127,8 +127,19 @@ const getUniqueFileName = (fileName, usedNames) => {
 
 function GalleryDetails() {
     const { gallery_id } = useParams();
-    const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
+    return (
+        <GalleryDetailsContent
+            key={`${gallery_id}:${user?.id || "anonymous"}`}
+            gallery_id={gallery_id}
+            user={user}
+            authLoading={authLoading}
+        />
+    );
+}
+
+function GalleryDetailsContent({ gallery_id, user, authLoading }) {
+    const navigate = useNavigate();
 
     const [gallery, setGallery] = useState(null);
     const [booking, setBooking] = useState(null);
@@ -148,79 +159,45 @@ function GalleryDetails() {
         total: 0,
     });
 
-    const loadGallery = useCallback(async () => {
-        if (!user?.id || !gallery_id) return;
+    const [retryCount, setRetryCount] = useState(0);
 
+    // Retry is a user action. The effect itself performs only async loading,
+    // and its cancellation guard rejects responses from superseded requests.
+    const loadGallery = () => {
         setLoading(true);
         setError("");
-
-        try {
-            const result = await apiGetClientGallery(gallery_id);
-            setGallery(result.data.gallery);
-            setBooking(result.data.booking || null);
-            setMedia(result.data.media || []);
-        } catch (loadError) {
-            console.error(
-                "Error loading client gallery:",
-                loadError
-            );
-
-            setGallery(null);
-            setBooking(null);
-            setMedia([]);
-
-            setError(
-                loadError?.message ||
-                "Unable to load this gallery. Please try again."
-            );
-        } finally {
-            setLoading(false);
-        }
-    }, [gallery_id, user?.id]);
+        setRetryCount((count) => count + 1);
+    };
 
     useEffect(() => {
-        if (!authLoading && user?.id) {
-            loadGallery();
+        if (authLoading || !user?.id || !gallery_id) return;
+        let active = true;
+
+        async function fetchGallery() {
+            try {
+                const result = await apiGetClientGallery(gallery_id);
+                if (!active) return;
+                setGallery(result.data.gallery);
+                setBooking(result.data.booking || null);
+                setMedia(result.data.media || []);
+            } catch (loadError) {
+                if (!active) return;
+                console.error("Error loading client gallery:", loadError);
+                setGallery(null);
+                setBooking(null);
+                setMedia([]);
+                setError(
+                    loadError?.message ||
+                    "Unable to load this gallery. Please try again."
+                );
+            } finally {
+                if (active) setLoading(false);
+            }
         }
-    }, [authLoading, user?.id, loadGallery]);
 
-    /*
-     * Escape closes the lightbox.
-     */
-    useEffect(() => {
-        const handleKeyDown = (event) => {
-            if (event.key === "Escape") {
-                if (downloadDialog) {
-                    setDownloadDialog(null);
-                } else {
-                    setSelectedMedia(null);
-                }
-            }
-
-            if (
-                event.key === "ArrowRight" &&
-                selectedMedia && !downloadDialog
-            ) {
-                navigateMedia(1);
-            }
-
-            if (
-                event.key === "ArrowLeft" &&
-                selectedMedia && !downloadDialog
-            ) {
-                navigateMedia(-1);
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyDown);
-
-        return () => {
-            window.removeEventListener(
-                "keydown",
-                handleKeyDown
-            );
-        };
-    });
+        void fetchGallery();
+        return () => { active = false; };
+    }, [authLoading, user?.id, gallery_id, retryCount]);
 
     /*
      * Prevent the page behind the lightbox from scrolling.
@@ -290,6 +267,45 @@ function GalleryDetails() {
             setSelectedMedia(nextMedia);
         }
     };
+
+    /*
+     * Escape closes the lightbox.
+     */
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") {
+                if (downloadDialog) {
+                    setDownloadDialog(null);
+                } else {
+                    setSelectedMedia(null);
+                }
+            }
+
+            if (
+                event.key === "ArrowRight" &&
+                selectedMedia && !downloadDialog
+            ) {
+                navigateMedia(1);
+            }
+
+            if (
+                event.key === "ArrowLeft" &&
+                selectedMedia && !downloadDialog
+            ) {
+                navigateMedia(-1);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown
+            );
+        };
+    });
+
 
     const openMedia = (mediaItem) => {
         setSelectedMedia(mediaItem);

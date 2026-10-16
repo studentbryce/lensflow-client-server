@@ -173,9 +173,39 @@ export default function Messages() {
   );
 
 
+  // Initial load is asynchronous and ignores responses after unmount.
+  // Keep loadMessagingData for explicit retry from the error screen.
   useEffect(() => {
-    loadMessagingData();
-  }, [loadMessagingData]);
+    let active = true;
+
+    async function loadInitialMessages() {
+      try {
+        const response = await apiGetClientMessages();
+        if (!active) return;
+        const {
+          currentUserId: userId,
+          client: clientData,
+          photographer: photographerProfile,
+          conversation: conversationData,
+          messages: messageRows,
+        } = response.data;
+        setCurrentUserId(userId);
+        setClient(clientData);
+        setPhotographer(photographerProfile);
+        setConversation(conversationData);
+        setMessages(messageRows || []);
+      } catch (loadError) {
+        if (!active) return;
+        console.error("Client messaging error:", loadError);
+        setError(loadError.message || "Unable to load your messages.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadInitialMessages();
+    return () => { active = false; };
+  }, []);
 
 
   /* =========================================================
@@ -207,9 +237,31 @@ export default function Messages() {
     ]);
 
 
+  // Mark existing messages read after the conversation has loaded.
+  // The realtime subscription continues to use markMessagesRead.
   useEffect(() => {
-    markMessagesRead();
-  }, [markMessagesRead]);
+    if (!conversation?.conversation_id || !currentUserId) return;
+    let active = true;
+
+    async function markInitialMessagesRead() {
+      try {
+        const response = await apiMarkClientMessagesRead();
+        if (!active) return;
+        const updatedIds = new Set(response.data.updatedIds || []);
+        if (!updatedIds.size) return;
+        setMessages((current) => current.map((message) =>
+          updatedIds.has(message.message_id)
+            ? { ...message, is_read: true }
+            : message
+        ));
+      } catch (updateError) {
+        if (active) console.error("Unable to mark messages as read:", updateError);
+      }
+    }
+
+    void markInitialMessagesRead();
+    return () => { active = false; };
+  }, [conversation?.conversation_id, currentUserId]);
 
 
   /* =========================================================

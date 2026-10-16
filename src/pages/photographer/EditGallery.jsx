@@ -91,8 +91,14 @@ const getBookingStatus = (booking) => {
 
 function EditGallery() {
   const { gallery_id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
+  // Remount on identity/route changes to avoid showing another gallery's data
+  // while a new request is pending.
+  return <EditGalleryContent key={`${user?.id ?? "guest"}:${gallery_id ?? ""}`} gallery_id={gallery_id} user={user} />;
+}
+
+function EditGalleryContent({ gallery_id, user }) {
+  const navigate = useNavigate();
 
   const [gallery, setGallery] = useState(null);
   const [client, setClient] = useState(null);
@@ -105,58 +111,65 @@ function EditGallery() {
     allow_downloads: true,
   });
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(user?.id && gallery_id));
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    !user?.id ? "You must be logged in to edit a gallery." :
+      !gallery_id ? "A gallery ID is required." : ""
+  );
   const [success, setSuccess] = useState("");
 
-  const loadGallery = useCallback(async () => {
-    if (!user?.id || !gallery_id) {
-      return;
-    }
+  const applyGalleryPayload = useCallback((payload) => {
+    const galleryData = payload.gallery;
+    setGallery(galleryData);
+    setFormData({
+      name: galleryData.name || "",
+      description: galleryData.description || "",
+      is_published: Boolean(galleryData.is_published),
+      allow_downloads: Boolean(galleryData.allow_downloads),
+    });
+    setClient(payload.client || null);
+    setBooking(payload.booking || null);
+  }, []);
 
+  // Explicit retry action. Unlike initial loading, this is called from a
+  // button click, so showing the spinner immediately is appropriate.
+  const loadGallery = useCallback(async () => {
+    if (!user?.id || !gallery_id) return;
     setLoading(true);
     setError("");
-
     try {
       const payload = await apiGetPhotographerGallery(gallery_id);
-      const galleryData = payload.gallery;
-      const relatedClient = payload.client;
-      const relatedBooking = payload.booking;
-
-      setGallery(galleryData);
-
-      setFormData({
-        name: galleryData.name || "",
-        description: galleryData.description || "",
-        is_published: Boolean(
-          galleryData.is_published
-        ),
-        allow_downloads: Boolean(
-          galleryData.allow_downloads
-        ),
-      });
-
-      setClient(relatedClient || null);
-      setBooking(relatedBooking || null);
+      applyGalleryPayload(payload);
     } catch (err) {
-      console.error(
-        "Error loading gallery:",
-        err
-      );
-
-      setError(
-        err?.message ||
-          "Unable to load the gallery."
-      );
+      console.error("Error loading gallery:", err);
+      setError(err?.message || "Unable to load the gallery.");
     } finally {
       setLoading(false);
     }
-  }, [gallery_id, user?.id]);
+  }, [gallery_id, user?.id, applyGalleryPayload]);
 
+  // Initial load is owned by the effect and updates state only after the
+  // asynchronous API response. Ignore responses after unmount/navigation.
   useEffect(() => {
-    loadGallery();
-  }, [loadGallery]);
+    if (!user?.id || !gallery_id) return undefined;
+    let active = true;
+    async function loadInitialGallery() {
+      try {
+        const payload = await apiGetPhotographerGallery(gallery_id);
+        if (active) applyGalleryPayload(payload);
+      } catch (err) {
+        if (active) {
+          console.error("Error loading gallery:", err);
+          setError(err?.message || "Unable to load the gallery.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadInitialGallery();
+    return () => { active = false; };
+  }, [gallery_id, user?.id, applyGalleryPayload]);
 
   // ---------------------------------------------------------
   // Handle form changes

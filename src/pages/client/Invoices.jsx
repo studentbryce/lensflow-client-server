@@ -224,9 +224,7 @@ export default function Invoices() {
         }
 
         if (user?.id) {
-            loadInvoices();
-        } else {
-            setLoading(false);
+            void loadInvoices();
         }
 
         return () => {
@@ -234,9 +232,12 @@ export default function Invoices() {
         };
     }, [user?.id, invoice_id, retry]);
 
+    // An unauthenticated user has no invoice request in progress. Derive
+    // this from auth rather than synchronously updating state in an effect.
+    const isLoading = Boolean(user?.id) && loading;
     const today = localToday();
 
-    const records = invoices.map((invoice) => ({
+    const records = (user?.id ? invoices : []).map((invoice) => ({
         ...invoice,
         invoice_items:
             invoice.invoice_items || [],
@@ -258,7 +259,7 @@ export default function Invoices() {
         if (
             paymentReturn !== "success" ||
             !invoice_id ||
-            loading ||
+            isLoading ||
             error ||
             returnedInvoice?.status === "paid" ||
             paymentConfirmAttempts >= 5
@@ -277,7 +278,7 @@ export default function Invoices() {
     }, [
         paymentReturn,
         invoice_id,
-        loading,
+        isLoading,
         error,
         returnedInvoice?.status,
         paymentConfirmAttempts,
@@ -577,7 +578,7 @@ export default function Invoices() {
                     </div>
                 )}
 
-                {loading ? (
+                {isLoading ? (
                     <div
                         className="client-invoices-state"
                         role="status"
@@ -656,7 +657,7 @@ export default function Invoices() {
                 </p>
             </header>
 
-            {loading ? (
+            {isLoading ? (
                 <div
                     className="client-invoices-state"
                     role="status"

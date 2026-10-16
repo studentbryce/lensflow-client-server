@@ -17,9 +17,13 @@ import {
 
 import "./PhotographerWebsite.css";
 
+// A new slug gets its own menu, review expansion and loading state.
 export default function PhotographerWebsite() {
   const { photographerSlug } = useParams();
+  return <PhotographerWebsiteContent key={photographerSlug} photographerSlug={photographerSlug} />;
+}
 
+function PhotographerWebsiteContent({ photographerSlug }) {
   const [site, setSite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,11 +71,6 @@ export default function PhotographerWebsite() {
       active = false;
     };
   }, [photographerSlug, retry]);
-
-  useEffect(() => {
-    setMenuOpen(false);
-    setShowAllReviews(false);
-  }, [photographerSlug]);
 
   const currencyFormatter = useMemo(
     () =>

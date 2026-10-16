@@ -194,9 +194,37 @@ export default function Messages() {
         }
     }, []);
 
+    // Load the initial inbox inside the effect so React does not run
+    // synchronous state updates through the retry handler during mounting.
+    // Explicit retries and realtime refreshes still use loadMessagingData.
     useEffect(() => {
-        loadMessagingData();
-    }, [loadMessagingData]);
+        let active = true;
+
+        async function loadInitialMessages() {
+            try {
+                const response = await apiGetPhotographerMessages();
+                if (!active) return;
+                const data = response.data;
+                setCurrentUserId(data.currentUserId);
+                setPhotographerId(data.photographerId);
+                setClients(data.clients || []);
+                setConversations(data.conversations || []);
+                setSelectedConversationId(current =>
+                    current && (data.conversations || []).some(c => c.conversation_id === current)
+                        ? current : ""
+                );
+            } catch (loadError) {
+                if (!active) return;
+                console.error("Photographer messaging error:", loadError);
+                setError(loadError.message || "Unable to load your messages.");
+            } finally {
+                if (active) setLoading(false);
+            }
+        }
+
+        void loadInitialMessages();
+        return () => { active = false; };
+    }, []);
 
 
     /* =========================================================
@@ -391,18 +419,45 @@ export default function Messages() {
         );
 
 
+    // Mark unread messages when a thread is selected or receives new data.
+    // Keep the realtime handler's markConversationRead callback unchanged.
     useEffect(() => {
-        if (
-            selectedConversationId
-        ) {
-            markConversationRead(
-                selectedConversationId
-            );
+        if (!selectedConversationId || !currentUserId) return;
+
+        const hasUnread = selectedConversation?.messages?.some(
+            message => !message.is_read && message.sender_id !== currentUserId
+        );
+        if (!hasUnread) return;
+
+        let active = true;
+        async function markSelectedConversationRead() {
+            try {
+                await apiMarkPhotographerMessagesRead(selectedConversationId);
+                if (!active) return;
+                setConversations(current => current.map(conversation => {
+                    if (conversation.conversation_id !== selectedConversationId) {
+                        return conversation;
+                    }
+                    const messages = conversation.messages.map(message =>
+                        message.sender_id !== currentUserId && !message.is_read
+                            ? { ...message, is_read: true }
+                            : message
+                    );
+                    return {
+                        ...conversation,
+                        messages,
+                        unreadCount: 0,
+                        lastMessage: messages.length ? messages[messages.length - 1] : null,
+                    };
+                }));
+            } catch (updateError) {
+                if (active) console.error("Unable to mark messages as read:", updateError);
+            }
         }
-    }, [
-        selectedConversationId,
-        markConversationRead,
-    ]);
+
+        void markSelectedConversationRead();
+        return () => { active = false; };
+    }, [selectedConversationId, currentUserId, selectedConversation]);
 
 
     /* =========================================================
@@ -421,10 +476,7 @@ export default function Messages() {
                 behavior: "smooth",
             }
         );
-    }, [
-        selectedConversation?.messages
-            ?.length,
-    ]);
+    }, [selectedConversation]);
 
 
     /* =========================================================

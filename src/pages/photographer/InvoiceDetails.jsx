@@ -12,8 +12,12 @@ import "./InvoiceDetails.css";
 
 export default function InvoiceDetails() {
     const { invoice_id } = useParams();
-    const navigate = useNavigate();
     const { user } = useAuth();
+    return <InvoiceDetailsContent key={`${user?.id ?? "guest"}:${invoice_id ?? ""}`} invoice_id={invoice_id} user={user} />;
+}
+
+function InvoiceDetailsContent({ invoice_id, user }) {
+    const navigate = useNavigate();
 
     const [invoice, setInvoice] = useState(null);
     const [items, setItems] = useState([]);
@@ -27,39 +31,39 @@ export default function InvoiceDetails() {
     const [error, setError] = useState("");
     const [actionLoading, setActionLoading] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
 
     useEffect(() => {
-        if (!user) {
-            setLoading(false);
-            return;
+        if (!user?.id || !invoice_id) return;
+        let active = true;
+
+        async function loadInvoice() {
+            try {
+                const { data } = await apiGetPhotographerInvoice(invoice_id);
+                if (!active) return;
+                setInvoice(data.invoice);
+                setItems(data.items || []);
+                setClientProfile(data.clientProfile || null);
+                setBooking(data.booking || null);
+                setService(data.service || null);
+                setPhotographerProfile(data.photographerProfile || null);
+            } catch (err) {
+                if (!active) return;
+                console.error("Error loading invoice:", err);
+                setError(err.message || "Unable to load invoice.");
+            } finally {
+                if (active) setLoading(false);
+            }
         }
 
-        if (!invoice_id) {
-            setError(
-                "No invoice ID was provided. Please return to the invoices page and try again."
-            );
-            setLoading(false);
-            return;
-        }
+        void loadInvoice();
+        return () => { active = false; };
+    }, [user?.id, invoice_id, retryCount]);
 
-        loadInvoice();
-    }, [user, invoice_id]);
-
-    async function loadInvoice() {
-        try {
-            setLoading(true);
-            setError("");
-            const { data } = await apiGetPhotographerInvoice(invoice_id);
-            setInvoice(data.invoice);
-            setItems(data.items || []);
-            setClientProfile(data.clientProfile || null);
-            setBooking(data.booking || null);
-            setService(data.service || null);
-            setPhotographerProfile(data.photographerProfile || null);
-        } catch (err) {
-            console.error("Error loading invoice:", err);
-            setError(err.message || "Unable to load invoice.");
-        } finally { setLoading(false); }
+    function retryLoadInvoice() {
+        setLoading(true);
+        setError("");
+        setRetryCount(count => count + 1);
     }
 
     async function handleMarkAsSent() {
@@ -129,7 +133,7 @@ export default function InvoiceDetails() {
         } finally { setActionLoading(false); }
     }
 
-    if (loading) {
+    if (loading && user?.id && invoice_id) {
         return (
             <main className="invoice-details-page">
                 <div className="invoice-details-loading">
@@ -141,7 +145,10 @@ export default function InvoiceDetails() {
         );
     }
 
-    if (error && !invoice) {
+    const displayError = !invoice_id
+        ? "No invoice ID was provided. Please return to the invoices page and try again."
+        : error;
+    if (displayError && !invoice) {
         return (
             <main className="invoice-details-page">
                 <div className="invoice-details-header">
@@ -163,11 +170,11 @@ export default function InvoiceDetails() {
                     <strong>
                         Unable to load this invoice
                     </strong>
-                    <p>{error}</p>
+                    <p>{displayError}</p>
                     <button
                         type="button"
                         className="invoice-secondary-button"
-                        onClick={loadInvoice}
+                        onClick={retryLoadInvoice}
                     >
                         Try Again
                     </button>

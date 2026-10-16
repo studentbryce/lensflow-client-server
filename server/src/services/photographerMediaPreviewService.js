@@ -63,20 +63,16 @@ export async function generatePhotographerImagePreview(db, userId, galleryId, me
   // Best-effort cleanup only for the preview just uploaded by this request.
   // Never remove or overwrite the original. A concurrent request may have won
   // the DB update; in that case do not remove a path now referenced by the DB.
-  try {
-    const updated = await one(db.from('media').update({ thumbnail_path: path })
-      .eq('media_id', mediaId).eq('gallery_id', galleryId)
-      .eq('photographer_id', photographerId).is('thumbnail_path', null)
-      .select('media_id,thumbnail_path').maybeSingle(), 'preview registration');
-    if (!updated) {
-      // The preview was not registered. The uploaded object may be orphaned;
-      // manual reconciliation is safer than deleting a potentially referenced path.
-      reject(409, 'PREVIEW_CONFLICT', 'Preview registration changed; check the media record before retrying.');
-    }
-  } catch (error) {
-    // If DB query errored, registration outcome may be unknown. Preserve file
-    // for safe reconciliation rather than risk deleting a referenced preview.
-    throw error;
+  // If registration fails, preserve the uploaded preview for safe manual
+  // reconciliation rather than risk deleting a referenced Storage object.
+  const updated = await one(db.from('media').update({ thumbnail_path: path })
+    .eq('media_id', mediaId).eq('gallery_id', galleryId)
+    .eq('photographer_id', photographerId).is('thumbnail_path', null)
+    .select('media_id,thumbnail_path').maybeSingle(), 'preview registration');
+  if (!updated) {
+    // The preview was not registered. The uploaded object may be orphaned;
+    // manual reconciliation is safer than deleting a potentially referenced path.
+    reject(409, 'PREVIEW_CONFLICT', 'Preview registration changed; check the media record before retrying.');
   }
   return { media_id: mediaId, thumbnail_path: path, width: preview.width, height: preview.height, content_type: 'image/webp' };
 }

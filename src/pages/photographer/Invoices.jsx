@@ -167,14 +167,24 @@ export default function Invoices() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) {
-      setInvoices([]);
-      setLoading(false);
-      return;
+    if (!user?.id) return undefined;
+
+    let active = true;
+    async function loadInitialInvoices() {
+      try {
+        const result = await apiGetPhotographerInvoices();
+        if (active) setInvoices(result.data || []);
+      } catch (err) {
+        console.error("Error loading invoices:", err);
+        if (active) setError(err.message || "Unable to load invoices. Please try again.");
+      } finally {
+        if (active) setLoading(false);
+      }
     }
 
-    fetchInvoices();
-  }, [user]);
+    void loadInitialInvoices();
+    return () => { active = false; };
+  }, [user?.id]);
 
   async function fetchInvoices() {
     try {
@@ -190,10 +200,14 @@ export default function Invoices() {
     }
   }
 
+  // Hide previously fetched invoice data when the user is signed out.
+  const visibleInvoices = useMemo(() => user?.id ? invoices : [], [user?.id, invoices]);
+  const isLoading = Boolean(user?.id) && loading;
+
   const filteredInvoices = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
 
-    return invoices.filter((invoice) => {
+    return visibleInvoices.filter((invoice) => {
       const clientName = getClientName(invoice.clientProfile);
 
       const matchesSearch =
@@ -216,7 +230,7 @@ export default function Invoices() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [invoices, searchTerm, statusFilter]);
+  }, [visibleInvoices, searchTerm, statusFilter]);
 
   const summary = useMemo(() => {
     let totalValue = 0;
@@ -224,7 +238,7 @@ export default function Invoices() {
     let outstandingValue = 0;
     let overdueValue = 0;
 
-    invoices.forEach((invoice) => {
+    visibleInvoices.forEach((invoice) => {
       const total = Number(invoice.total_amount || 0);
 
       totalValue += total;
@@ -247,13 +261,13 @@ export default function Invoices() {
     });
 
     return {
-      totalInvoices: invoices.length,
+      totalInvoices: visibleInvoices.length,
       totalValue,
       paidValue,
       outstandingValue,
       overdueValue,
     };
-  }, [invoices]);
+  }, [visibleInvoices]);
 
   const handleView = (invoiceId) => {
     navigate(`/photographer/invoices/${invoiceId}`);
@@ -342,7 +356,7 @@ export default function Invoices() {
         </div>
       </section>
 
-      {loading && (
+      {isLoading && (
         <div className="invoice-state">
           <div className="invoice-spinner" />
           <h2>Loading invoices...</h2>
@@ -350,7 +364,7 @@ export default function Invoices() {
         </div>
       )}
 
-      {!loading && error && (
+      {!isLoading && error && (
         <div className="invoice-state error-state">
           <h2>Unable to load invoices</h2>
           <p>{error}</p>
@@ -365,7 +379,7 @@ export default function Invoices() {
         </div>
       )}
 
-      {!loading && !error && invoices.length === 0 && (
+      {!isLoading && !error && visibleInvoices.length === 0 && (
         <div className="invoice-state">
           <div className="empty-invoice-icon">£</div>
           <h2>No invoices yet</h2>
@@ -384,9 +398,9 @@ export default function Invoices() {
         </div>
       )}
 
-      {!loading &&
+      {!isLoading &&
         !error &&
-        invoices.length > 0 &&
+        visibleInvoices.length > 0 &&
         filteredInvoices.length === 0 && (
           <div className="invoice-state">
             <h2>No matching invoices</h2>
@@ -408,7 +422,7 @@ export default function Invoices() {
           </div>
         )}
 
-      {!loading &&
+      {!isLoading &&
         !error &&
         filteredInvoices.length > 0 && (
           <section className="invoice-grid">

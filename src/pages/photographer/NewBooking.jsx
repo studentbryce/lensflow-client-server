@@ -1,7 +1,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
@@ -302,6 +301,252 @@ function subtractRanges(
 }
 
 
+async function fetchSelectedDateData(date) {
+  // The server derives the photographer from the authenticated JWT.
+  const response = await apiGetPhotographerBookingAvailability(date);
+  return {
+    exceptions: response.data.exceptions || [],
+    bookings: response.data.bookings || [],
+  };
+}
+
+// Shared by slot display and submit-time recheck, with explicit rules.
+function calculateAvailableRanges(
+  date,
+  exceptions,
+  blockingBookings,
+  availabilityRules
+) {
+  if (!date) {
+    return [];
+  }
+
+
+  const parsedDate =
+    parseDateKey(date);
+
+  const dayOfWeek =
+    parsedDate.getDay();
+
+
+  const dayRules =
+    availabilityRules.filter(
+      (rule) =>
+        Number(
+          rule.day_of_week
+        ) ===
+        dayOfWeek
+    );
+
+
+  /* -------------------------------------------------------
+     Normal available hours
+     ------------------------------------------------------- */
+
+  let ranges =
+    dayRules
+      .filter(
+        (rule) =>
+          rule.is_available
+      )
+      .map(
+        (rule) => ({
+          start:
+            timeToMinutes(
+              rule.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              rule.end_time
+            ),
+        })
+      );
+
+
+  ranges =
+    mergeRanges(ranges);
+
+
+  /* -------------------------------------------------------
+     Weekly unavailable rules
+     ------------------------------------------------------- */
+
+  const unavailableRules =
+    dayRules
+      .filter(
+        (rule) =>
+          !rule.is_available
+      )
+      .map(
+        (rule) => ({
+          start:
+            timeToMinutes(
+              rule.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              rule.end_time
+            ),
+        })
+      );
+
+
+  ranges =
+    subtractRanges(
+      ranges,
+      unavailableRules
+    );
+
+
+  /* -------------------------------------------------------
+     Full-day exceptions
+     ------------------------------------------------------- */
+
+  const fullDayUnavailable =
+    exceptions.some(
+      (exception) =>
+        !exception.is_available &&
+        !exception.start_time &&
+        !exception.end_time
+    );
+
+
+  if (
+    fullDayUnavailable
+  ) {
+    return [];
+  }
+
+
+  const fullDayAvailable =
+    exceptions.some(
+      (exception) =>
+        exception.is_available &&
+        !exception.start_time &&
+        !exception.end_time
+    );
+
+
+  /*
+   * "Available all day" means the date is opened for
+   * the entire calendar day.
+   *
+   * Timed exceptions are preferable for realistic
+   * special working hours.
+   */
+  if (
+    fullDayAvailable
+  ) {
+    ranges = [
+      {
+        start: 0,
+        end: 1440,
+      },
+    ];
+  }
+
+
+  /* -------------------------------------------------------
+     Timed AVAILABLE exceptions add working time
+     ------------------------------------------------------- */
+
+  const availableExceptions =
+    exceptions
+      .filter(
+        (exception) =>
+          exception.is_available &&
+          exception.start_time &&
+          exception.end_time
+      )
+      .map(
+        (exception) => ({
+          start:
+            timeToMinutes(
+              exception.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              exception.end_time
+            ),
+        })
+      );
+
+
+  ranges =
+    mergeRanges([
+      ...ranges,
+      ...availableExceptions,
+    ]);
+
+
+  /* -------------------------------------------------------
+     Timed UNAVAILABLE exceptions remove working time
+     ------------------------------------------------------- */
+
+  const unavailableExceptions =
+    exceptions
+      .filter(
+        (exception) =>
+          !exception.is_available &&
+          exception.start_time &&
+          exception.end_time
+      )
+      .map(
+        (exception) => ({
+          start:
+            timeToMinutes(
+              exception.start_time
+            ),
+
+          end:
+            timeToMinutes(
+              exception.end_time
+            ),
+        })
+      );
+
+
+  ranges =
+    subtractRanges(
+      ranges,
+      unavailableExceptions
+    );
+
+
+  /* -------------------------------------------------------
+     Existing bookings remove occupied time
+     ------------------------------------------------------- */
+
+  const occupiedRanges =
+    blockingBookings.map(
+      (booking) => ({
+        start:
+          timeToMinutes(
+            booking.start_time
+          ),
+
+        end:
+          timeToMinutes(
+            booking.end_time
+          ),
+      })
+    );
+
+
+  ranges =
+    subtractRanges(
+      ranges,
+      occupiedRanges
+    );
+
+
+  return ranges;
+}
+
+
 /* ============================================================
    COMPONENT
    ============================================================ */
@@ -375,23 +620,26 @@ export default function NewBooking() {
      Selected-day scheduling data
      ========================================================= */
 
-  const [
-    dayExceptions,
-    setDayExceptions,
-  ] = useState([]);
+  // Keep the date/photographer that produced the response alongside the data.
+  // A previous date's results must never be treated as current availability.
+  const [availabilityResult, setAvailabilityResult] = useState({
+    key: "",
+    exceptions: [],
+    bookings: [],
+    verified: false,
+  });
 
-  const [
-    dayBookings,
-    setDayBookings,
-  ] = useState([]);
-
-  const [
-    loadingAvailability,
-    setLoadingAvailability,
-  ] = useState(false);
-
-  const [availabilityVerified, setAvailabilityVerified] = useState(false);
-  const availabilityRequestRef = useRef(0);
+  const availabilityKey = photographer?.photographer_id && bookingDate
+    ? `${photographer.photographer_id}:${bookingDate}`
+    : "";
+  const availabilityVerified = Boolean(
+    availabilityKey &&
+    availabilityResult.key === availabilityKey &&
+    availabilityResult.verified
+  );
+  const loadingAvailability = Boolean(
+    availabilityKey && availabilityResult.key !== availabilityKey
+  );
 
 
   /* =========================================================
@@ -419,28 +667,29 @@ export default function NewBooking() {
      ========================================================= */
 
   useEffect(() => {
-    loadBookingData();
-  }, []);
+    let active = true;
 
-
-  async function loadBookingData() {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await apiGetPhotographerBookingOptions();
-      const data = response.data;
-      setPhotographer(data.photographer);
-      setClients(data.clients || []);
-      setServices(data.services || []);
-      setAvailabilityRules(data.availability_rules || []);
-    } catch (err) {
-      console.error("Error loading booking data:", err);
-      setError(err.message || "Unable to load booking information.");
-    } finally {
-      setLoading(false);
+    async function loadBookingData() {
+      try {
+        const response = await apiGetPhotographerBookingOptions();
+        if (!active) return;
+        const data = response.data;
+        setPhotographer(data.photographer);
+        setClients(data.clients || []);
+        setServices(data.services || []);
+        setAvailabilityRules(data.availability_rules || []);
+      } catch (err) {
+        if (!active) return;
+        console.error("Error loading booking data:", err);
+        setError(err.message || "Unable to load booking information.");
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
 
+    void loadBookingData();
+    return () => { active = false; };
+  }, []);
 
   /* =========================================================
      Selected service
@@ -473,352 +722,39 @@ export default function NewBooking() {
      Load selected date
      ========================================================= */
 
-  useEffect(
-    () => {
-      setStartTime("");
-      setAvailabilityVerified(false);
-      const requestId = ++availabilityRequestRef.current;
+  useEffect(() => {
+    if (!availabilityKey) return;
 
-      if (
-        !photographer ||
-        !bookingDate
-      ) {
-        setDayExceptions([]);
-        setDayBookings([]);
-
-        return () => { availabilityRequestRef.current += 1; };
-      }
-
-
-      loadSelectedDate(
-        photographer.photographer_id,
-        bookingDate,
-        requestId
-      );
-      return () => { availabilityRequestRef.current += 1; };
-    },
-    [
-      photographer,
-      bookingDate,
-    ]
-  );
-
-
-  /*
-   * Service duration changes which slots fit.
-   * Reset the selected slot whenever service changes.
-   */
-  useEffect(
-    () => {
-      setStartTime("");
-    },
-    [serviceId]
-  );
-
-
-  async function fetchSelectedDateData(photographerId, date) {
-    // The server derives photographerId from the authenticated JWT.
-    // Do not send or trust a photographer ID from the browser.
-    const response = await apiGetPhotographerBookingAvailability(date);
-    return {
-      exceptions: response.data.exceptions || [],
-      bookings: response.data.bookings || [],
-    };
-  }
-
-
-  async function loadSelectedDate(
-    photographerId,
-    date,
-    requestId
-  ) {
-    try {
-      setLoadingAvailability(
-        true
-      );
-
-      setError("");
-
-
-      const result =
-        await fetchSelectedDateData(
-          photographerId,
-          date
-        );
-
-
-      if (requestId !== availabilityRequestRef.current) return;
-
-      setDayExceptions(
-        result.exceptions
-      );
-
-      setDayBookings(
-        result.bookings
-      );
-      setAvailabilityVerified(true);
-
-    } catch (err) {
-      if (requestId !== availabilityRequestRef.current) return;
-      setAvailabilityVerified(false);
-      setDayExceptions([]);
-      setDayBookings([]);
-      setStartTime("");
-      console.error(
-        "Unable to load availability:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to load availability for this date."
-      );
-
-    } finally {
-      if (requestId === availabilityRequestRef.current) {
-        setLoadingAvailability(false);
+    let active = true;
+    async function loadSelectedDate() {
+      try {
+        const result = await fetchSelectedDateData(bookingDate);
+        if (!active) return;
+        setAvailabilityResult({
+          key: availabilityKey,
+          exceptions: result.exceptions,
+          bookings: result.bookings,
+          verified: true,
+        });
+        setError("");
+      } catch (err) {
+        if (!active) return;
+        console.error("Unable to load availability:", err);
+        // Fail closed. An unsuccessful request must not offer time slots.
+        setAvailabilityResult({
+          key: availabilityKey,
+          exceptions: [],
+          bookings: [],
+          verified: false,
+        });
+        setError(err.message || "Unable to load availability for this date.");
       }
     }
-  }
 
+    void loadSelectedDate();
+    return () => { active = false; };
+  }, [availabilityKey, bookingDate]);
 
-  /* =========================================================
-     Availability calculation
-     ========================================================= */
-
-  function calculateAvailableRanges(
-    date,
-    exceptions,
-    blockingBookings
-  ) {
-    if (!date) {
-      return [];
-    }
-
-
-    const parsedDate =
-      parseDateKey(date);
-
-    const dayOfWeek =
-      parsedDate.getDay();
-
-
-    const dayRules =
-      availabilityRules.filter(
-        (rule) =>
-          Number(
-            rule.day_of_week
-          ) ===
-          dayOfWeek
-      );
-
-
-    /* -------------------------------------------------------
-       Normal available hours
-       ------------------------------------------------------- */
-
-    let ranges =
-      dayRules
-        .filter(
-          (rule) =>
-            rule.is_available
-        )
-        .map(
-          (rule) => ({
-            start:
-              timeToMinutes(
-                rule.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                rule.end_time
-              ),
-          })
-        );
-
-
-    ranges =
-      mergeRanges(ranges);
-
-
-    /* -------------------------------------------------------
-       Weekly unavailable rules
-       ------------------------------------------------------- */
-
-    const unavailableRules =
-      dayRules
-        .filter(
-          (rule) =>
-            !rule.is_available
-        )
-        .map(
-          (rule) => ({
-            start:
-              timeToMinutes(
-                rule.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                rule.end_time
-              ),
-          })
-        );
-
-
-    ranges =
-      subtractRanges(
-        ranges,
-        unavailableRules
-      );
-
-
-    /* -------------------------------------------------------
-       Full-day exceptions
-       ------------------------------------------------------- */
-
-    const fullDayUnavailable =
-      exceptions.some(
-        (exception) =>
-          !exception.is_available &&
-          !exception.start_time &&
-          !exception.end_time
-      );
-
-
-    if (
-      fullDayUnavailable
-    ) {
-      return [];
-    }
-
-
-    const fullDayAvailable =
-      exceptions.some(
-        (exception) =>
-          exception.is_available &&
-          !exception.start_time &&
-          !exception.end_time
-      );
-
-
-    /*
-     * "Available all day" means the date is opened for
-     * the entire calendar day.
-     *
-     * Timed exceptions are preferable for realistic
-     * special working hours.
-     */
-    if (
-      fullDayAvailable
-    ) {
-      ranges = [
-        {
-          start: 0,
-          end: 1440,
-        },
-      ];
-    }
-
-
-    /* -------------------------------------------------------
-       Timed AVAILABLE exceptions add working time
-       ------------------------------------------------------- */
-
-    const availableExceptions =
-      exceptions
-        .filter(
-          (exception) =>
-            exception.is_available &&
-            exception.start_time &&
-            exception.end_time
-        )
-        .map(
-          (exception) => ({
-            start:
-              timeToMinutes(
-                exception.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                exception.end_time
-              ),
-          })
-        );
-
-
-    ranges =
-      mergeRanges([
-        ...ranges,
-        ...availableExceptions,
-      ]);
-
-
-    /* -------------------------------------------------------
-       Timed UNAVAILABLE exceptions remove working time
-       ------------------------------------------------------- */
-
-    const unavailableExceptions =
-      exceptions
-        .filter(
-          (exception) =>
-            !exception.is_available &&
-            exception.start_time &&
-            exception.end_time
-        )
-        .map(
-          (exception) => ({
-            start:
-              timeToMinutes(
-                exception.start_time
-              ),
-
-            end:
-              timeToMinutes(
-                exception.end_time
-              ),
-          })
-        );
-
-
-    ranges =
-      subtractRanges(
-        ranges,
-        unavailableExceptions
-      );
-
-
-    /* -------------------------------------------------------
-       Existing bookings remove occupied time
-       ------------------------------------------------------- */
-
-    const occupiedRanges =
-      blockingBookings.map(
-        (booking) => ({
-          start:
-            timeToMinutes(
-              booking.start_time
-            ),
-
-          end:
-            timeToMinutes(
-              booking.end_time
-            ),
-        })
-      );
-
-
-    ranges =
-      subtractRanges(
-        ranges,
-        occupiedRanges
-      );
-
-
-    return ranges;
-  }
 
 
   /* =========================================================
@@ -828,16 +764,17 @@ export default function NewBooking() {
   const availableRanges =
     useMemo(
       () =>
-        calculateAvailableRanges(
+        availabilityVerified ? calculateAvailableRanges(
           bookingDate,
-          dayExceptions,
-          dayBookings
-        ),
+          availabilityResult.exceptions,
+          availabilityResult.bookings,
+          availabilityRules
+        ) : [],
       [
         bookingDate,
-        dayExceptions,
-        dayBookings,
+        availabilityResult,
         availabilityRules,
+        availabilityVerified,
       ]
     );
 
@@ -1107,17 +1044,15 @@ export default function NewBooking() {
        * been created since this page originally loaded.
        */
       const freshData =
-        await fetchSelectedDateData(
-          photographer.photographer_id,
-          bookingDate
-        );
+        await fetchSelectedDateData(bookingDate);
 
 
       const freshRanges =
         calculateAvailableRanges(
           bookingDate,
           freshData.exceptions,
-          freshData.bookings
+          freshData.bookings,
+          availabilityRules
         );
 
 
@@ -1145,13 +1080,12 @@ export default function NewBooking() {
       if (
         !stillAvailable
       ) {
-        setDayExceptions(
-          freshData.exceptions
-        );
-
-        setDayBookings(
-          freshData.bookings
-        );
+        setAvailabilityResult({
+          key: availabilityKey,
+          exceptions: freshData.exceptions,
+          bookings: freshData.bookings,
+          verified: true,
+        });
 
         setStartTime("");
 
@@ -1383,12 +1317,10 @@ export default function NewBooking() {
                 value={
                   serviceId
                 }
-                onChange={
-                  (event) =>
-                    setServiceId(
-                      event.target.value
-                    )
-                }
+                onChange={(event) => {
+                  setServiceId(event.target.value);
+                  setStartTime("");
+                }}
                 required
               >
 
@@ -1457,12 +1389,10 @@ export default function NewBooking() {
                 min={
                   getTodayDateKey()
                 }
-                onChange={
-                  (event) =>
-                    setBookingDate(
-                      event.target.value
-                    )
-                }
+                onChange={(event) => {
+                  setBookingDate(event.target.value);
+                  setStartTime("");
+                }}
                 required
               />
 

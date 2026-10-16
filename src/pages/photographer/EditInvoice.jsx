@@ -40,9 +40,13 @@ function formatDate(date) {
 }
 
 export default function EditInvoice() {
-    const navigate = useNavigate();
     const { invoice_id } = useParams();
     const { user } = useAuth();
+    return <EditInvoiceContent key={`${user?.id ?? "guest"}:${invoice_id ?? ""}`} invoice_id={invoice_id} user={user} />;
+}
+
+function EditInvoiceContent({ invoice_id, user }) {
+    const navigate = useNavigate();
 
     const [clients, setClients] = useState([]);
     const [bookings, setBookings] = useState([]);
@@ -71,58 +75,51 @@ export default function EditInvoice() {
      * Load the invoice and all supporting data.
      */
     useEffect(() => {
-        if (!user) {
-            setLoading(false);
-            return;
+        if (!user?.id || !invoice_id) return;
+        let active = true;
+
+        async function loadInvoiceData() {
+            try {
+                const [options, detail] = await Promise.all([
+                    apiGetPhotographerInvoiceOptions(), apiGetPhotographerInvoice(invoice_id),
+                ]);
+                if (!active) return;
+                const { clients, bookings, services } = options.data;
+                const { invoice, items: invoiceItems } = detail.data;
+                setClients(clients || []);
+                setBookings(bookings || []);
+                setServices(services || []);
+                setFormData({
+                    client_id: invoice.client_id || "",
+                    booking_id: invoice.booking_id || "",
+                    invoice_number: invoice.invoice_number || "",
+                    issue_date: invoice.issue_date || "",
+                    due_date: invoice.due_date || "",
+                    status: invoice.status || "draft",
+                    tax_rate: invoice.tax_rate ?? 15,
+                    tax_included: Boolean(invoice.tax_included),
+                    notes: invoice.notes || "",
+                });
+                const formattedItems = (invoiceItems || []).map(item => ({
+                    invoice_item_id: item.invoice_item_id,
+                    service_id: item.service_id || "",
+                    description: item.description || "",
+                    quantity: item.quantity ?? 1,
+                    unit_price: item.unit_price ?? "",
+                }));
+                setItems(formattedItems.length ? formattedItems : [{ ...EMPTY_ITEM }]);
+            } catch (err) {
+                if (!active) return;
+                console.error("Error loading invoice:", err);
+                setError(err.message || "Unable to load invoice.");
+            } finally {
+                if (active) setLoading(false);
+            }
         }
 
-        if (!invoice_id) {
-            setError(
-                "No invoice ID was provided. Please return to the invoices page and try again."
-            );
-            setLoading(false);
-            return;
-        }
-
-        loadInvoiceData();
-    }, [user, invoice_id]);
-
-    async function loadInvoiceData() {
-        try {
-            setLoading(true);
-            setError("");
-            const [options, detail] = await Promise.all([
-                apiGetPhotographerInvoiceOptions(), apiGetPhotographerInvoice(invoice_id),
-            ]);
-            const { clients, bookings, services } = options.data;
-            const { invoice, items: invoiceItems } = detail.data;
-            setClients(clients || []);
-            setBookings(bookings || []);
-            setServices(services || []);
-            setFormData({
-                client_id: invoice.client_id || "",
-                booking_id: invoice.booking_id || "",
-                invoice_number: invoice.invoice_number || "",
-                issue_date: invoice.issue_date || "",
-                due_date: invoice.due_date || "",
-                status: invoice.status || "draft",
-                tax_rate: invoice.tax_rate ?? 15,
-                tax_included: Boolean(invoice.tax_included),
-                notes: invoice.notes || "",
-            });
-            const formattedItems = (invoiceItems || []).map(item => ({
-                invoice_item_id: item.invoice_item_id,
-                service_id: item.service_id || "",
-                description: item.description || "",
-                quantity: item.quantity ?? 1,
-                unit_price: item.unit_price ?? "",
-            }));
-            setItems(formattedItems.length ? formattedItems : [{ ...EMPTY_ITEM }]);
-        } catch (err) {
-            console.error("Error loading invoice:", err);
-            setError(err.message || "Unable to load invoice.");
-        } finally { setLoading(false); }
-    }
+        void loadInvoiceData();
+        return () => { active = false; };
+    }, [user?.id, invoice_id]);
 
     /*
      * Only show bookings belonging to the selected client.
@@ -472,7 +469,7 @@ export default function EditInvoice() {
     /*
      * Loading state.
      */
-    if (loading) {
+    if (loading && user?.id && invoice_id) {
         return (
             <main className="edit-invoice-page">
                 <div className="edit-invoice-state">
@@ -494,7 +491,10 @@ export default function EditInvoice() {
      * Error state if the invoice itself could not
      * be loaded.
      */
-    if (error && !formData.invoice_number) {
+    const displayError = !invoice_id
+        ? "No invoice ID was provided. Please return to the invoices page and try again."
+        : error;
+    if (displayError && !formData.invoice_number) {
         return (
             <main className="edit-invoice-page">
                 <button
@@ -530,7 +530,7 @@ export default function EditInvoice() {
                         Unable to load invoice
                     </strong>
 
-                    <span>{error}</span>
+                    <span>{displayError}</span>
                 </div>
             </main>
         );
