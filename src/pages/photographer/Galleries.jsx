@@ -118,7 +118,7 @@ export default function Galleries() {
         const thumbnailMap = new Map();
 
         const galleryImageMedia = loadedMedia.filter(
-          (item) => item.media_type === "image" && item.storage_path
+          (item) => item.media_type === "image" && (item.storage_path || item.thumbnail_path)
         );
 
         await Promise.all(
@@ -131,7 +131,7 @@ export default function Galleries() {
             const { data: signedUrlData, error: signedUrlError } =
               await supabase.storage
                 .from("client-media")
-                .createSignedUrl(mediaItem.storage_path, 60 * 60);
+                .createSignedUrl(mediaItem.storage_path || mediaItem.thumbnail_path, 60 * 60);
 
             if (signedUrlError) {
               console.warn(

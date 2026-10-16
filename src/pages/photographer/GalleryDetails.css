@@ -1766,3 +1766,16 @@
 .gallery-details-error p {
   font-size: 0.82rem;
 }
+
+/* Stage 1L: missing image preview recovery (no video processing) */
+.gallery-media-preview-recovery {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0 14px 14px;
+    color: var(--text);
+    font-size: 0.76rem;
+}
+.gallery-media-preview-recovery > span { opacity: 0.85; }

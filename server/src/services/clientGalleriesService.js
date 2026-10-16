@@ -1,7 +1,8 @@
-/** Milestone 11C: client galleries. All queries/storage signatures use the verified
+/** Client galleries. All queries/storage signatures use the verified
  * user's Supabase JWT, never a service-role client or browser-supplied client ID/path.
  * Database RLS enforces paid invoice + successful payment + published status. */
 import { findAuthenticatedClient } from './clientBookingService.js';
+import { clientDisplayAsset } from './clientMediaAccess.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE_SIZE = 250;
@@ -37,9 +38,9 @@ async function readAll(queryBuilder, label) {
   }
   return rows;
 }
-async function signPreview(db, path) {
-  if (!path) return null;
-  const { data, error } = await db.storage.from('client-media').createSignedUrl(path, 3600);
+async function signPreview(db, asset) {
+  if (!asset) return null;
+  const { data, error } = await db.storage.from('client-media').createSignedUrl(asset.path, asset.expiresIn);
   if (error) return null; // Keep the gallery usable if a preview is unavailable.
   return data?.signedUrl ?? null;
 }
@@ -72,15 +73,18 @@ export async function listClientGalleries(db, userId) {
       .order('media_id', { ascending: true }), 'gallery media'));
   }
   const bookingMap = new Map(bookings.map(b => [b.booking_id, b]));
+  const galleryMap = new Map(galleries.map(g => [g.gallery_id, g]));
   const firstImage = new Map();
   for (const item of media) {
-    if (item.media_type === 'image' && item.storage_path && !firstImage.has(item.gallery_id)) {
+    const gallery = galleryMap.get(item.gallery_id);
+    if (item.media_type === 'image' && gallery && !firstImage.has(item.gallery_id)
+        && clientDisplayAsset(item, gallery)) {
       firstImage.set(item.gallery_id, item);
     }
   }
   const enriched = await Promise.all(galleries.map(async g => {
     const item = firstImage.get(g.gallery_id);
-    const url = item ? await signPreview(db, item.thumbnail_path || item.storage_path) : null;
+    const url = item ? await signPreview(db, clientDisplayAsset(item, g)) : null;
     return { ...g, booking: bookingMap.get(g.booking_id) ?? null,
       thumbnail: url ? { url, mediaId: item.media_id, fileName: item.file_name } : null };
   }));
@@ -98,7 +102,7 @@ export async function getClientGallery(db, userId, galleryId) {
     .order('media_id', { ascending: true }), 'gallery media');
   const previews = await Promise.all(media.map(async item => ({
     ...item, storage_path: undefined, thumbnail_path: undefined,
-    previewUrl: await signPreview(db, item.thumbnail_path || item.storage_path),
+    previewUrl: await signPreview(db, clientDisplayAsset(item, gallery)),
   })));
   return { gallery, booking, media: previews };
 }

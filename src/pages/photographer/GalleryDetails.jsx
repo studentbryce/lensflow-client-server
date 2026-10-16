@@ -28,6 +28,8 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { apiGetPhotographerGallery, apiUpdatePhotographerGallery, apiCreatePhotographerGalleryMedia, apiDeletePhotographerGalleryMedia, apiDeletePhotographerGallery } from "../../services/photographerGalleriesApi";
 import { useAuth } from "../../context/authStore";
+import { apiGeneratePhotographerGalleryImagePreview } from "../../services/photographerGalleryPreviewApi";
+import { needsImagePreview } from "../../services/galleryPreviewWorkflow";
 import "./GalleryDetails.css";
 
 const MAX_PHOTO_SIZE = 25 * 1024 * 1024; // 25 MB
@@ -194,6 +196,8 @@ export default function GalleryDetails() {
 
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState("");
+    const [previewErrors, setPreviewErrors] = useState({});
+    const [retryingPreviewId, setRetryingPreviewId] = useState(null);
     const [deletingMediaId, setDeletingMediaId] =
         useState(null);
     const [deletingGallery, setDeletingGallery] =
@@ -216,6 +220,7 @@ export default function GalleryDetails() {
                     return {
                         ...mediaItem,
                         signedUrl: null,
+                        previewUrl: null,
                     };
                 }
 
@@ -236,12 +241,22 @@ export default function GalleryDetails() {
                     return {
                         ...mediaItem,
                         signedUrl: null,
+                        previewUrl: null,
                     };
+                }
+
+                let previewUrl = null;
+                if (needsImagePreview(mediaItem) === false && mediaItem.media_type === "image" && mediaItem.thumbnail_path) {
+                    const { data: previewSigned } = await supabase.storage
+                        .from("client-media")
+                        .createSignedUrl(mediaItem.thumbnail_path, 60 * 60);
+                    previewUrl = previewSigned?.signedUrl || null;
                 }
 
                 return {
                     ...mediaItem,
                     signedUrl: data?.signedUrl || null,
+                    previewUrl,
                 };
             })
         );
@@ -530,6 +545,27 @@ export default function GalleryDetails() {
                 }
 
                 // ------------------------------------------------------
+                // Generate a watermarked WebP through the authenticated
+                // Express endpoint. The original and DB record are already
+                // saved; do not delete them if preview processing fails.
+                // ------------------------------------------------------
+                let previewRecord = null;
+                let previewFailure = null;
+                if (isPhoto) {
+                    setUploadProgress(
+                        `Generating protected preview ${uploadedCount} of ${totalFiles}: ${file.name}`
+                    );
+                    try {
+                        previewRecord = await apiGeneratePhotographerGalleryImagePreview(
+                            gallery.gallery_id,
+                            mediaRecord.media_id
+                        );
+                    } catch (previewError) {
+                        previewFailure = previewError;
+                    }
+                }
+
+                // ------------------------------------------------------
                 // Generate signed URL for immediate display
                 // ------------------------------------------------------
                 let signedUrl = null;
@@ -548,13 +584,37 @@ export default function GalleryDetails() {
                         signedUrlData.signedUrl;
                 }
 
+                let previewUrl = null;
+                if (previewRecord?.thumbnail_path) {
+                    const { data: previewSigned } = await supabase.storage
+                        .from("client-media")
+                        .createSignedUrl(previewRecord.thumbnail_path, 60 * 60);
+                    previewUrl = previewSigned?.signedUrl || null;
+                }
+
                 setMedia((currentMedia) => [
                     {
                         ...mediaRecord,
+                        thumbnail_path: previewRecord?.thumbnail_path || mediaRecord.thumbnail_path || null,
                         signedUrl,
+                        previewUrl,
                     },
                     ...currentMedia,
                 ]);
+
+                if (previewFailure) {
+                    // Keep server details in the developer console, not in user-facing copy.
+                    console.warn("Watermarked preview generation failed:", previewFailure);
+                    setPreviewErrors((previous) => ({
+                        ...previous,
+                        [mediaRecord.media_id]: "Preview not ready",
+                    }));
+                    throw new Error(
+                        `Photo uploaded — preview not ready. "${file.name}" was uploaded successfully, ` +
+                        "but we couldn't prepare its watermarked preview. Your original photo is safe. " +
+                        "Select Retry preview below to try again."
+                    );
+                }
             }
 
             setUploadProgress("");
@@ -586,6 +646,44 @@ export default function GalleryDetails() {
     };
 
     // ------------------------------------------------------------
+    // Retry only images without a registered preview. Never
+    // regenerate or overwrite an existing preview from this button.
+    // ------------------------------------------------------------
+    const handleRetryPreview = async (mediaItem) => {
+        if (!needsImagePreview(mediaItem) || uploading || retryingPreviewId) return;
+        try {
+            setRetryingPreviewId(mediaItem.media_id);
+            setError("");
+            const result = await apiGeneratePhotographerGalleryImagePreview(
+                gallery_id,
+                mediaItem.media_id
+            );
+            const { data } = await supabase.storage
+                .from("client-media")
+                .createSignedUrl(result.thumbnail_path, 60 * 60);
+            setMedia((current) => current.map((item) =>
+                item.media_id === mediaItem.media_id
+                    ? { ...item, thumbnail_path: result.thumbnail_path, previewUrl: data?.signedUrl || null }
+                    : item
+            ));
+            setPreviewErrors((previous) => {
+                const next = { ...previous };
+                delete next[mediaItem.media_id];
+                return next;
+            });
+            setSuccess("Watermarked preview generated successfully.");
+        } catch (err) {
+            setPreviewErrors((previous) => ({
+                ...previous,
+                [mediaItem.media_id]: err?.message || "Preview generation failed.",
+            }));
+            setError("Preview generation did not complete. Refresh the gallery to check its status before retrying again.");
+        } finally {
+            setRetryingPreviewId(null);
+        }
+    };
+
+    // ------------------------------------------------------------
     // Delete media
     // ------------------------------------------------------------
     const handleDeleteMedia = async (
@@ -604,26 +702,8 @@ export default function GalleryDetails() {
             setError("");
             setSuccess("");
 
-            // --------------------------------------------------------
-            // Remove storage file first.
-            // If this fails, keep the database record so the
-            // photographer can retry rather than losing the reference.
-            // --------------------------------------------------------
-            if (mediaItem.storage_path) {
-                const {
-                    error: storageError,
-                } = await supabase.storage
-                    .from("client-media")
-                    .remove([
-                        mediaItem.storage_path,
-                    ]);
-
-                if (storageError) {
-                    throw storageError;
-                }
-            }
-
-            // Database deletion is handled by Express after the Storage removal.
+            // Express verifies ownership and removes registered Storage files
+            // before deleting the media record.
             await apiDeletePhotographerGalleryMedia(gallery_id, mediaItem.media_id);
 
             setMedia((currentMedia) =>
@@ -675,33 +755,8 @@ export default function GalleryDetails() {
             setError("");
             setSuccess("");
 
-            // The loaded media belongs to this authenticated gallery.
-            const galleryMedia = media;
-
-            // --------------------------------------------------------
-            // 2. Remove files from Supabase Storage.
-            // --------------------------------------------------------
-            const storagePaths =
-                (galleryMedia || [])
-                    .map(
-                        (item) =>
-                            item.storage_path
-                    )
-                    .filter(Boolean);
-
-            if (storagePaths.length > 0) {
-                const {
-                    error: storageError,
-                } = await supabase.storage
-                    .from("client-media")
-                    .remove(storagePaths);
-
-                if (storageError) {
-                    throw storageError;
-                }
-            }
-
-            // Express deletes the owned gallery and its media records.
+            // Express verifies ownership and deletes the registered media
+            // files before removing the gallery records.
             await apiDeletePhotographerGallery(gallery.gallery_id);
 
             // --------------------------------------------------------
@@ -1081,7 +1136,7 @@ export default function GalleryDetails() {
                                             onClick={() => setSelectedMedia(mediaItem)}
                                             aria-label={`View ${mediaItem.file_name || (video ? "video" : "photo")}`}
                                         >
-                                            {mediaItem.signedUrl ? (
+                                            {(video ? mediaItem.signedUrl : (mediaItem.previewUrl || mediaItem.signedUrl)) ? (
                                                 video ? (
                                                     <video
                                                         src={mediaItem.signedUrl}
@@ -1091,7 +1146,7 @@ export default function GalleryDetails() {
                                                     />
                                                 ) : (
                                                     <img
-                                                        src={mediaItem.signedUrl}
+                                                        src={mediaItem.signedUrl || mediaItem.previewUrl}
                                                         alt={mediaItem.file_name || "Gallery photo"}
                                                         loading="lazy"
                                                     />
@@ -1155,6 +1210,23 @@ export default function GalleryDetails() {
                                                 <BiTrash aria-hidden="true" />
                                             </button>
                                         </div>
+                                        {needsImagePreview(mediaItem) && (
+                                            <div className="gallery-media-preview-recovery">
+                                                <span role="status">
+                                                    {previewErrors[mediaItem.media_id]
+                                                        ? "Preview not ready — photo saved"
+                                                        : "Preview not ready"}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="gallery-details-button secondary compact"
+                                                    onClick={() => handleRetryPreview(mediaItem)}
+                                                    disabled={uploading || deletingGallery || Boolean(retryingPreviewId)}
+                                                >
+                                                    {retryingPreviewId === mediaItem.media_id ? "Generating..." : "Retry preview"}
+                                                </button>
+                                            </div>
+                                        )}
                                     </article>
                                 );
                             })}

@@ -1,5 +1,6 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { resolvePhotographer } from './photographerBookingFormService.js';
+import { registeredGalleryMediaPaths, removeRegisteredGalleryFiles } from './galleryMediaDeletion.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE = 400;
@@ -135,20 +136,30 @@ export async function createPhotographerGalleryMedia(db,userId,id,body) {
   if(existing)fail(409,'MEDIA_EXISTS','This file has already been registered.');
   return read(db.from('media').insert({...changes,photographer_id:p.photographer_id,gallery_id:id}).select(MEDIA).single(),'Unable to register media.');
 }
+// Deletion is intentionally Storage-first. If Storage fails, the database
+// references are retained so the photographer can retry safely.
 export async function deletePhotographerGalleryMedia(db,userId,id,mediaId) {
   uuid(mediaId,'INVALID_MEDIA');
   const p=await resolvePhotographer(db,userId);
   await ownedGallery(db,p.photographer_id,id);
   const media=await read(db.from('media').select(MEDIA).eq('media_id',mediaId).eq('gallery_id',id).eq('photographer_id',p.photographer_id).maybeSingle(),'Unable to load media.');
   if(!media)fail(404,'MEDIA_NOT_FOUND','Media could not be found.');
-  await read(db.from('media').delete().eq('media_id',mediaId).eq('gallery_id',id).eq('photographer_id',p.photographer_id),'Unable to delete media.');
+  const paths=registeredGalleryMediaPaths([media],p.photographer_id,id);
+  await removeRegisteredGalleryFiles(db,paths);
+  const deleted=await read(db.from('media').delete().eq('media_id',mediaId).eq('gallery_id',id).eq('photographer_id',p.photographer_id).select('media_id').maybeSingle(),'Unable to delete media.');
+  if(!deleted)fail(409,'MEDIA_DELETE_INCOMPLETE','Media could not be deleted. Refresh and try again.');
   return {deleted:true,media_id:mediaId};
 }
 export async function deletePhotographerGallery(db,userId,id) {
   const p=await resolvePhotographer(db,userId);
   await ownedGallery(db,p.photographer_id,id);
-  // Storage files are removed by the authenticated React client before this request.
+  const media=await all(()=>db.from('media').select(MEDIA).eq('gallery_id',id).eq('photographer_id',p.photographer_id).order('media_id',{ascending:true}),'Unable to load gallery media.');
+  // Validate EVERY registered path before performing any Storage deletion.
+  const paths=registeredGalleryMediaPaths(media,p.photographer_id,id);
+  await removeRegisteredGalleryFiles(db,paths);
+  // Remove rows only after all Storage batches returned success.
   await read(db.from('media').delete().eq('gallery_id',id).eq('photographer_id',p.photographer_id),'Unable to delete gallery media.');
-  await read(db.from('galleries').delete().eq('gallery_id',id).eq('photographer_id',p.photographer_id),'Unable to delete gallery.');
+  const deleted=await read(db.from('galleries').delete().eq('gallery_id',id).eq('photographer_id',p.photographer_id).select('gallery_id').maybeSingle(),'Unable to delete gallery.');
+  if(!deleted)fail(409,'GALLERY_DELETE_INCOMPLETE','Gallery could not be deleted. Refresh and try again.');
   return {deleted:true,gallery_id:id};
 }
