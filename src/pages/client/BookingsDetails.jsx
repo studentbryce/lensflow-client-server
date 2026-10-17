@@ -46,9 +46,11 @@ export default function BookingsDetails() {
     <div className="client-bookings-page">
       <Link className="client-booking-back" to="/client/bookings">← Back to My Bookings</Link>
       <header className="client-bookings-header">
+        <div className="client-bookings-header-main">
         <p className="client-bookings-eyebrow">Your photography</p>
         <h1>Booking Details</h1>
         <p>Everything you need to know about your session.</p>
+        </div>
       </header>
       {loading ? <div className="client-bookings-state" role="status">Loading your booking…</div> :
         error ? <div className="client-bookings-state" role="alert"><p>{error}</p><button onClick={() => setRetry((value) => value + 1)}>Try again</button></div> :
