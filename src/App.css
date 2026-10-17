@@ -726,7 +726,7 @@
 
     max-width: none;
 
-    margin: 72px 18px 20px;
+    margin: 72px 10px 20px 10px;
   }
 
 }
@@ -745,7 +745,7 @@
   .photographer-content,
   .client-content {
     margin-left: 0;
-
+    margin-right: 0;
     padding: 25px 18px;
   }
 
