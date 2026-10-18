@@ -2,7 +2,8 @@
 -- WARNING: WRITE OPERATION. NEVER run against original / production LensFlow.
 -- Requires 03_storage_buckets: exactly four expected buckets, zero objects, zero Storage policies.
 -- Security adjustment: client-media SELECT requires paid invoice + successful payment
--- with paid_at set, matching the application's existing paid-gallery RLS intent.
+-- with paid_at set, and restricts originals to explicitly downloadable media.
+-- Policy synced to deployed definition on 2026-10-18; not replay-tested.
 -- Safer path matching: compare UUID columns as text instead of casting untrusted
 -- storage paths to uuid. Preserves the 16 original policy names and operations.
 -- Do not upload real customer data. This script does not restore any files or application records.
@@ -52,26 +53,53 @@ BEGIN
   END IF;
 END
 $preflight$;
+-- Synced with deployed policy definition supplied on 2026-10-18.
+-- Clients can SELECT canonical image previews, or originals only when both
+-- gallery and individual-media download permissions are enabled.
 CREATE POLICY "Clients can view purchased gallery media"
 ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated
 USING (
-  bucket_id = 'client-media' AND array_length(storage.foldername(storage.objects.name),1) >= 2 AND EXISTS (
+  bucket_id = 'client-media'
+  AND EXISTS (
     SELECT 1
-    FROM public.galleries g
+    FROM public.media m
+    JOIN public.galleries g
+      ON g.gallery_id = m.gallery_id
+     AND g.photographer_id = m.photographer_id
     JOIN public.clients c ON c.client_id = g.client_id
-    JOIN public.invoices i
-      ON i.booking_id = g.booking_id
-     AND i.client_id = g.client_id
-     AND i.photographer_id = g.photographer_id
-    JOIN public.payments p
-      ON p.invoice_id = i.invoice_id AND p.client_id = c.client_id
-    WHERE g.photographer_id::text = (storage.foldername(storage.objects.name))[1]
-      AND g.gallery_id::text = (storage.foldername(storage.objects.name))[2]
-      AND c.user_id = (SELECT auth.uid())
-      AND g.is_published IS TRUE
-      AND i.status = 'paid'::public.invoice_status
-      AND p.status = 'successful'::public.payment_status
-      AND p.paid_at IS NOT NULL
+    WHERE c.user_id = auth.uid()
+      AND g.is_published = true
+      AND EXISTS (
+        SELECT 1
+        FROM public.invoices i
+        JOIN public.payments p
+          ON p.invoice_id = i.invoice_id
+         AND p.client_id = g.client_id
+        WHERE i.booking_id = g.booking_id
+          AND i.client_id = g.client_id
+          AND i.photographer_id = g.photographer_id
+          AND i.status::text = 'paid'
+          AND p.status::text = 'successful'
+          AND p.paid_at IS NOT NULL
+      )
+      AND (
+        (
+          m.media_type::text = 'image'
+          AND m.thumbnail_path = storage.objects.name
+          AND m.thumbnail_path = (
+            m.photographer_id::text || '/' || m.gallery_id::text
+            || '/previews/' || m.media_id::text || '.webp'
+          )
+        )
+        OR (
+          g.allow_downloads = true
+          AND m.is_downloadable = true
+          AND m.storage_path = storage.objects.name
+          AND m.storage_path LIKE (
+            m.photographer_id::text || '/' || m.gallery_id::text || '/%'
+          )
+        )
+      )
   )
 );
 
