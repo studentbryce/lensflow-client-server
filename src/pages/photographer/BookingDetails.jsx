@@ -114,7 +114,7 @@ function BookingDetailsContent({ booking_id }) {
       // Preserve the relationships already loaded by GET.
       setBooking((current) => ({ ...current, ...response.data }));
       setEditing(false);
-      setSuccess("Booking updated successfully through the Express API.");
+      setSuccess("Booking updated successfully.");
     } catch (err) {
       setError(err.message || "Unable to update booking.");
     } finally {
@@ -167,7 +167,7 @@ function BookingDetailsContent({ booking_id }) {
       // Status PATCH returns the booking row; preserve joined client/service data.
       setBooking((current) => ({ ...current, ...response.data }));
       setEditing(false);
-      setSuccess(`Booking marked as ${newStatus} through the Express API.`);
+      setSuccess(`Booking marked as ${newStatus}.`);
     } catch (err) {
       console.error("Error updating booking:", err);
 
