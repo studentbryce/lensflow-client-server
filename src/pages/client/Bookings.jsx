@@ -124,7 +124,7 @@ export default function Bookings() {
               <p>{bookings.length ? "Try another search or status filter." : "Your sessions will appear here once a booking has been arranged with your photographer."}</p>
               {bookings.length > 0 && <button type="button" onClick={() => { setSearch(""); setStatus("all"); }}>Clear filters</button>}
             </div>
-          ) : [ ["Upcoming sessions", upcoming], ["Booking history & other sessions", other] ].map(([title, items]) => items.length > 0 && (
+          ) : [ ["Upcoming sessions", upcoming], ["Booking history", other] ].map(([title, items]) => items.length > 0 && (
             <section className="client-bookings-section" key={title}>
               <h2>{title} <span>{items.length}</span></h2>
               <div className="client-bookings-list">

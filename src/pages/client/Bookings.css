@@ -199,14 +199,16 @@
 }
 
 .client-bookings-stat {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 22px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-small);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 105px;
+    padding: 22px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-small);
+    box-sizing: border-box;
 }
 
 .client-bookings-stat>svg {
@@ -546,14 +548,6 @@
   margin-bottom: 28px;
 }
 
-.client-bookings-stat {
-  gap: 14px;
-  padding: 20px;
-  border-color: var(--border);
-  background: var(--bg);
-  box-shadow: var(--shadow);
-}
-
 .client-bookings-toolbar {
   gap: 20px;
   margin-bottom: 26px;
@@ -717,7 +711,7 @@
   }
 
   .client-bookings-meta {
-    justify-content: flex-start;
+    justify-content: space-between;
   }
 
   .client-bookings-meta strong {

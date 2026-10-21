@@ -1005,7 +1005,7 @@
 }
 
 .client-availability-section { margin-top: 30px; padding-top: 28px; border-color: var(--border); }
-.client-availability-heading { align-items: flex-end; gap: 20px; margin-bottom: 18px; }
+.client-availability-heading { gap: 20px; margin-bottom: 18px; }
 .client-new-booking-button {
   min-height: 44px;
   border-radius: 8px;
