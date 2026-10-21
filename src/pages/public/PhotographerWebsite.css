@@ -388,6 +388,7 @@
     line-height: 1.8;
 }
 
+
 /* =========================================================
    Portfolio
    ========================================================= */
@@ -410,24 +411,28 @@
 
 .public-portfolio-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(12, minmax(0, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
 
     gap: 20px;
 
     width: min(1600px, 100%);
     margin: 0 auto;
+
+    align-items: stretch;
 }
 
 .public-portfolio-item {
     grid-column: span 4;
 
-    margin: 0;
+    display: flex;
+    flex-direction: column;
 
+    min-width: 0;
+    margin: 0;
     overflow: hidden;
 }
 
+/* First row: two images */
 .public-portfolio-item:nth-child(5n + 1) {
     grid-column: span 7;
 }
@@ -436,21 +441,28 @@
     grid-column: span 5;
 }
 
+/* Image containers fill their grid row */
 .public-portfolio-image-wrap {
+    position: relative;
+
     width: 100%;
-    aspect-ratio: 4 / 5;
+    height: 100%;
+    min-height: 0;
+
+    flex: 1;
 
     overflow: hidden;
 
-    background:
-        rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.45);
 }
 
+/* Consistent height for the two-image row */
 .public-portfolio-item:nth-child(5n + 1) .public-portfolio-image-wrap,
 .public-portfolio-item:nth-child(5n + 2) .public-portfolio-image-wrap {
-    aspect-ratio: 5 / 4;
+    aspect-ratio: auto;
 }
 
+/* Images fill their containers */
 .public-portfolio-image-wrap img {
     display: block;
 
@@ -472,7 +484,6 @@
 
 .public-portfolio-item h3 {
     margin: 0 0 7px;
-
     font-size: 20px;
 }
 
@@ -483,9 +494,9 @@
 
     font-size: 13px;
     line-height: 1.65;
-
     white-space: pre-wrap;
 }
+
 
 /* =========================================================
    About
