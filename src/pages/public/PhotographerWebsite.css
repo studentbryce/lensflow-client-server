@@ -394,7 +394,7 @@
    ========================================================= */
 
 .public-site-portfolio-section {
-    width: 100%;
+    width: min(1600px, 100%);
     max-width: none;
 
     padding-left: 6%;
@@ -404,8 +404,8 @@
 }
 
 .public-site-portfolio-section .public-site-section-heading {
-    width: min(1400px, 100%);
-    margin-left: 150px;
+    width: min(1600px, 100%);
+    margin-left: 0;
     margin-right: auto;
 }
 
