@@ -405,7 +405,7 @@
 
 .public-site-portfolio-section .public-site-section-heading {
     width: min(1400px, 100%);
-    margin-left: auto;
+    margin-left: 150px;
     margin-right: auto;
 }
 
