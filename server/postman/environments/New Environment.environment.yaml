@@ -1,0 +1,16 @@
+name: New Environment
+values:
+  - key: baseUrl
+    value: ''
+  - key: accessToken
+    value: ''
+  - key: clientId
+    value: ''
+  - key: serviceId
+    value: ''
+  - key: bookingId
+    value: ''
+  - key: invoiceId
+    value: ''
+  - key: galleryId
+    value: ''
