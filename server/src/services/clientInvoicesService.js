@@ -1,31 +1,36 @@
-/** Milestone 11B: read-only client invoices. Verified JWT + per-user RLS client. */
 import { findAuthenticatedClient } from './clientBookingService.js';
 
+// Helper function to validate a UUID string for invoice IDs
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE = 250;
 const INVOICE_FIELDS = `invoice_id,photographer_id,booking_id,invoice_number,issue_date,due_date,subtotal,tax_amount,tax_rate,tax_included,tax_number,total_amount,status,notes,bank_account_name,bank_name,bank_account_number,bank_payment_instructions,created_at,bookings(booking_id,booking_date,start_time,end_time,location,services(service_id,name))`;
 const LIST_FIELDS = `invoice_id,booking_id,invoice_number,issue_date,due_date,subtotal,total_amount,status,notes,created_at,bookings(booking_id,booking_date,start_time,end_time,location,services(service_id,name))`;
 const ITEM_FIELDS = 'invoice_item_id,description,quantity,unit_price,subtotal';
 
+// Error class for client invoice-related errors
 export class ClientInvoiceError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+// Helper function to create a database failure error with a message and cause
 function failure(label, cause) {
   const err = new Error(`Unable to load ${label}.`);
   err.cause = cause;
   return err;
 }
+// Helper function to query the database and throw a ClientInvoiceError on failure
 async function read(query, label) {
   const { data, error } = await query;
   if (error) throw failure(label, error);
   return data;
 }
+// Helper function to validate a UUID string for invoice IDs
 export function validateClientInvoiceId(id) {
   if (typeof id !== 'string' || !UUID.test(id)) {
     throw new ClientInvoiceError(400, 'INVALID_INVOICE_ID', 'A valid invoice ID is required.');
   }
   return id;
 }
+// Helper function to get the authenticated client's context, including client ID and profiles
 async function context(db, userId) {
   const clientId = await findAuthenticatedClient(db, userId);
   const client = await read(db.from('clients')
@@ -41,7 +46,7 @@ async function context(db, userId) {
     : null;
   return { clientId, clientProfile: profile, photographerProfile };
 }
-
+// Main function to list the authenticated client's invoices, including associated bookings and profiles
 export async function listClientInvoices(db, userId) {
   const { clientId, clientProfile, photographerProfile } = await context(db, userId);
   const invoices = [];
@@ -56,7 +61,7 @@ export async function listClientInvoices(db, userId) {
   }
   return { invoices, clientProfile, photographerProfile };
 }
-
+// Main function to get a specific invoice for the authenticated client, including associated bookings and profiles
 export async function getClientInvoice(db, userId, invoiceId) {
   validateClientInvoiceId(invoiceId);
   const { clientId, clientProfile, photographerProfile } = await context(db, userId);

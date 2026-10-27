@@ -6,10 +6,12 @@
 import { BookingRequestError, minutesFromTime, slotIsAvailable, validateCreateBookingBody } from './bookingCreateService.js';
 import { findBookingById } from './bookingService.js';
 
+// Allowed fields for update. Reject any other fields to avoid accidental overwrites.
 const ALLOWED = new Set(['booking_date', 'start_time', 'location', 'notes']);
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
 const timeText = minutes => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00`;
 
+// Helper function to validate the request body for updating booking details
 export function validateUpdateBookingBody(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         fail(400, 'INVALID_BODY', 'A JSON booking object is required.');
@@ -33,6 +35,7 @@ export function validateUpdateBookingBody(body) {
     };
 }
 
+// Helper function to query the database and throw a BookingRequestError on failure
 async function queryOrFail(query) {
     const { data, error } = await query;
     if (error) {

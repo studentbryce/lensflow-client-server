@@ -127,6 +127,8 @@ export async function listBookingsWithRelations(database) {
     return data ?? [];
 }
 
+// UI-oriented read with joined service/client information. Keep the existing
+// plain findBookingById for PATCH/DELETE preflight checks.
 export async function findBookingWithRelationsById(database, bookingId) {
     const { data, error } = await database
         .from('bookings')

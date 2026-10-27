@@ -6,6 +6,7 @@ import { createSocialJpeg, socialFileName, SOCIAL_MAX_INPUT_BYTES, SocialImageEr
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Main function to export a client gallery image for social media optimization, including validation and access checks
 export async function exportClientSocialImage(db, userId, galleryId, mediaId) {
   if (!UUID.test(galleryId || '') || !UUID.test(mediaId || '')) {
     throw new ClientGalleryError(400, 'INVALID_ID', 'A valid gallery and photo are required.');

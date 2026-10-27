@@ -2,6 +2,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { getPhotographerBookingFormOptions, getPhotographerBookingDay } from '../services/photographerBookingFormService.js';
 
+// Generic response handler for photographer booking form operations
 async function respond(req, res, next, fn) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
@@ -17,10 +18,12 @@ async function respond(req, res, next, fn) {
   }
 }
 
+// Controller function to get the photographer's booking form options
 export function getPhotographerBookingOptions(req, res, next) {
   return respond(req, res, next, getPhotographerBookingFormOptions);
 }
 
+// Controller function to get the photographer's booking availability for a specific day
 export function getPhotographerBookingAvailability(req, res, next) {
   return respond(req, res, next, (db, userId) => getPhotographerBookingDay(db, userId, req.query.date));
 }

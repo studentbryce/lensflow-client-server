@@ -1,6 +1,7 @@
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { savePhotographerAccount } from '../services/photographerSettingsService.js';
 
+// Generic handler to wrap service functions and handle errors
 export function makeSettingsHandler(action, clientFactory) {
   return async (req, res, next) => {
     try {

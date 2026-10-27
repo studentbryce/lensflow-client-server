@@ -4,6 +4,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { isValidBookingId } from '../services/bookingService.js';
 import { ClientBookingError, CLIENT_BOOKING_LIMIT, listClientBookings, findClientBooking } from '../services/clientBookingService.js';
 
+// Error handling middleware for client booking routes
 function handleError(error, res, next) {
   if (error instanceof ClientBookingError || error instanceof BookingRequestError) {
     return res.status(error.status).json({ success: false, error: { code: error.code, message: error.message } });
@@ -11,6 +12,7 @@ function handleError(error, res, next) {
   return next(error);
 }
 
+// Controller functions for client booking routes
 export async function getClientBookings(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
@@ -19,6 +21,7 @@ export async function getClientBookings(req, res, next) {
   } catch (error) { return handleError(error, res, next); }
 }
 
+// Controller function to get a specific client booking by ID
 export async function getClientBookingById(req, res, next) {
   if (!isValidBookingId(req.params.id)) {
     return res.status(400).json({ success: false, error: { code: 'INVALID_BOOKING_ID', message: 'Booking ID must be a valid UUID.' } });
@@ -33,6 +36,7 @@ export async function getClientBookingById(req, res, next) {
   } catch (error) { return handleError(error, res, next); }
 }
 
+// Controller function to get the client booking form options
 export async function getClientBookingForm(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
@@ -41,6 +45,7 @@ export async function getClientBookingForm(req, res, next) {
   } catch (error) { return handleError(error, res, next); }
 }
 
+// Controller function to get the client booking availability for a specific date
 export async function getClientBookingAvailability(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
@@ -49,6 +54,7 @@ export async function getClientBookingAvailability(req, res, next) {
   } catch (error) { return handleError(error, res, next); }
 }
 
+// Controller function to create a new client booking request
 export async function postClientBooking(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);

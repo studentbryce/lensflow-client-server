@@ -2,6 +2,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { getPhotographerDashboard } from '../services/dashboardService.js';
 
+// Controller function to get the photographer's dashboard data
 export async function getDashboard(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);

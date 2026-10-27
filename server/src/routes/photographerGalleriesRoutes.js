@@ -3,7 +3,11 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 import { listGalleries,galleryOptions,getGallery,postGallery,patchGallery,postMedia,deleteMedia,deleteGallery } from '../controllers/photographerGalleriesController.js';
 import { generateMediaPreview } from '../controllers/photographerMediaPreviewController.js';
 import { previewRegenerationCheck, regenerateMediaPreview } from '../controllers/photographerPreviewRegenerationController.js';
+
+// Router for photographer galleries-related routes
 const router=Router();
+
+// Apply authentication middleware to all photographer galleries routes
 router.use(requireAuth);
 router.get('/',listGalleries);
 router.get('/options',galleryOptions);

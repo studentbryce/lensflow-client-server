@@ -4,19 +4,19 @@
  * Call only after server-side authorization and file ownership validation.
  */
 import sharp from 'sharp';
-
+// Constants for image processing limits and allowed formats
 const MAX_INPUT_BYTES = 25 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
 const MAX_PREVIEW_EDGE = 1600;
 const ALLOWED_FORMATS = new Set(['jpeg', 'png', 'webp']);
-
+// Helper function to check if a given format is allowed for image processing
 export class ImagePreviewError extends Error {
   constructor(message) {
     super(message);
     this.name = 'ImagePreviewError';
   }
 }
-
+// Helper function to escape special XML characters in a string for safe inclusion in SVG
 function escapeXml(value) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
@@ -64,6 +64,7 @@ export function buildWatermarkSvg(width, height, text) {
  * @param {{watermarkText?: string, maxEdge?: number, quality?: number}} options
  * @returns {Promise<{buffer: Buffer, contentType: string, width: number, height: number, extension: string}>}
  */
+// Main function to create a watermarked preview of an image, including resizing and watermarking
 export async function createWatermarkedPreview(sourceBuffer, options = {}) {
   if (!Buffer.isBuffer(sourceBuffer) || sourceBuffer.length === 0 || sourceBuffer.length > MAX_INPUT_BYTES) {
     throw new ImagePreviewError('Invalid image data or file exceeds the 25 MiB processing limit.');

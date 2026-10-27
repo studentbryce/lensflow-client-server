@@ -3,6 +3,7 @@ import { BookingRequestError } from './bookingCreateService.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Function to validate the query parameters for busy times
 export function validateBusyTimesQuery(query) {
   const photographerId = query?.photographer_id;
   const date = query?.date;
@@ -17,6 +18,7 @@ export function validateBusyTimesQuery(query) {
   return { photographerId, date };
 }
 
+// Function to get the busy times for bookings from the database
 export async function getBusyTimes(db, query) {
   const { photographerId, date } = validateBusyTimesQuery(query);
   const { data, error } = await db.rpc('get_booking_busy_times', {

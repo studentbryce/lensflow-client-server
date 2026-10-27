@@ -1,14 +1,17 @@
 /** Milestone 11A: client dashboard and own profile, using a verified user JWT + RLS. */
 import { findAuthenticatedClient } from './clientBookingService.js';
 
+// Error class for client account-related errors
 export class ClientAccountError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 
+// Helper function to create a database failure error with a message and cause
 function dbFailure(message, cause) {
   const error = new Error(message); error.cause = cause; return error;
 }
 
+// Helper function to assert that a given value is a valid date string in YYYY-MM-DD format
 function assertDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
       Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ||
@@ -18,12 +21,14 @@ function assertDate(value) {
   return value;
 }
 
+// Helper function to query the database and throw a ClientAccountError on failure
 async function queryRows(query, label) {
   const { data, error } = await query;
   if (error) throw dbFailure(`Unable to load ${label}.`, error);
   return data ?? [];
 }
 
+// Main function to load the client dashboard data, including profile, bookings, invoices, and galleries
 export async function loadClientDashboard(db, userId, today) {
   const date = assertDate(today);
   const clientId = await findAuthenticatedClient(db, userId);
@@ -57,6 +62,7 @@ export async function loadClientDashboard(db, userId, today) {
   };
 }
 
+// Helper function to define the fields to select from the profiles table
 const PROFILE_FIELDS = 'user_id, first_name, last_name, email, phone';
 
 export async function getClientProfile(db, userId) {
@@ -67,6 +73,7 @@ export async function getClientProfile(db, userId) {
   return data;
 }
 
+// Helper function to validate the request body for updating a client profile
 export function validateProfileUpdate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body) ||
       Object.keys(body).some(key => !['first_name', 'last_name', 'phone'].includes(key))) {
@@ -86,6 +93,7 @@ export function validateProfileUpdate(body) {
   };
 }
 
+// Main function to update the client profile, validating inputs and checking ownership
 export async function updateClientProfile(db, userId, body) {
   const values = validateProfileUpdate(body);
   await findAuthenticatedClient(db, userId);

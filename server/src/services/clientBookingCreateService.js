@@ -2,6 +2,7 @@
 import { BookingRequestError, validateCreateBookingBody, slotIsAvailable } from './bookingCreateService.js';
 import { getBusyTimes } from './bookingBusyTimesService.js';
 
+// Helper function to validate the request body for creating a client booking
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const allowedFields = new Set(['service_id', 'booking_date', 'start_time', 'location', 'notes']);
@@ -20,7 +21,7 @@ async function read(query, message) {
   return data;
 }
 
-/** Never take client_id or photographer_id from the browser. */
+// Helper function to resolve the client and photographer IDs for the authenticated user
 export async function resolveClient(db, userId) {
   if (!userId) fail(401, 'UNAUTHORIZED', 'Please sign in to continue.');
   const profile = await read(db.from('profiles').select('role').eq('user_id', userId).maybeSingle(), 'Unable to verify account role.');
@@ -30,6 +31,7 @@ export async function resolveClient(db, userId) {
   return client;
 }
 
+// Main function to get the booking options for a client, including services and availability rules
 export async function getClientBookingOptions(db, userId) {
   const client = await resolveClient(db, userId);
   const [services, rules] = await Promise.all([
@@ -39,12 +41,14 @@ export async function getClientBookingOptions(db, userId) {
   return { client, services: services ?? [], availability_rules: rules ?? [] };
 }
 
+// Helper function to validate a date string in YYYY-MM-DD format
 function validDate(value) {
   if (typeof value !== 'string' || !DATE.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+// Main function to get the bookings and availability for a specific day for a client
 export async function getClientBookingDay(db, userId, date) {
   if (!validDate(date)) fail(400, 'INVALID_DATE', 'A real date in YYYY-MM-DD format is required.');
   const client = await resolveClient(db, userId);
@@ -56,6 +60,7 @@ export async function getClientBookingDay(db, userId, date) {
   return { exceptions: exceptions ?? [], bookings };
 }
 
+// Main function to get the busy times for a specific day for a client, using the same logic as the photographer's availability check
 export function validateClientBookingRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail(400, 'INVALID_BODY', 'A JSON booking object is required.');
   if (Object.keys(body).some(key => !allowedFields.has(key))) {
@@ -67,10 +72,12 @@ export function validateClientBookingRequest(body) {
   return body;
 }
 
+// Helper function to convert total minutes into a SQL time string in HH:MM:SS format
 function asSqlTime(totalMinutes) {
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}:00`;
 }
 
+// Main function to create a new booking request for a client, validating inputs and checking availability
 export async function createClientBookingRequest(db, userId, body) {
   validateClientBookingRequest(body);
   const client = await resolveClient(db, userId);

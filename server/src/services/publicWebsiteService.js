@@ -6,27 +6,33 @@ const CONTENT = 'content_id,title,content,image_url';
 const PORTFOLIO = 'portfolio_id,title,description,media_url,thumbnail_url';
 const SERVICES = 'service_id,name,description,price,duration_minutes,image_url';
 
+// Custom error class for public website-related errors, including HTTP status and error code
 export class PublicWebsiteError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+// Helper function to throw a PublicWebsiteError with a specific status, code, and message
 function failure(label, cause) { const error = new Error(`Unable to load ${label}.`); error.cause = cause; return error; }
 async function get(query, label) {
   const { data, error } = await query;
   if (error) throw failure(label, error);
   return data;
 }
+// Helper function to validate a photographer slug, ensuring it is a string, within length limits, and matches the expected pattern
 export function validateSlug(slug) {
   if (typeof slug !== 'string' || slug.length > 100 || !SLUG.test(slug)) {
     throw new PublicWebsiteError(400, 'INVALID_SLUG', 'A valid photographer slug is required.');
   }
   return slug;
 }
+// Helper function to list all public photographers, returning their IDs and business names, limited to 500 entries
 export async function listPublicPhotographers(db) {
   const rows = await get(db.from('photographer_profiles')
     .select('photographer_id,business_name').eq('published', true)
     .order('business_name', { ascending: true }).limit(500), 'photographers');
   return rows ?? [];
 }
+
+// Helper function to load a public photographer's website, including profile, settings, about section, approved reviews, and featured review IDs
 export async function loadPublicWebsite(db, slug) {
   validateSlug(slug);
   const profile = await get(db.from('photographer_profiles').select(PROFILE)

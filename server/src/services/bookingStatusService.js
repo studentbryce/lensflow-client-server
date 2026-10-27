@@ -6,6 +6,7 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { findBookingById } from './bookingService.js';
 
+// Helper function to throw a BookingRequestError with a given status, code, and message
 export const STATUS_TRANSITIONS = Object.freeze({
     pending: ['confirmed', 'declined'],
     confirmed: ['completed', 'cancelled'],
@@ -16,6 +17,7 @@ export const STATUS_TRANSITIONS = Object.freeze({
 
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
 
+// Helper function to validate the request body for changing booking status
 export function validateBookingStatusBody(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         fail(400, 'INVALID_BODY', 'A JSON object with a status is required.');
@@ -27,6 +29,7 @@ export function validateBookingStatusBody(body) {
     return body.status;
 }
 
+// Helper function to query the database and throw a BookingRequestError on failure
 async function queryOrFail(query) {
     const { data, error } = await query;
     if (error) {
@@ -37,6 +40,7 @@ async function queryOrFail(query) {
     return data;
 }
 
+// Main function to change the status of a booking for a photographer, validating inputs and checking ownership
 export async function changePhotographerBookingStatus(db, userId, bookingId, body) {
     const requested = validateBookingStatusBody(body);
     const current = await findBookingById(db, bookingId);

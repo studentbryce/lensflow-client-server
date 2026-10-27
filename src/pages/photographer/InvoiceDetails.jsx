@@ -239,7 +239,7 @@ function InvoiceDetailsContent({ invoice_id, user }) {
                         >
                             {actionLoading
                                 ? "Updating..."
-                                : "Mark as Sent"}
+                                : "Send Invoice"}
                         </button>
                     )}
 

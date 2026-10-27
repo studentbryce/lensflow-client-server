@@ -1,4 +1,3 @@
-/** Milestone 11D — client messaging via verified user JWT and RLS. */
 import { findAuthenticatedClient } from './clientBookingService.js';
 
 const PAGE = 250;
@@ -6,19 +5,23 @@ const MAX_MESSAGE_LENGTH = 5000;
 const CONVERSATION_FIELDS = 'conversation_id,photographer_id,client_id,created_at,updated_at';
 const MESSAGE_FIELDS = 'message_id,conversation_id,sender_id,message,is_read,created_at';
 
+// Error class for client message-related errors
 export class ClientMessageError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+// Helper function to create a database failure error with a message and cause
 function failure(label, cause) {
   const error = new Error(`Unable to ${label}.`);
   error.cause = cause;
   return error;
 }
+// Helper function to query the database and throw a ClientMessageError on failure
 async function queryResult(query, label) {
   const { data, error } = await query;
   if (error) throw failure(label, error);
   return data;
 }
+// Helper function to get the authenticated client's context, including client and photographer details
 async function getContext(db, userId) {
   const clientId = await findAuthenticatedClient(db, userId);
   const client = await queryResult(db.from('clients')
@@ -30,11 +33,13 @@ async function getContext(db, userId) {
     .maybeSingle(), 'load photographer details');
   return { client, photographer: photographer || { photographer_id: client.photographer_id, business_name: 'Your photographer' } };
 }
+// Helper function to find a conversation between the authenticated client and their photographer, returning null if not found
 async function findConversation(db, client) {
   return await queryResult(db.from('conversations').select(CONVERSATION_FIELDS)
     .eq('photographer_id', client.photographer_id).eq('client_id', client.client_id)
     .maybeSingle(), 'load conversation');
 }
+// Helper function to load all messages in a conversation, handling pagination
 async function loadMessages(db, conversationId) {
   const messages = [];
   for (let offset = 0; ; offset += PAGE) {
@@ -48,11 +53,13 @@ async function loadMessages(db, conversationId) {
   }
   return messages;
 }
+// Main function to get the authenticated client's messages, including conversation and message history
 export async function getClientMessages(db, userId) {
   const { client, photographer } = await getContext(db, userId);
   const conversation = await findConversation(db, client);
   return { currentUserId: userId, client, photographer, conversation, messages: conversation ? await loadMessages(db, conversation.conversation_id) : [] };
 }
+// Main function to ensure a conversation exists between the authenticated client and their photographer, creating one if necessary
 export async function ensureClientConversation(db, userId) {
   const { client } = await getContext(db, userId);
   const existing = await findConversation(db, client);
@@ -67,12 +74,14 @@ export async function ensureClientConversation(db, userId) {
   if (error) throw failure('create conversation', error);
   return data;
 }
+// Helper function to validate the message body, ensuring it is a non-empty string within the allowed length
 export function validateMessageBody(value) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > MAX_MESSAGE_LENGTH) {
     throw new ClientMessageError(400, 'INVALID_MESSAGE', `Message must contain 1 to ${MAX_MESSAGE_LENGTH} characters.`);
   }
   return value.trim();
 }
+// Main function to send a message from the authenticated client to their photographer, ensuring a conversation exists
 export async function sendClientMessage(db, userId, body) {
   const message = validateMessageBody(body?.message);
   const { client } = await getContext(db, userId);
@@ -83,6 +92,7 @@ export async function sendClientMessage(db, userId, body) {
     .select(MESSAGE_FIELDS).single(), 'send message');
   return result;
 }
+// Main function to mark all messages in the authenticated client's conversation as read, returning the IDs of updated messages
 export async function markClientMessagesRead(db, userId) {
   const { client } = await getContext(db, userId);
   const conversation = await findConversation(db, client);

@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { listPhotographerMessages, startPhotographerConversation,
   sendPhotographerMessageHandler, readPhotographerMessages } from '../controllers/photographerMessagesController.js';
+
+// Router for photographer messages-related routes
 const router = Router();
+
+// Apply authentication middleware to all photographer messages routes
 router.use(requireAuth);
 router.get('/', listPhotographerMessages);
 router.post('/conversation', startPhotographerConversation);

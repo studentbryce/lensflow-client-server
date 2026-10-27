@@ -2,6 +2,7 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { resolvePhotographer } from './photographerBookingFormService.js';
 
+// Custom error class for photographer settings-related errors, including HTTP status and error code
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
 const allowed = (value, keys) => {
   if (!value || typeof value !== 'object' || Array.isArray(value) ||
@@ -9,22 +10,30 @@ const allowed = (value, keys) => {
     fail(400, 'INVALID_FIELDS', 'Unexpected or missing settings fields.');
   }
 };
+
+// Helper function to validate a text field, ensuring it is a string, within length limits, and optionally required
 const text = (value, label, max, required = false) => {
   if (typeof value !== 'string' || value.length > max) fail(400, 'INVALID_FIELD', `${label} is invalid.`);
   const v = value.trim();
   if (required && !v) fail(400, 'INVALID_FIELD', `${label} is required.`);
   return v || null;
 };
+
+// Helper function to validate an email field, ensuring it is a valid email address and within length limits
 const email = value => {
   const v = text(value, 'Email', 254, true)?.toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) fail(400, 'INVALID_EMAIL', 'Enter a valid email address.');
   return v;
 };
+
+// Helper function to read a single row from a query builder, throwing an error if the query fails
 const read = async (query, message) => {
   const { data, error } = await query;
   if (error) { const e = new Error(message); e.cause = error; throw e; }
   return data;
 };
+
+// constants for pagination and chunking when reading multiple rows from the database
 const owned = async (db, userId) => resolvePhotographer(db, userId);
 const PROFILE_FIELDS = 'user_id,role,first_name,last_name,email,phone';
 const BUSINESS_FIELDS = 'photographer_id,user_id,business_name,description,email,phone,website_url,address';
@@ -32,6 +41,7 @@ const PAYMENT_FIELDS = 'bank_account_name,bank_name,bank_account_number,bank_pay
 const STRIPE_FIELDS = 'stripe_account_id,charges_enabled,payouts_enabled,details_submitted';
 const CALENDAR_FIELDS = 'integration_id,photographer_id,provider,calendar_id,token_expires_at,is_active,created_at,updated_at';
 
+// Helper function to get the photographer ID for the authenticated user, throwing an error if not a photographer
 export async function getPhotographerSettings(db, userId, authEmail) {
   const owner = await owned(db, userId);
   const id = owner.photographer_id;
@@ -45,6 +55,7 @@ export async function getPhotographerSettings(db, userId, authEmail) {
   return { profile: { ...profile, email: authEmail || profile.email }, business, payment, stripe, calendar };
 }
 
+// Helper function to save the photographer's account settings, validating the input and ensuring the authenticated user owns the account
 export async function savePhotographerAccount(db, userId, body) {
   await owned(db, userId);
   allowed(body, ['first_name', 'last_name', 'phone', 'email']);
@@ -59,6 +70,7 @@ export async function savePhotographerAccount(db, userId, body) {
   return read(db.from('profiles').update(patch).eq('user_id', userId).select(PROFILE_FIELDS).single(), 'Unable to save account.');
 }
 
+// Helper function to save the photographer's business settings, validating the input and ensuring the authenticated user owns the business
 export async function savePhotographerBusiness(db, userId, body) {
   const owner = await owned(db, userId);
   allowed(body, ['business_name','email','phone','address','website_url','description']);
@@ -78,6 +90,7 @@ export async function savePhotographerBusiness(db, userId, body) {
   return read(db.from('photographer_profiles').update(patch).eq('photographer_id', owner.photographer_id).eq('user_id', userId).select(BUSINESS_FIELDS).single(), 'Unable to save business.');
 }
 
+// Helper function to validate the photographer's tax settings, ensuring the tax rate is between 0 and 100 with at most two decimals
 export function validateTax(body) {
   allowed(body, ['gst_tax_number','default_tax_rate']);
   const rate = Number(body.default_tax_rate);
@@ -87,11 +100,14 @@ export function validateTax(body) {
   }
   return { gst_tax_number: text(body.gst_tax_number ?? '', 'GST number', 100), default_tax_rate: Math.round(rate * 100) / 100 };
 }
+
+// Helper function to save the photographer's tax settings, validating the input and ensuring the authenticated user owns the account
 export async function savePhotographerTax(db, userId, body) {
   const owner = await owned(db, userId);
   return read(db.from('photographer_payment_settings').upsert({ photographer_id: owner.photographer_id, ...validateTax(body) }, { onConflict: 'photographer_id' }).select(PAYMENT_FIELDS).single(), 'Unable to save tax settings.');
 }
 
+// Helper function to validate the photographer's bank settings, ensuring the account name and number are provided if any bank details are supplied
 export function validateBank(body) {
   const keys = ['bank_account_name','bank_name','bank_account_number','bank_payment_instructions'];
   allowed(body, keys);
@@ -101,6 +117,8 @@ export function validateBank(body) {
   }
   return patch;
 }
+
+// Helper function to save the photographer's bank settings, validating the input and ensuring the authenticated user owns the account
 export async function savePhotographerBank(db, userId, body) {
   const owner = await owned(db, userId);
   const patch = validateBank(body);

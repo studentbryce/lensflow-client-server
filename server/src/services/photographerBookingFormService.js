@@ -2,10 +2,12 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { getBusyTimes } from './bookingBusyTimesService.js';
 
+// Helper function to throw a BookingRequestError with a specific status, code, and message
 function fail(status, code, message) {
   throw new BookingRequestError(status, code, message);
 }
 
+// Helper function to read data from a Supabase query and handle errors, throwing a new error with a custom message if the query fails
 async function read(query, message) {
   const { data, error } = await query;
   if (error) {
@@ -16,6 +18,7 @@ async function read(query, message) {
   return data;
 }
 
+// Resolve the photographer profile for the given user ID, ensuring the user is a photographer and has a valid profile
 export async function resolvePhotographer(db, userId) {
   if (!userId) fail(401, 'UNAUTHORIZED', 'Please sign in to continue.');
   const profile = await read(db.from('profiles').select('role').eq('user_id', userId).maybeSingle(), 'Unable to verify account role.');
@@ -26,6 +29,7 @@ export async function resolvePhotographer(db, userId) {
   return photographer;
 }
 
+// Validate the provided date string for the dashboard, ensuring it is a valid ISO date and not in the past
 export async function getPhotographerBookingFormOptions(db, userId) {
   const photographer = await resolvePhotographer(db, userId);
   const id = photographer.photographer_id;
@@ -50,6 +54,7 @@ export async function getPhotographerBookingFormOptions(db, userId) {
   };
 }
 
+// Get the photographer's busy times for a specific date, including confirmed bookings and availability exceptions
 export async function getPhotographerBookingDay(db, userId, date) {
   // Validate a real ISO date before touching the database.
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||

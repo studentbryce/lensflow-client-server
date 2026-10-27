@@ -4,6 +4,7 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { resolvePhotographer } from './photographerBookingFormService.js';
 
+// Constants for validation and pagination
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const PAGE = 400;
@@ -16,11 +17,15 @@ const PROFILE_FIELDS = 'user_id,first_name,last_name,email,phone';
 const STATUSES = ['draft','sent','paid','overdue','cancelled'];
 const BODY_FIELDS = ['client_id','booking_id','invoice_number','issue_date','due_date','status','tax_rate','tax_included','notes','items'];
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
+
+// Helper function to read data from a Supabase query and handle errors, throwing a new error with a custom message if the query fails
 async function read(query, message) {
   const { data, error } = await query;
   if (error) { const e = new Error(message); e.cause = error; throw e; }
   return data;
 }
+
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function pages(build, message) {
   const out=[];
   for(let offset=0;;offset+=PAGE){
@@ -29,21 +34,26 @@ async function pages(build, message) {
     if(rows.length<PAGE)return out;
   }
 }
+
+// Helper function to validate a UUID, throwing a BookingRequestError if invalid
 function uuid(id, code='INVALID_ID') {
   if(typeof id!=='string'||!UUID.test(id))fail(400,code,'A valid identifier is required.');
   return id;
 }
+// Helper function to validate a date string, throwing a BookingRequestError if invalid
 export const validateInvoiceId = id => uuid(id,'INVALID_INVOICE_ID');
 function realDate(value) {
   if(typeof value!=='string'||!DATE.test(value))return false;
   const parsed=new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(parsed.valueOf())&&parsed.toISOString().slice(0,10)===value;
 }
+// Helper function to validate a date string, throwing a BookingRequestError if invalid
 function money(value, label) {
   const n=Number(value);
   if((typeof value!=='number'&&typeof value!=='string')||value===''||!Number.isFinite(n)||n<0||n>999999999||Math.abs(n*100-Math.round(n*100))>1e-6)fail(400,'INVALID_AMOUNT',`${label} must be a nonnegative amount with up to two decimal places.`);
   return Math.round(n*100)/100;
 }
+// Helper function to validate the invoice payload, ensuring all required fields are present and valid
 const round = n => Math.round((n+Number.EPSILON)*100)/100;
 export function validateInvoicePayload(body) {
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!BODY_FIELDS.includes(k)))fail(400,'INVALID_FIELDS','Unexpected invoice fields.');
@@ -78,13 +88,16 @@ export function validateInvoicePayload(body) {
     items,
   };
 }
+// Helper function to resolve the photographer for a given user ID, ensuring the user is a photographer and has a valid profile
 async function context(db,userId){return resolvePhotographer(db,userId);}
+// Helper function to get a specific invoice owned by the photographer, throwing an error if not found
 async function ownedInvoice(db,photographerId,id){
   validateInvoiceId(id);
   const invoice=await read(db.from('invoices').select(INVOICE_FIELDS).eq('invoice_id',id).eq('photographer_id',photographerId).maybeSingle(),'Unable to load invoice.');
   if(!invoice)fail(404,'INVOICE_NOT_FOUND','Invoice could not be found.');
   return invoice;
 }
+// Helper function to verify that the client and booking belong to the photographer, throwing an error if not
 async function clientProfiles(db,clients){
   const ids=[...new Set(clients.map(c=>c.user_id).filter(Boolean))];
   if(!ids.length)return clients.map(c=>({...c,profile:null}));
@@ -95,6 +108,7 @@ async function clientProfiles(db,clients){
   const map=new Map(profiles.map(p=>[p.user_id,p]));
   return clients.map(c=>({...c,profile:map.get(c.user_id)??null}));
 }
+// Helper function to verify that the client and booking belong to the photographer, throwing an error if not
 export async function listPhotographerInvoices(db,userId){
   const photographer=await context(db,userId), id=photographer.photographer_id;
   const invoices=await pages(()=>db.from('invoices').select(INVOICE_FIELDS).eq('photographer_id',id).order('created_at',{ascending:false}).order('invoice_id',{ascending:false}),'Unable to load invoices.');
@@ -105,6 +119,7 @@ export async function listPhotographerInvoices(db,userId){
   const bookingMap=new Map(bookings.map(b=>[b.booking_id,b]));
   return invoices.map(invoice=>({...invoice,client:clientMap.get(invoice.client_id)??null,clientProfile:clientMap.get(invoice.client_id)?.profile??null,booking:bookingMap.get(invoice.booking_id)??null}));
 }
+// Helper function to verify that the client and booking belong to the photographer, throwing an error if not
 export async function getPhotographerInvoiceOptions(db,userId){
   const photographer=await context(db,userId),id=photographer.photographer_id;
   const [clients,bookings,services,paymentSettings]=await Promise.all([
@@ -115,6 +130,7 @@ export async function getPhotographerInvoiceOptions(db,userId){
   ]);
   return {clients:await clientProfiles(db,clients),bookings,services,default_tax_rate:paymentSettings?.default_tax_rate??15};
 }
+// Helper function to verify that the client and booking belong to the photographer, throwing an error if not
 export async function getPhotographerInvoice(db,userId,invoiceId){
   const photographer=await context(db,userId),id=photographer.photographer_id;
   const invoice=await ownedInvoice(db,id,invoiceId);
@@ -127,6 +143,7 @@ export async function getPhotographerInvoice(db,userId,invoiceId){
   const service=booking?.service_id ? await read(db.from('services').select(SERVICE_FIELDS).eq('service_id',booking.service_id).eq('photographer_id',id).maybeSingle(),'Unable to load service.') : null;
   return {invoice,items:items??[],clientProfile,booking,service,photographerProfile:{photographer_id:id,business_name:photographer.business_name}};
 }
+// Helper function to verify that the client and booking belong to the photographer, throwing an error if not
 async function verifyRelations(db,id,values,items){
   const [client,booking]=await Promise.all([
     read(db.from('clients').select('client_id').eq('client_id',values.client_id).eq('photographer_id',id).maybeSingle(),'Unable to verify client.'),
@@ -139,10 +156,12 @@ async function verifyRelations(db,id,values,items){
     if((found??[]).length!==serviceIds.slice(i,i+150).length)fail(400,'INVALID_SERVICE','Invoice item service must belong to this photographer.');
   }
 }
+// Helper function to ensure that an invoice has no associated payments, throwing an error if payments exist
 async function ensureNoPayments(db,invoiceId){
   const payments=await read(db.from('payments').select('payment_id').eq('invoice_id',invoiceId).limit(1),'Unable to verify invoice payments.');
   if(payments?.length)fail(409,'PAYMENTS_EXIST','Invoices with payment records cannot be edited or deleted.');
 }
+// Helper function to prepare invoice item rows for insertion, adding the photographer ID and invoice ID to each item
 async function itemRows(items,id,invoiceId){return items.map(item=>({...item,photographer_id:id,invoice_id:invoiceId}));}
 export async function createPhotographerInvoice(db,userId,body){
   const {values,items}=validateInvoicePayload(body);
@@ -160,6 +179,7 @@ export async function createPhotographerInvoice(db,userId,body){
   }
   return invoice;
 }
+// Helper function to get a specific invoice owned by the photographer, throwing an error if not
 export async function updatePhotographerInvoice(db,userId,invoiceId,body){
   const {values,items}=validateInvoicePayload(body);
   const photographer=await context(db,userId),id=photographer.photographer_id;
@@ -174,6 +194,7 @@ export async function updatePhotographerInvoice(db,userId,invoiceId,body){
   await read(db.from('invoice_items').insert(await itemRows(items,id,invoiceId)),'Unable to save invoice items.');
   return invoice;
 }
+// Helper function to get a specific invoice owned by the photographer, throwing an error if not
 export async function setPhotographerInvoiceStatus(db,userId,invoiceId,body){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length!==1||!['sent','paid'].includes(body.status))fail(400,'INVALID_STATUS','Status action must be sent or paid.');
   const photographer=await context(db,userId),id=photographer.photographer_id;
@@ -184,6 +205,7 @@ export async function setPhotographerInvoiceStatus(db,userId,invoiceId,body){
   if(!updated)fail(404,'INVOICE_NOT_FOUND','Invoice could not be found.');
   return updated;
 }
+// Helper function to get a specific invoice owned by the photographer, throwing an error if not
 export async function deletePhotographerInvoice(db,userId,invoiceId){
   const photographer=await context(db,userId),id=photographer.photographer_id;
   const existing=await ownedInvoice(db,id,invoiceId);

@@ -1,12 +1,14 @@
 /** In-memory social export. Originals/previews are never overwritten or uploaded. */
 import sharp from 'sharp';
 
+// Constants for social image processing, including maximum edge length, JPEG quality, and input size limits
 export const SOCIAL_MAX_EDGE = 1080;
 export const SOCIAL_JPEG_QUALITY = 85;
 export const SOCIAL_MAX_INPUT_BYTES = 25 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
 const ACCEPTED_FORMATS = new Set(['jpeg', 'png', 'webp']);
 
+// Custom error class for social image processing errors, including HTTP status and error code
 export class SocialImageError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -15,6 +17,7 @@ export class SocialImageError extends Error {
   }
 }
 
+// Helper function to generate a sanitized filename for social media export, ensuring it is safe and concise
 export function socialFileName(name) {
   const base = String(name || 'lensflow-photo')
     .replace(/\.[^.]+$/, '')
@@ -23,6 +26,7 @@ export function socialFileName(name) {
   return `${base}-social.jpg`;
 }
 
+// Main function to create a social-optimized JPEG from an input buffer, including validation and processing
 export async function createSocialJpeg(input) {
   if (!Buffer.isBuffer(input) || input.length === 0 || input.length > SOCIAL_MAX_INPUT_BYTES) {
     throw new SocialImageError(413, 'IMAGE_TOO_LARGE', 'This photo is too large to optimize. Please download the original instead.');

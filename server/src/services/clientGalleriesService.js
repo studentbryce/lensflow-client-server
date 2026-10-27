@@ -5,31 +5,37 @@ import { findAuthenticatedClient } from './clientBookingService.js';
 import { clientDisplayAsset } from './clientMediaAccess.js';
 import { originalPathIsValid } from './mediaPreviewPaths.js';
 
+// Constants for UUID validation, pagination, and database field selection
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE_SIZE = 250;
 const GALLERY_FIELDS = 'gallery_id,photographer_id,client_id,booking_id,name,description,is_published,allow_downloads,created_at,updated_at';
 const BOOKING_FIELDS = 'booking_id,booking_date,start_time,end_time,location,status,total_amount';
 const MEDIA_FIELDS = 'media_id,gallery_id,photographer_id,file_name,storage_path,media_type,mime_type,file_size,thumbnail_path,is_downloadable,uploaded_at';
 
+// Error class for client gallery-related errors
 export class ClientGalleryError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+// Helper function to create a database failure error with a message and cause
 function dbError(label, cause) {
   const error = new Error(`Unable to load ${label}.`);
   error.cause = cause;
   return error;
 }
+// Helper function to find the authenticated client's ID, throwing errors for missing or invalid profiles
 async function read(query, label) {
   const { data, error } = await query;
   if (error) throw dbError(label, error);
   return data;
 }
+// Helper function to validate a UUID string for gallery or media IDs
 function validId(id, label = 'gallery') {
   if (typeof id !== 'string' || !UUID.test(id)) {
     throw new ClientGalleryError(400, 'INVALID_ID', `A valid ${label} ID is required.`);
   }
   return id;
 }
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function readAll(queryBuilder, label) {
   const rows = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
@@ -39,12 +45,14 @@ async function readAll(queryBuilder, label) {
   }
   return rows;
 }
+// Helper function to sign a preview URL for a media asset, returning null if unavailable
 async function signPreview(db, asset) {
   if (!asset) return null;
   const { data, error } = await db.storage.from('client-media').createSignedUrl(asset.path, asset.expiresIn);
   if (error) return null; // Keep the gallery usable if a preview is unavailable.
   return data?.signedUrl ?? null;
 }
+// Helper function to find a gallery owned by the authenticated client, throwing errors for missing or inaccessible galleries
 async function ownedGallery(db, clientId, galleryId) {
   const gallery = await read(db.from('galleries').select(GALLERY_FIELDS)
     .eq('gallery_id', validId(galleryId)).eq('client_id', clientId)
@@ -53,6 +61,7 @@ async function ownedGallery(db, clientId, galleryId) {
   if (!gallery) throw new ClientGalleryError(404, 'GALLERY_NOT_FOUND', 'Gallery not found or not available.');
   return gallery;
 }
+// Main function to list the authenticated client's galleries, including associated bookings and media, with thumbnails
 export async function listClientGalleries(db, userId) {
   const clientId = await findAuthenticatedClient(db, userId);
   const galleries = await readAll(() => db.from('galleries').select(GALLERY_FIELDS)
@@ -92,6 +101,7 @@ export async function listClientGalleries(db, userId) {
   // No storage paths or private bank data needed by the gallery list.
   return { galleries: enriched, media: media.map(({ gallery_id, media_id, media_type }) => ({ gallery_id, media_id, media_type })) };
 }
+// Main function to get a specific gallery for the authenticated client, including associated booking and media with previews
 export async function getClientGallery(db, userId, galleryId) {
   validId(galleryId);
   const clientId = await findAuthenticatedClient(db, userId);
@@ -107,6 +117,7 @@ export async function getClientGallery(db, userId, galleryId) {
   })));
   return { gallery, booking, media: previews };
 }
+// Main function to get a signed download URL for a specific media item in a gallery for the authenticated client
 export async function getClientGalleryDownload(db, userId, galleryId, mediaId) {
   validId(galleryId);
   validId(mediaId, 'media');

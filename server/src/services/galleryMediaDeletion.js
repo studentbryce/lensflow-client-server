@@ -6,6 +6,7 @@ const reject = (message) => { throw new BookingRequestError(409, 'INVALID_MEDIA_
 
 // Only delete paths registered in owned media rows. Do not delete regeneration
 // backups, unregistered objects, or anything outside the exact gallery prefix.
+// Main function to validate and return the registered gallery media paths for deletion, ensuring they belong to the specified photographer and gallery
 export function registeredGalleryMediaPaths(items, photographerId, galleryId) {
   if (!UUID.test(photographerId || '') || !UUID.test(galleryId || '')) {
     reject('Unable to verify gallery ownership. Nothing was deleted.');
@@ -38,6 +39,7 @@ export function registeredGalleryMediaPaths(items, photographerId, galleryId) {
 // Uses the authenticated user's Supabase client, not the service-role key.
 // Storage and PostgreSQL are not a single transaction; retry is supported if
 // an intermediate step fails, but callers must not report success on error.
+// Main function to remove the registered gallery media files from Supabase Storage in batches, handling errors and retries
 export async function removeRegisteredGalleryFiles(db, paths) {
   for (let offset=0; offset<paths.length; offset+=BATCH_SIZE) {
     const batch = paths.slice(offset,offset+BATCH_SIZE);

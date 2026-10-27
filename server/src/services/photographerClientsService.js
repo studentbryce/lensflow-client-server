@@ -10,10 +10,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE_SIZE = 500;
 const PROFILE_CHUNK_SIZE = 100;
 
+// Helper function to throw a BookingRequestError with a specific status, code, and message
 function fail(status, code, message) {
   throw new BookingRequestError(status, code, message);
 }
 
+// Validate if a given string is a valid UUID
 export function validateClientId(id) {
   if (typeof id !== 'string' || !UUID.test(id)) {
     fail(400, 'INVALID_CLIENT_ID', 'Client ID must be a valid UUID.');
@@ -21,6 +23,7 @@ export function validateClientId(id) {
   return id;
 }
 
+// Helper function to query the database and return data or throw an error with a message and cause
 async function read(query, message) {
   const { data, error } = await query;
   if (error) {
@@ -31,6 +34,7 @@ async function read(query, message) {
   return data ?? [];
 }
 
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function readAll(buildQuery, message) {
   const all = [];
   for (let start = 0; ; start += PAGE_SIZE) {
@@ -40,6 +44,7 @@ async function readAll(buildQuery, message) {
   }
 }
 
+// Helper function to load profiles for a list of clients, batching requests to avoid exceeding limits
 async function loadProfiles(db, clients) {
   const ids = [...new Set(clients.map(c => c.user_id).filter(Boolean))];
   const map = new Map();
@@ -56,6 +61,7 @@ function clientWithProfile(client, profileMap) {
   return { ...client, profile: profileMap.get(client.user_id) ?? null };
 }
 
+// Main function to list the photographer's clients, including their profiles and booking summaries
 export async function listPhotographerClients(db, userId) {
   const photographer = await resolvePhotographer(db, userId);
   const id = photographer.photographer_id;
@@ -93,6 +99,7 @@ export async function listPhotographerClients(db, userId) {
   });
 }
 
+// Main function to find a specific client owned by the photographer, throwing an error if not found
 async function findOwnedClient(db, photographerId, clientId) {
   const row = await read(db.from('clients')
     .select('client_id,photographer_id,user_id,notes,created_at')
@@ -103,6 +110,7 @@ async function findOwnedClient(db, photographerId, clientId) {
   return row;
 }
 
+// Main function to get a specific client owned by the photographer, including their profile and booking history
 export async function getPhotographerClient(db, userId, clientId) {
   validateClientId(clientId);
   const photographer = await resolvePhotographer(db, userId);
@@ -117,6 +125,7 @@ export async function getPhotographerClient(db, userId, clientId) {
   return { client: clientWithProfile(client, profiles), bookings };
 }
 
+// Main function to update a specific client owned by the photographer, including their profile and notes
 export function validateClientUpdate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     fail(400, 'INVALID_BODY', 'A JSON client update object is required.');
@@ -147,6 +156,7 @@ export function validateClientUpdate(body) {
   return result;
 }
 
+// Main function to update a specific client owned by the photographer, including their profile and notes
 export async function updatePhotographerClient(db, userId, clientId, body) {
   validateClientId(clientId);
   const changes = validateClientUpdate(body);

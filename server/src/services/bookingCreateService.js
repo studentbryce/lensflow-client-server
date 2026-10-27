@@ -8,6 +8,7 @@
  * before it can reliably check conflicts across clients.
  */
 
+// Define regular expressions for validating UUIDs, dates, and times.
 export class BookingRequestError extends Error {
     constructor(status, code, message) {
         super(message);
@@ -21,22 +22,26 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d(?::00)?$/;
 
+// Helper function to convert a time string in HH:mm format to minutes since midnight
 export function minutesFromTime(time) {
     if (typeof time !== 'string' || !TIME.test(time)) return null;
     const [hour, minute] = time.split(':').map(Number);
     return hour * 60 + minute;
 }
 
+// Helper function to format minutes since midnight as a time string in HH:mm:00 format
 function formatTime(minutes) {
     return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00`;
 }
 
+// Helper function to check if a date string is a valid date in YYYY-MM-DD format
 function isRealDate(date) {
     if (typeof date !== 'string' || !DATE.test(date)) return false;
     const parsed = new Date(`${date}T00:00:00Z`);
     return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === date;
 }
 
+// Helper function to get the current date and time in New Zealand timezone
 function currentNzDateAndTime() {
     const parts = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -46,7 +51,8 @@ function currentNzDateAndTime() {
     return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
 }
 
-/** Accept a explicit allowlist. Never accept owner, price, status or end time. */
+// Accept an explicit allowlist. Never accept owner, price, status or end time.
+// Validate the booking request body and return a normalized object.
 export function validateCreateBookingBody(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         fail(400, 'INVALID_BODY', 'A JSON booking object is required.');
@@ -83,6 +89,7 @@ export function validateCreateBookingBody(body) {
     };
 }
 
+// Helper function to merge overlapping or adjacent time ranges
 function mergeRanges(ranges) {
     const sorted = ranges.filter(r => r.start < r.end).sort((a, b) => a.start - b.start);
     const merged = [];
@@ -93,6 +100,8 @@ function mergeRanges(ranges) {
     }
     return merged;
 }
+
+// Helper function to subtract blocked time ranges from available time ranges
 function subtractRanges(available, blocked) {
     let remaining = mergeRanges(available);
     for (const block of mergeRanges(blocked)) {
@@ -106,6 +115,8 @@ function subtractRanges(available, blocked) {
     }
     return remaining;
 }
+
+// Helper function to convert database rows with start_time and end_time into ranges in minutes
 function toRanges(rows) {
     return rows.map(row => ({ start: minutesFromTime(row.start_time), end: minutesFromTime(row.end_time) }));
 }
@@ -124,6 +135,7 @@ export function slotIsAvailable({ date, start, end, rules, exceptions, bookings 
     return ranges.some(range => start >= range.start && end <= range.end);
 }
 
+// Helper function to query the database and throw a BookingRequestError on failure
 async function queryOrFail(promise) {
     const { data, error } = await promise;
     if (error) {
@@ -137,6 +149,7 @@ async function queryOrFail(promise) {
     return data;
 }
 
+// Main function to create a booking for a photographer, validating inputs and checking availability
 export async function createPhotographerBooking(db, userId, body) {
     const input = validateCreateBookingBody(body);
 

@@ -5,8 +5,10 @@ import {
   createPortfolio, updatePortfolio, deletePortfolio, reorderPortfolio,
 } from '../services/photographerWebsiteService.js';
 
+// Generic wrapper to create handlers for photographer website operations
 const wrap = (fn, options) => createWebsiteHandler(fn, createUserSupabaseClient, options);
 
+// Controller functions for photographer website operations
 export const getWebsiteHandler = wrap(getWebsite);
 export const saveWebsiteHandler = wrap(saveWebsite, { mode: 'body' });
 export const listPortfolioHandler = wrap(listPortfolio);

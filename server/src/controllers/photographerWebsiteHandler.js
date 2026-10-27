@@ -8,6 +8,8 @@ import { BookingRequestError } from '../services/bookingCreateService.js';
  *   item updates: (db, userId, id, body)
  * Do not blindly pass req.params.id to collection-write services.
  */
+
+// Generic wrapper to create handlers for photographer website operations
 export function createWebsiteHandler(fn, createDb, { status = 200, mode = 'read' } = {}) {
   if (!['read', 'body', 'item', 'itemBody'].includes(mode)) {
     throw new TypeError(`Unsupported website handler mode: ${mode}`);

@@ -7,6 +7,7 @@ import { resolvePhotographer } from './photographerBookingFormService.js';
 import { createWatermarkedPreview } from './imagePreviewProcessor.js';
 import { isUuid, originalPathIsValid, previewPathForMedia, watermarkForBusiness, MAX_IMAGE_BYTES } from './mediaPreviewPaths.js';
 
+// Helper function to throw a MediaPreviewRequestError with a specific status, code, and message
 export class MediaPreviewRequestError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -14,6 +15,8 @@ export class MediaPreviewRequestError extends Error {
     this.code = code;
   }
 }
+
+// Helper function to throw a MediaPreviewRequestError with a specific status, code, and message
 const reject = (status, code, message) => { throw new MediaPreviewRequestError(status, code, message); };
 
 async function one(query, label) {
@@ -22,6 +25,7 @@ async function one(query, label) {
   return data;
 }
 
+// Main function to generate a watermarked image preview for a specific media item, ensuring the photographer owns the gallery and media
 export async function generatePhotographerImagePreview(db, userId, galleryId, mediaId, {
   processor = createWatermarkedPreview,
 } = {}) {
@@ -31,7 +35,7 @@ export async function generatePhotographerImagePreview(db, userId, galleryId, me
   const gallery = await one(db.from('galleries').select('gallery_id')
     .eq('gallery_id', galleryId).eq('photographer_id', photographerId).maybeSingle(), 'gallery ownership');
   if (!gallery) reject(404, 'GALLERY_NOT_FOUND', 'Gallery not found.');
-
+  // Verify that the media belongs to the photographer and gallery, and that it is an image of a supported type
   const media = await one(db.from('media')
     .select('media_id,gallery_id,photographer_id,media_type,mime_type,file_size,storage_path,thumbnail_path')
     .eq('media_id', mediaId).eq('gallery_id', galleryId)

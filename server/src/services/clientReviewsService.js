@@ -6,25 +6,30 @@ const PAGE = 250;
 const BOOKING_FIELDS = 'booking_id,photographer_id,client_id,service_id,booking_date,start_time,end_time,location,status,services(name)';
 const REVIEW_FIELDS = 'review_id,photographer_id,client_id,booking_id,rating,comment,status,created_at,updated_at';
 
+// Helper function to validate a UUID string for booking or review IDs
 export class ClientReviewError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+// Helper function to create a database failure error with a message and cause
 function dbFailure(label, cause) {
   const error = new Error(`Unable to ${label}.`);
   error.cause = cause;
   return error;
 }
+// Helper function to query the database and throw a ClientReviewError on failure
 async function read(query, label) {
   const { data, error } = await query;
   if (error) throw dbFailure(label, error);
   return data;
 }
+// Helper function to validate a UUID string for booking or review IDs
 function validId(id, label) {
   if (typeof id !== 'string' || !UUID.test(id)) {
     throw new ClientReviewError(400, 'INVALID_ID', `A valid ${label} ID is required.`);
   }
   return id;
 }
+// Helper function to validate the review input, ensuring rating is between 1 and 5 and comment is a string of appropriate length
 export function validateReviewInput(body) {
   if (!body || !Number.isInteger(body.rating) || body.rating < 1 || body.rating > 5) {
     throw new ClientReviewError(400, 'INVALID_RATING', 'Please select a whole-number rating between 1 and 5 stars.');
@@ -38,6 +43,7 @@ export function validateReviewInput(body) {
   }
   return { rating: body.rating, comment };
 }
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function allRows(db, table, fields, clientId, orderField) {
   const rows = [];
   for (let offset = 0; ; offset += PAGE) {
@@ -49,6 +55,7 @@ async function allRows(db, table, fields, clientId, orderField) {
     if (batch.length < PAGE) return rows;
   }
 }
+// Main function to list the authenticated client's bookings and reviews, including associated details
 export async function listClientReviews(db, userId) {
   const clientId = await findAuthenticatedClient(db, userId);
   const [bookings, reviews] = await Promise.all([
@@ -57,6 +64,7 @@ export async function listClientReviews(db, userId) {
   ]);
   return { clientId, bookings, reviews };
 }
+// Main function to get a specific review for the authenticated client, including associated booking details
 export async function createClientReview(db, userId, body) {
   const { rating, comment } = validateReviewInput(body);
   const bookingId = validId(body.bookingId, 'booking');
@@ -80,6 +88,7 @@ export async function createClientReview(db, userId, body) {
   if (error) throw dbFailure('create review', error);
   return data;
 }
+// Main function to get a specific review for the authenticated client, including associated booking details
 export async function updateClientReview(db, userId, reviewId, body) {
   validId(reviewId, 'review');
   const { rating, comment } = validateReviewInput(body);

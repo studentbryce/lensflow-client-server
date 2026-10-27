@@ -6,6 +6,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { createPhotographerBooking, BookingRequestError } from '../services/bookingCreateService.js';
 import { BOOKING_PAGE_LIMIT, listBookingsWithRelations, findBookingWithRelationsById, enrichBookingsWithProfiles, isValidBookingId } from '../services/bookingService.js';
 
+// Controller function to get all bookings under the caller's RLS
 export async function getBookings(req, res, next) {
     try {
         // requireAuth has already verified this JWT with Supabase Auth.

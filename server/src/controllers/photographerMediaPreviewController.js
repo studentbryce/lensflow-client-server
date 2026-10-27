@@ -2,6 +2,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { MediaPreviewRequestError, generatePhotographerImagePreview } from '../services/photographerMediaPreviewService.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 
+// Controller function to generate a media preview for a photographer's media item
 export async function generateMediaPreview(req, res, next) {
   // Default OFF: opt in only after confirming the original production project.
   if (process.env.ENABLE_MEDIA_PREVIEW_WRITES !== 'true') {

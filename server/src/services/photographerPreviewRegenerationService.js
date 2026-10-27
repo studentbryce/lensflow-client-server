@@ -12,6 +12,7 @@ import { resolvePhotographer } from './photographerBookingFormService.js';
 import { createWatermarkedPreview } from './imagePreviewProcessor.js';
 import { isUuid, originalPathIsValid, previewPathForMedia, watermarkForBusiness, MAX_IMAGE_BYTES } from './mediaPreviewPaths.js';
 
+// Custom error class for preview regeneration errors, including HTTP status and error code
 export class PreviewRegenerationError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -19,19 +20,25 @@ export class PreviewRegenerationError extends Error {
     this.code = code;
   }
 }
+
+// Helper function to throw a PreviewRegenerationError with a specific status, code, and message
 const fail = (status, code, message) => { throw new PreviewRegenerationError(status, code, message); };
 const digest = buffer => createHash('sha256').update(buffer).digest('hex');
-
+// Helper function to read a single row from a query builder, throwing an error if the query fails
 async function one(query, label) {
   const { data, error } = await query;
   if (error) { const err = new Error(`Unable to verify ${label}.`); err.cause = error; throw err; }
   return data;
 }
+
+// Helper function to read a private Storage object, throwing a PreviewRegenerationError if it is unavailable
 async function readObject(bucket, path, code) {
   const { data, error } = await bucket.download(path);
   if (error || !data) fail(409, code, 'Required private Storage object is unavailable.');
   return Buffer.from(await data.arrayBuffer());
 }
+
+// Helper function to validate the context for preview regeneration, ensuring the photographer owns the gallery and media, and that the media is a valid image
 async function context(db, userId, galleryId, mediaId) {
   if (!isUuid(galleryId) || !isUuid(mediaId)) fail(400, 'INVALID_ID', 'Valid gallery and media IDs are required.');
   const photographer = await resolvePhotographer(db, userId);
@@ -61,6 +68,7 @@ async function context(db, userId, galleryId, mediaId) {
 }
 
 /** Read-only check. Downloads only the existing private preview. */
+// Returns the existing preview size and SHA256, the original size and SHA256, and a flag indicating whether it is safe to attempt regeneration.
 export async function inspectPhotographerPreviewRegeneration(db, userId, galleryId, mediaId) {
   const { media, expectedPath, bucket } = await context(db, userId, galleryId, mediaId);
   const existing = await readObject(bucket, expectedPath, 'PREVIEW_UNAVAILABLE');
@@ -80,6 +88,7 @@ export async function inspectPhotographerPreviewRegeneration(db, userId, gallery
 }
 
 /** One explicitly confirmed, gated replacement. Never removes originals. */
+// Backs up the existing preview before overwriting that same preview path; NEVER writes/deletes the original or changes media rows.
 export async function regeneratePhotographerPreview(db, userId, galleryId, mediaId, {
   processor = createWatermarkedPreview,
   newId = randomUUID,

@@ -7,6 +7,8 @@ const CHUNK = 100;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CONVERSATION_FIELDS = 'conversation_id,photographer_id,client_id,created_at,updated_at';
 const MESSAGE_FIELDS = 'message_id,conversation_id,sender_id,message,is_read,created_at';
+
+// Custom error class for photographer message-related errors, including status and code
 export class PhotographerMessageError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
@@ -17,6 +19,8 @@ async function read(query, label) {
   if (error) throw failure(label, error);
   return data;
 }
+
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function readAll(buildQuery, label) {
   const rows = [];
   for (let offset = 0; ; offset += PAGE) {
@@ -25,10 +29,14 @@ async function readAll(buildQuery, label) {
     if (batch.length < PAGE) return rows;
   }
 }
+
+// Helper function to get the photographer ID for the authenticated user, throwing an error if not a photographer
 async function context(db, userId) {
   const photographer = await resolvePhotographer(db, userId);
   return photographer.photographer_id;
 }
+
+// Helper function to validate a message body, ensuring it is a non-empty string and within length limits
 async function ownedClient(db, photographerId, clientId) {
   if (typeof clientId !== 'string' || !UUID.test(clientId)) invalid('INVALID_CLIENT_ID', 'A valid client ID is required.');
   const client = await read(db.from('clients').select('client_id,user_id,photographer_id')
@@ -36,6 +44,8 @@ async function ownedClient(db, photographerId, clientId) {
   if (!client) throw new PhotographerMessageError(404, 'CLIENT_NOT_FOUND', 'Client not found.');
   return client;
 }
+
+// Helper function to get a specific conversation owned by the photographer, throwing an error if not
 async function ownedConversation(db, photographerId, conversationId) {
   if (typeof conversationId !== 'string' || !UUID.test(conversationId)) invalid('INVALID_CONVERSATION_ID', 'A valid conversation ID is required.');
   const conversation = await read(db.from('conversations').select(CONVERSATION_FIELDS)
@@ -43,6 +53,8 @@ async function ownedConversation(db, photographerId, conversationId) {
   if (!conversation) throw new PhotographerMessageError(404, 'CONVERSATION_NOT_FOUND', 'Conversation not found.');
   return conversation;
 }
+
+// Helper function to validate a message body, ensuring it is a non-empty string and within length limits
 export async function getPhotographerMessages(db, userId) {
   const photographerId = await context(db, userId);
   const clients = await readAll(() => db.from('clients').select('client_id,user_id')
@@ -78,6 +90,8 @@ export async function getPhotographerMessages(db, userId) {
   });
   return { currentUserId: userId, photographerId, clients: enrichedClients, conversations: built };
 }
+
+// Helper function to ensure a conversation exists between the photographer and client, creating one if necessary
 export async function ensurePhotographerConversation(db, userId, body) {
   const photographerId = await context(db, userId);
   const client = await ownedClient(db, photographerId, body?.clientId);
@@ -95,6 +109,8 @@ export async function ensurePhotographerConversation(db, userId, body) {
   if (error) throw failure('create conversation', error);
   return data;
 }
+
+// Main function to send a message from the photographer to a client, ensuring the conversation exists and the message is valid
 export async function sendPhotographerMessage(db, userId, body) {
   const message = validateMessageBody(body?.message);
   const photographerId = await context(db, userId);
@@ -102,6 +118,8 @@ export async function sendPhotographerMessage(db, userId, body) {
   return await read(db.from('messages').insert({ conversation_id: conversation.conversation_id, sender_id: userId, message })
     .select(MESSAGE_FIELDS).single(), 'send message');
 }
+
+// Main function to mark messages as read in a conversation, ensuring the photographer owns the conversation and only marking messages sent by the client
 export async function markPhotographerMessagesRead(db, userId, body) {
   const photographerId = await context(db, userId);
   const conversation = await ownedConversation(db, photographerId, body?.conversationId);

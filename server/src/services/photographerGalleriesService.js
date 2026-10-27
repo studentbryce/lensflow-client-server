@@ -2,6 +2,7 @@ import { BookingRequestError } from './bookingCreateService.js';
 import { resolvePhotographer } from './photographerBookingFormService.js';
 import { registeredGalleryMediaPaths, removeRegisteredGalleryFiles } from './galleryMediaDeletion.js';
 
+// constants for validation and pagination
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE = 400;
 const GALLERY = 'gallery_id,photographer_id,client_id,booking_id,name,description,is_published,allow_downloads,created_at,updated_at';
@@ -10,11 +11,13 @@ const BOOKING = 'booking_id,client_id,service_id,booking_date,start_time,end_tim
 const CLIENT = 'client_id,user_id';
 const PROFILE = 'user_id,first_name,last_name,email,phone';
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
+// Helper function to validate a UUID string, throwing a BookingRequestError if invalid
 async function read(query, message) {
   const { data, error } = await query;
   if (error) { const err = new Error(message); err.cause = error; throw err; }
   return data;
 }
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function all(build, message) {
   const rows = [];
   for (let offset=0;;offset+=PAGE) {
@@ -23,14 +26,17 @@ async function all(build, message) {
     if (batch.length<PAGE) return rows;
   }
 }
+// Helper function to validate a UUID string, throwing a BookingRequestError if invalid
 function uuid(value, code='INVALID_ID') {
   if (typeof value !== 'string' || !UUID.test(value)) fail(400,code,'A valid identifier is required.');
   return value;
 }
+// Helper function to validate the request body for gallery creation or update, ensuring required fields are present and valid
 function fields(body, allowed) {
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k=>!allowed.includes(k)))
     fail(400,'INVALID_FIELDS','Unexpected or missing request fields.');
 }
+// Helper function to validate the request body for gallery creation or update, ensuring required fields are present and valid
 export function galleryChanges(body, create=false) {
   fields(body, ['client_id','booking_id','name','description','is_published','allow_downloads']);
   if (create) { uuid(body.client_id,'INVALID_CLIENT'); uuid(body.booking_id,'INVALID_BOOKING'); }
@@ -51,12 +57,16 @@ export function galleryChanges(body, create=false) {
   if (!create && !Object.keys(changes).length) fail(400,'EMPTY_UPDATE','No gallery changes supplied.');
   return changes;
 }
+
+// Helper function to get a photographer by user ID, throwing a BookingRequestError if not found
 async function ownedGallery(db, photographerId, id) {
   uuid(id,'INVALID_GALLERY');
   const gallery=await read(db.from('galleries').select(GALLERY).eq('gallery_id',id).eq('photographer_id',photographerId).maybeSingle(),'Unable to load gallery.');
   if (!gallery) fail(404,'GALLERY_NOT_FOUND','Gallery could not be found.');
   return gallery;
 }
+
+// Helper function to get a client and booking for a photographer, ensuring the booking belongs to the client and photographer
 async function clientAndBooking(db, photographerId, clientId, bookingId) {
   const [client,booking]=await Promise.all([
     read(db.from('clients').select(CLIENT).eq('client_id',clientId).eq('photographer_id',photographerId).maybeSingle(),'Unable to verify client.'),
@@ -65,6 +75,8 @@ async function clientAndBooking(db, photographerId, clientId, bookingId) {
   if (!client || !booking || booking.client_id!==clientId) fail(400,'INVALID_BOOKING','Selected booking must belong to the selected client and photographer.');
   return {client,booking};
 }
+
+// Helper function to get the related client and booking for a gallery, ensuring they belong to the photographer
 async function related(db, photographerId, gallery) {
   const [client,booking] = await Promise.all([
     read(db.from('clients').select(CLIENT).eq('client_id',gallery.client_id).eq('photographer_id',photographerId).maybeSingle(),'Unable to load gallery client.'),
@@ -73,6 +85,8 @@ async function related(db, photographerId, gallery) {
   const profile=client?.user_id ? await read(db.from('profiles').select(PROFILE).eq('user_id',client.user_id).maybeSingle(),'Unable to load client profile.') : null;
   return {client:client?{...client,profile:profile??null}:null,booking:booking??null};
 }
+
+// Main function to list the photographer's galleries, clients, profiles, bookings, and media, including associated details
 export async function listPhotographerGalleries(db,userId) {
   const p=await resolvePhotographer(db,userId), id=p.photographer_id;
   const [galleries,clients,bookings,media]=await Promise.all([
@@ -87,10 +101,14 @@ export async function listPhotographerGalleries(db,userId) {
   const galleryIds=new Set(galleries.map(g=>g.gallery_id));
   return {photographer_id:id,galleries,clients,profiles,bookings,media:media.filter(m=>galleryIds.has(m.gallery_id))};
 }
+
+// Helper function to get the photographer's gallery options, including clients, profiles, bookings, and existing galleries
 export async function getPhotographerGalleryOptions(db,userId) {
   const {photographer_id,clients,profiles,bookings,galleries}=await listPhotographerGalleries(db,userId);
   return {photographer_id,clients,profiles,bookings,existing_galleries:galleries.map(g=>({gallery_id:g.gallery_id,booking_id:g.booking_id,client_id:g.client_id,name:g.name}))};
 }
+
+// Helper function to get a specific gallery for a photographer, including the related client and booking
 export async function getPhotographerGallery(db,userId,id) {
   const p=await resolvePhotographer(db,userId);
   const gallery=await ownedGallery(db,p.photographer_id,id);
@@ -100,6 +118,8 @@ export async function getPhotographerGallery(db,userId,id) {
   ]);
   return {photographer_id:p.photographer_id,gallery,client,booking,media};
 }
+
+// Helper function to validate a client ID, throwing a BookingRequestError if invalid
 export async function createPhotographerGallery(db,userId,body) {
   const changes=galleryChanges(body,true), p=await resolvePhotographer(db,userId);
   await clientAndBooking(db,p.photographer_id,body.client_id,body.booking_id);
@@ -107,6 +127,8 @@ export async function createPhotographerGallery(db,userId,body) {
   if (duplicate) fail(409,'GALLERY_EXISTS','This booking already has a gallery.');
   return read(db.from('galleries').insert({...changes,photographer_id:p.photographer_id,client_id:body.client_id,booking_id:body.booking_id}).select(GALLERY).single(),'Unable to create gallery.');
 }
+
+// Main function to update a specific gallery for a photographer, including its name, description, and settings
 export async function updatePhotographerGallery(db,userId,id,body) {
   uuid(id,'INVALID_GALLERY');
   const changes=galleryChanges(body), p=await resolvePhotographer(db,userId);
@@ -115,6 +137,8 @@ export async function updatePhotographerGallery(db,userId,id,body) {
   if(!updated)fail(404,'GALLERY_NOT_FOUND','Gallery could not be found.');
   return updated;
 }
+
+// Main function to delete a specific gallery for a photographer, including its media and database references
 export function validateMedia(body, photographerId, galleryId) {
   fields(body,['file_name','storage_path','media_type','mime_type','file_size','is_downloadable']);
   if (typeof body.file_name!=='string'||!body.file_name.trim()||body.file_name.length>255) fail(400,'INVALID_FILE','Invalid file name.');
@@ -128,6 +152,8 @@ export function validateMedia(body, photographerId, galleryId) {
   if (body.is_downloadable!==undefined && typeof body.is_downloadable!=='boolean') fail(400,'INVALID_SETTING','Invalid download setting.');
   return {file_name:body.file_name,storage_path:body.storage_path,media_type:body.media_type,mime_type:mime,file_size:body.file_size,is_downloadable:body.is_downloadable??true};
 }
+
+// Main function to create a new media entry for a specific gallery, ensuring the media is valid and not already registered
 export async function createPhotographerGalleryMedia(db,userId,id,body) {
   const p=await resolvePhotographer(db,userId);
   await ownedGallery(db,p.photographer_id,id);
@@ -138,6 +164,7 @@ export async function createPhotographerGalleryMedia(db,userId,id,body) {
 }
 // Deletion is intentionally Storage-first. If Storage fails, the database
 // references are retained so the photographer can retry safely.
+// Main function to delete a specific media entry for a gallery, ensuring the media is valid and belongs to the photographer
 export async function deletePhotographerGalleryMedia(db,userId,id,mediaId) {
   uuid(mediaId,'INVALID_MEDIA');
   const p=await resolvePhotographer(db,userId);
@@ -150,6 +177,7 @@ export async function deletePhotographerGalleryMedia(db,userId,id,mediaId) {
   if(!deleted)fail(409,'MEDIA_DELETE_INCOMPLETE','Media could not be deleted. Refresh and try again.');
   return {deleted:true,media_id:mediaId};
 }
+// Main function to delete a specific gallery for a photographer, including its media and database references
 export async function deletePhotographerGallery(db,userId,id) {
   const p=await resolvePhotographer(db,userId);
   await ownedGallery(db,p.photographer_id,id);

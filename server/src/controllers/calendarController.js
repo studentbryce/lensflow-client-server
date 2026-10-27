@@ -2,6 +2,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { getCalendarData, createCalendarRule, createCalendarException, deleteCalendarRecord } from '../services/calendarService.js';
 
+// Generic response handler for calendar operations
 async function respond(req, res, next, operation, status = 200) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
@@ -14,6 +15,7 @@ async function respond(req, res, next, operation, status = 200) {
     next(error);
   }
 }
+// Controller functions for calendar operations
 export const getCalendar = (req, res, next) => respond(req, res, next, (db, userId) => getCalendarData(db, userId, req.query.start, req.query.end));
 export const postRule = (req, res, next) => respond(req, res, next, (db, userId) => createCalendarRule(db, userId, req.body), 201);
 export const postException = (req, res, next) => respond(req, res, next, (db, userId) => createCalendarException(db, userId, req.body), 201);

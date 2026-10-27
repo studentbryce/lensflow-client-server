@@ -6,6 +6,7 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { findBookingById } from './bookingService.js';
 
+// Helper function to query the database and return a single record or null, throwing an error on failure
 async function singleOrFail(query, message) {
     const { data, error } = await query;
     if (error) {
@@ -16,6 +17,7 @@ async function singleOrFail(query, message) {
     return data ?? null;
 }
 
+// Function to get the invoice and gallery related to a booking for a photographer
 export async function getPhotographerBookingRelated(database, userId, bookingId) {
     const booking = await findBookingById(database, bookingId);
     if (!booking) {

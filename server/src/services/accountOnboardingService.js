@@ -1,26 +1,38 @@
 /** Idempotent onboarding via verified Supabase user + user-scoped RLS. No service-role key. */
+
+// Define a regular expression for validating UUIDs.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export class OnboardingError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+
+// Helper function to create a failure error with a label and cause
 function failure(label, cause) { const error = new Error(`Unable to ${label}.`); error.cause = cause; return error; }
 async function query(request, label) {
   const { data, error } = await request;
   if (error) throw failure(label, error);
   return data;
 }
+
+// Helper function to clean and validate text input
 function cleanText(value, max, label) {
   const text = typeof value === 'string' ? value.trim() : '';
   if (!text || text.length > max) throw new OnboardingError(422, 'INCOMPLETE_SIGNUP', `${label} is missing or invalid.`);
   return text;
 }
+
+// Helper function to slugify a string value for use in URLs
 function slugify(value) {
   return String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
 }
+
+// Function to get the account profile for onboarding
 export async function getAccountProfile(db, user) {
   if (!user?.id) throw new OnboardingError(401, 'UNAUTHORIZED', 'Please sign in.');
   return await query(db.from('profiles').select('*').eq('user_id', user.id).maybeSingle(), 'load account profile');
 }
+
+// Function to complete the account onboarding process
 export async function completeAccount(db, user) {
   if (!user?.id || !user.email) throw new OnboardingError(401, 'UNAUTHORIZED', 'Please sign in.');
   const metadata = user.user_metadata ?? {};

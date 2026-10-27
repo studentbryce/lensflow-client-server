@@ -8,19 +8,24 @@ const REVIEW_FIELDS = 'review_id,photographer_id,client_id,booking_id,rating,com
 const BOOKING_FIELDS = 'booking_id,booking_date,start_time,end_time,location,status,service_id,services(name)';
 const CLIENT_FIELDS = 'client_id,user_id,profiles(first_name,last_name)';
 
+// Custom error class for photographer review-related errors, including HTTP status and error code
 export class PhotographerReviewError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
+// Helper function to throw a PhotographerReviewError with a specific status, code, and message
 function dbError(label, cause) {
   const error = new Error(`Unable to ${label}.`);
   error.cause = cause;
   return error;
 }
+
+// Helper function to read a single row from a query builder, throwing an error if the query fails
 async function read(query, label) {
   const { data, error } = await query;
   if (error) throw dbError(label, error);
   return data;
 }
+// Helper function to read all rows from a query builder in batches, handling pagination
 async function readAll(build, label) {
   const out = [];
   for (let offset = 0; ; offset += PAGE) {
@@ -29,6 +34,7 @@ async function readAll(build, label) {
     if (rows.length < PAGE) return out;
   }
 }
+// Helper function to get unique IDs from an array of items based on a specific field
 function uniqueIds(items, field) { return [...new Set(items.map(x => x[field]).filter(Boolean))]; }
 async function relatedRows(db, table, fields, ids, ownerId) {
   const rows = [];
@@ -40,6 +46,7 @@ async function relatedRows(db, table, fields, ids, ownerId) {
   }
   return rows;
 }
+// Main function to list the photographer's reviews, including related client and booking information
 export async function listPhotographerReviews(db, userId) {
   const photographer = await resolvePhotographer(db, userId);
   const photographerId = photographer.photographer_id;
@@ -58,6 +65,7 @@ export async function listPhotographerReviews(db, userId) {
       booking: bookingMap.get(r.booking_id) ?? null })),
   };
 }
+// Helper function to validate the moderation input, ensuring the review ID is a valid UUID and the status is either 'approved' or 'rejected'
 export function validateModerationInput(reviewId, body) {
   if (typeof reviewId !== 'string' || !UUID.test(reviewId)) {
     throw new PhotographerReviewError(400, 'INVALID_REVIEW_ID', 'A valid review ID is required.');
@@ -69,6 +77,7 @@ export function validateModerationInput(reviewId, body) {
   }
   return body.status;
 }
+// Main function to moderate a photographer's review, ensuring the photographer owns the review and updating its status
 export async function moderatePhotographerReview(db, userId, reviewId, body) {
   // Validate before accessing the database or invoking the SECURITY DEFINER RPC.
   const status = validateModerationInput(reviewId, body);

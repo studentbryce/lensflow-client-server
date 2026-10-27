@@ -1,3 +1,4 @@
+// Main application setup and routing
 import express from 'express';
 import healthRoutes from './routes/healthRoutes.js';
 import authRoutes from './routes/authRoutes.js';
@@ -21,10 +22,13 @@ import messageNotificationRoutes from './routes/messageNotificationRoutes.js';
 import photographerReviewsRoutes from './routes/photographerReviewsRoutes.js';
 import publicWebsiteRoutes from './routes/publicWebsiteRoutes.js';
 
+// Create an Express application instance
 const app = express();
 
+// Middleware to parse JSON request bodies
 app.use(express.json());
 
+// Register route handlers for various API endpoints
 app.use('/api/health', healthRoutes);
 app.use('/api/public', publicWebsiteRoutes);
 app.use('/api/auth', authRoutes);

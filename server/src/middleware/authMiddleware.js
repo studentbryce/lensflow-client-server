@@ -1,5 +1,6 @@
 import { supabaseAuth } from '../config/supabaseAuth.js';
 
+// Middleware to require authentication for protected routes
 export async function requireAuth(req, res, next) {
     const authorization = req.get('authorization') ?? '';
     const match = /^Bearer\s+(\S+)$/i.exec(authorization);

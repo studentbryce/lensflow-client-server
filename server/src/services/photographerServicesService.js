@@ -2,23 +2,27 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { resolvePhotographer } from './photographerBookingFormService.js';
 
+// Constants for UUID validation, pagination, and service fields
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE = 500;
 const FIELDS = 'service_id,photographer_id,name,description,price,duration_minutes,deposit_amount,image_url,is_active,created_at,updated_at';
 const EDITABLE = ['name', 'description', 'price', 'duration_minutes', 'deposit_amount', 'is_active', 'image_path'];
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
 
+// Helper function to read a single row from a query builder, throwing an error if the query fails
 async function read(query, message) {
   const { data, error } = await query;
   if (error) { const err = new Error(message); err.cause = error; throw err; }
   return data;
 }
 
+// Helper function to read all rows from a query builder in batches, handling pagination
 export function validateServiceId(id) {
   if (typeof id !== 'string' || !UUID.test(id)) fail(400, 'INVALID_SERVICE_ID', 'A valid service ID is required.');
   return id;
 }
 
+// Helper function to validate the service body for creation or update, ensuring required fields are present and valid
 export function validateServiceBody(body, { create = false } = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail(400, 'INVALID_BODY', 'A JSON service object is required.');
   const keys = Object.keys(body);
@@ -56,9 +60,10 @@ export function validateServiceBody(body, { create = false } = {}) {
   return out;
 }
 
+// Custom error class for photographer service-related errors, including HTTP status and error code
 export function resolveServiceImageUrl(db, photographerId, imagePath) {
   if (imagePath === null) return null;
-  // Only paths in the current photographer's service-media folder can be linked.
+  // Validate that the image path belongs to the authenticated photographer and matches the expected pattern for service images
   const pattern = new RegExp(`^${photographerId}/services/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|png|webp)$`, 'i');
   if (!pattern.test(imagePath)) fail(400, 'INVALID_IMAGE', 'Service image must belong to the authenticated photographer.');
   const { data } = db.storage.from('service-media').getPublicUrl(imagePath);
@@ -66,6 +71,7 @@ export function resolveServiceImageUrl(db, photographerId, imagePath) {
   return data.publicUrl;
 }
 
+// Custom error class for photographer service-related errors, including HTTP status and error code
 export async function listPhotographerServices(db, userId) {
   const photographer = await resolvePhotographer(db, userId);
   const all = [];
@@ -79,11 +85,13 @@ export async function listPhotographerServices(db, userId) {
   }
 }
 
+// Helper function to get the photographer ID for the authenticated user, throwing an error if not a photographer
 export async function getPhotographerServicesContext(db, userId) {
   const photographer = await resolvePhotographer(db, userId);
   return { photographer_id: photographer.photographer_id };
 }
 
+// Helper function to get a specific service owned by the photographer, throwing an error if not found
 async function ownedService(db, photographerId, serviceId) {
   const service = await read(db.from('services').select(FIELDS)
     .eq('service_id', serviceId).eq('photographer_id', photographerId).maybeSingle(), 'Unable to load service.');
@@ -91,12 +99,14 @@ async function ownedService(db, photographerId, serviceId) {
   return service;
 }
 
+// Main function to get a specific service owned by the photographer, ensuring the photographer owns the service
 export async function getPhotographerService(db, userId, serviceId) {
   validateServiceId(serviceId);
   const photographer = await resolvePhotographer(db, userId);
   return ownedService(db, photographer.photographer_id, serviceId);
 }
 
+// Main function to create a new service for the photographer, validating the input and ensuring the photographer owns the service
 export async function createPhotographerService(db, userId, body) {
   const changes = validateServiceBody(body, { create: true });
   const photographer = await resolvePhotographer(db, userId);
@@ -108,6 +118,7 @@ export async function createPhotographerService(db, userId, body) {
   return row;
 }
 
+// Main function to update an existing service for the photographer, validating the input and ensuring the photographer owns the service
 export async function updatePhotographerService(db, userId, serviceId, body) {
   validateServiceId(serviceId);
   const changes = validateServiceBody(body);

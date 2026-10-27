@@ -2,6 +2,7 @@
 import { BookingRequestError } from './bookingCreateService.js';
 import { resolvePhotographer } from './photographerBookingFormService.js';
 
+// Helper function to throw a BookingRequestError with a given status, code, and message
 const fail = (status, code, message) => { throw new BookingRequestError(status, code, message); };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
@@ -9,33 +10,39 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RULE_FIELDS = ['day_of_week', 'start_time', 'end_time', 'is_available'];
 const EXCEPTION_FIELDS = ['exception_date', 'start_time', 'end_time', 'is_available', 'reason'];
 
+// Helper function to read data from a Supabase query and throw a BookingRequestError on failure
 async function read(query, message) {
   const { data, error } = await query;
   if (error) { const err = new Error(message); err.cause = error; throw err; }
   return data;
 }
+// Helper function to validate a date string in YYYY-MM-DD format
 function dateValid(value) {
   if (typeof value !== 'string' || !DATE.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
+// Helper function to validate a time string in HH:MM or HH:MM:SS format
 function validTime(value) { return typeof value === 'string' && TIME.test(value); }
 function timeSeconds(value) {
   const [hours, minutes, seconds = 0] = value.split(':').map(Number);
   return hours * 3600 + minutes * 60 + seconds;
 }
+// Helper function to validate the request body for calendar rules and exceptions
 function validateBody(body, fields) {
   if (!body || typeof body !== 'object' || Array.isArray(body) ||
       Object.keys(body).some(key => !fields.includes(key))) {
     fail(400, 'INVALID_FIELDS', `Only ${fields.join(', ')} are accepted.`);
   }
 }
+// Helper function to validate the start and end dates for calendar queries
 export function validateCalendarRange(start, end) {
   if (!dateValid(start) || !dateValid(end)) fail(400, 'INVALID_DATE', 'Valid start and end dates are required.');
   const days = (Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000;
   if (days < 0 || days > 45) fail(400, 'INVALID_RANGE', 'Calendar range must be 0–45 days.');
   return { start, end };
 }
+// Helper function to validate a calendar rule object
 export function validateRule(body) {
   validateBody(body, RULE_FIELDS);
   if (!Number.isInteger(body.day_of_week) || body.day_of_week < 0 || body.day_of_week > 6 ||
@@ -45,6 +52,7 @@ export function validateRule(body) {
   }
   return Object.fromEntries(RULE_FIELDS.map(field => [field, body[field]]));
 }
+// Helper function to validate a calendar exception object
 export function validateException(body) {
   validateBody(body, EXCEPTION_FIELDS);
   if (!dateValid(body.exception_date) || typeof body.is_available !== 'boolean' ||
@@ -59,6 +67,7 @@ export function validateException(body) {
     end_time: fullDay ? null : body.end_time, is_available: body.is_available,
     reason: body.reason?.trim() || null };
 }
+// Get the calendar data for a photographer, including bookings, availability rules, and exceptions
 export async function getCalendarData(db, userId, start, end) {
   validateCalendarRange(start, end);
   const photographer = await resolvePhotographer(db, userId);
@@ -87,16 +96,19 @@ export async function getCalendarData(db, userId, start, end) {
   return { photographer_id: id, bookings: (bookings ?? []).map(b => ({ ...b, client: byClient.get(b.client_id) ?? null, service: byService.get(b.service_id) ?? null })),
     availability_rules: rules ?? [], availability_exceptions: exceptions ?? [] };
 }
+// Create a new calendar rule for a photographer, validating inputs and checking ownership
 export async function createCalendarRule(db, userId, body) {
   const input = validateRule(body);
   const photographer = await resolvePhotographer(db, userId);
   return read(db.from('availability_rules').insert({ ...input, photographer_id: photographer.photographer_id }).select('availability_rule_id, photographer_id, day_of_week, start_time, end_time, is_available').single(), 'Unable to create availability rule.');
 }
+// Create a new calendar exception for a photographer, validating inputs and checking ownership
 export async function createCalendarException(db, userId, body) {
   const input = validateException(body);
   const photographer = await resolvePhotographer(db, userId);
   return read(db.from('availability_exceptions').insert({ ...input, photographer_id: photographer.photographer_id }).select('exception_id, photographer_id, exception_date, start_time, end_time, is_available, reason').single(), 'Unable to create availability exception.');
 }
+// Delete a calendar rule or exception for a photographer, validating inputs and checking ownership
 export async function deleteCalendarRecord(db, userId, type, recordId) {
   if (typeof recordId !== 'string' || !UUID.test(recordId)) fail(400, 'INVALID_ID', 'A valid record UUID is required.');
   const photographer = await resolvePhotographer(db, userId);

@@ -4,8 +4,10 @@ import { getBookingBusyTimes } from '../controllers/bookingBusyTimesController.j
 import { getPhotographerBookingOptions, getPhotographerBookingAvailability } from '../controllers/photographerBookingFormController.js';
 import { getBookings, getBookingById, postBooking, patchBooking, deleteBooking, patchBookingStatus, getBookingRelated } from '../controllers/bookingController.js';
 
+// Router for booking-related routes
 const router = Router();
 
+// Booking routes with authentication middleware
 router.get('/', requireAuth, getBookings);
 router.get('/new/options', requireAuth, getPhotographerBookingOptions);
 router.get('/availability', requireAuth, getPhotographerBookingAvailability);

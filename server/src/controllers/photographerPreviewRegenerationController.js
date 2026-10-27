@@ -6,6 +6,7 @@ import {
   regeneratePhotographerPreview,
 } from '../services/photographerPreviewRegenerationService.js';
 
+// Generic error response handler for photographer preview regeneration operations
 function handleError(error, res, next) {
   if (error instanceof PreviewRegenerationError || error instanceof BookingRequestError) {
     return res.status(error.status).set('Cache-Control', 'no-store').json({
@@ -15,6 +16,7 @@ function handleError(error, res, next) {
   return next(error);
 }
 
+// Controller function to check if a media preview can be regenerated for a photographer
 export async function previewRegenerationCheck(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
@@ -23,6 +25,7 @@ export async function previewRegenerationCheck(req, res, next) {
   } catch (error) { return handleError(error, res, next); }
 }
 
+// Controller function to regenerate a media preview for a photographer's media item
 export async function regenerateMediaPreview(req, res, next) {
   if (process.env.ENABLE_MEDIA_PREVIEW_REGENERATION !== 'true') {
     return res.status(503).set('Cache-Control', 'no-store').json({

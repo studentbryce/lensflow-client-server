@@ -1,6 +1,8 @@
 import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { listPhotographerGalleries, getPhotographerGalleryOptions, getPhotographerGallery, createPhotographerGallery, updatePhotographerGallery, createPhotographerGalleryMedia, deletePhotographerGalleryMedia, deletePhotographerGallery } from '../services/photographerGalleriesService.js';
+
+// Generic wrapper function to handle responses and errors for photographer gallery operations
 const wrap=(fn,status=200)=>async(req,res,next)=>{
   try {
     const db=createUserSupabaseClient(req.accessToken);
@@ -13,6 +15,8 @@ const wrap=(fn,status=200)=>async(req,res,next)=>{
     next(error);
   }
 };
+
+// Controller functions for photographer gallery operations
 export const listGalleries=wrap(listPhotographerGalleries);
 export const galleryOptions=wrap(getPhotographerGalleryOptions);
 export const getGallery=wrap(getPhotographerGallery);

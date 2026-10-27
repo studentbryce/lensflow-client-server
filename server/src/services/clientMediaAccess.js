@@ -8,6 +8,7 @@
  */
 import { originalPathIsValid, previewPathForMedia, isUuid } from './mediaPreviewPaths.js';
 
+// Helper function to determine the display asset for a media item in a gallery, based on ownership, download permissions, and media type
 export function clientDisplayAsset(item, gallery) {
   if (!item || !gallery || !isUuid(item.media_id) || !isUuid(item.gallery_id)
       || !isUuid(item.photographer_id) || item.gallery_id !== gallery.gallery_id

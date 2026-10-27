@@ -5,17 +5,18 @@ import { resolvePhotographer } from './photographerBookingFormService.js';
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const INVOICE_PAGE_SIZE = 500;
 
+// Throw a BookingRequestError for invalid date input, indicating the expected format
 function invalidDate() {
   throw new BookingRequestError(400, 'INVALID_DATE', 'A real date in YYYY-MM-DD format is required.');
 }
-
+// Helper function to query the database and throw a BookingRequestError on failure
 export function validateDashboardDate(today) {
   if (typeof today !== 'string' || !DATE.test(today)) invalidDate();
   const parsed = new Date(`${today}T00:00:00Z`);
   if (!Number.isFinite(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== today) invalidDate();
   return today;
 }
-
+// Helper function to query the database and return data or throw an error with a message and cause
 async function read(query, message) {
   const { data, error, count } = await query;
   if (error) {
@@ -30,6 +31,7 @@ async function read(query, message) {
  * Iterate outstanding invoices rather than silently truncating the amount at
  * the default PostgREST maximum row limit. Return only the three earliest due.
  */
+// Main function to get the outstanding invoices for a photographer, including total amount and the three earliest due invoices
 export async function getOutstandingInvoices(db, photographerId) {
   let outstanding = 0;
   const candidates = [];
@@ -56,6 +58,7 @@ export async function getOutstandingInvoices(db, photographerId) {
   return { outstanding, invoices };
 }
 
+// Main function to get the photographer's dashboard summary, including upcoming bookings, client count, recent galleries, and outstanding invoices
 export async function getPhotographerDashboard(db, userId, today) {
   const date = validateDashboardDate(today);
   const photographer = await resolvePhotographer(db, userId);

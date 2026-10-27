@@ -1,6 +1,8 @@
 import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { listPhotographerInvoices, getPhotographerInvoiceOptions, getPhotographerInvoice, createPhotographerInvoice, updatePhotographerInvoice, setPhotographerInvoiceStatus, deletePhotographerInvoice } from '../services/photographerInvoicesService.js';
+
+// Generic wrapper function to handle responses and errors for photographer invoice operations
 const wrap=(action,status=200)=>async(req,res,next)=>{
   try{
     const db=createUserSupabaseClient(req.accessToken);
@@ -13,6 +15,8 @@ const wrap=(action,status=200)=>async(req,res,next)=>{
     return next(error);
   }
 };
+
+// Controller functions for photographer invoice operations
 export const getInvoices=wrap(listPhotographerInvoices);
 export const getInvoiceOptions=wrap(getPhotographerInvoiceOptions);
 export const getInvoice=wrap(getPhotographerInvoice);

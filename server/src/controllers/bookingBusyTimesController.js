@@ -2,6 +2,7 @@ import { createUserSupabaseClient } from '../config/supabaseUser.js';
 import { BookingRequestError } from '../services/bookingCreateService.js';
 import { getBusyTimes } from '../services/bookingBusyTimesService.js';
 
+// Controller function to get the busy times for bookings
 export async function getBookingBusyTimes(req, res, next) {
   try {
     const db = createUserSupabaseClient(req.accessToken);
