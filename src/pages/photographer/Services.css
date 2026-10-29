@@ -175,7 +175,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   outline: none;
-  background: var(--bg);
+  background: var(--color-surface);
   color: var(--text-h);
   font-family: "Open Sans", sans-serif;
   font-size: 13px;
