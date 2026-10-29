@@ -100,7 +100,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   outline: none;
-  background: var(--bg);
+  background: var(--color-surface);
   color: var(--text-h);
   font-family: "Open Sans", sans-serif;
   font-size: 12px;
@@ -155,7 +155,7 @@
   padding: 22px 24px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg);
+  background: var(--color-surface);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,

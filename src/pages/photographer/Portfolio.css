@@ -58,7 +58,7 @@
     padding: 0 20px;
     border: 0;
     border-radius: 10px;
-    background: #1f2937;
+    background: var(--accent);
     color: white;
     font-size: 0.92rem;
     font-weight: 650;
@@ -98,7 +98,7 @@
     padding: 20px;
     border: 1px solid #e5e7eb;
     border-radius: 14px;
-    background: #ffffff;
+    background: var(--color-surface);
 }
 
 .portfolio-summary-icon {
@@ -177,7 +177,7 @@
     overflow: hidden;
     border: 1px solid #e5e7eb;
     border-radius: 16px;
-    background: #ffffff;
+    background: var(--color-surface);
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
     transition:
         transform 0.2s ease,
@@ -234,7 +234,7 @@
 }
 
 .portfolio-drag-handle:hover {
-    background: #ffffff;
+    background: var(--color-surface);
     color: #111827;
     transform: scale(1.04);
 }
@@ -281,7 +281,7 @@
     border: 1px solid #e5e7eb;
     border-radius: 12px;
 
-    background: #ffffff;
+    background: var(--color-surface);
 
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.03);
 }
@@ -336,7 +336,7 @@
 
 .portfolio-order-toolbar.unsaved {
     border-color: #d7dce2;
-    background: #fafafa;
+    background: var(--color-surface);
 }
 
 .portfolio-order-toolbar.unsaved .portfolio-order-icon {
@@ -354,11 +354,11 @@
     min-height: 40px;
     padding: 0 16px;
 
-    border: 1px solid #1f2937;
+    border: 1px solid var(--accent);
     border-radius: 8px;
 
-    background: #1f2937;
-    color: #ffffff;
+    background: var(--accent);
+    color: var(--color-surface);
 
     font-size: 0.78rem;
     font-weight: 700;
@@ -557,7 +557,7 @@
     padding: 0 8px;
     border: 1px solid #dfe3e8;
     border-radius: 8px;
-    background: #ffffff;
+    background: var(--color-surface);
     font-size: 0.76rem;
     font-weight: 650;
     cursor: pointer;
@@ -601,7 +601,7 @@
     border: 1px dashed #d8dce1;
     border-radius: 18px;
     text-align: center;
-    background: #fafafa;
+    background: var(--color-surface);
 }
 
 .portfolio-empty-icon {
@@ -681,7 +681,7 @@
     max-width: 440px;
     padding: 30px;
     border-radius: 16px;
-    background: #ffffff;
+    background: var(--color-surface);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
@@ -733,7 +733,7 @@
 
 .portfolio-modal-cancel {
     border: 1px solid #dfe3e8;
-    background: #ffffff;
+    background: var(--color-surface);
 }
 
 .portfolio-modal-delete {

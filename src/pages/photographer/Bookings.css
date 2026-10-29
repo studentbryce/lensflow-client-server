@@ -195,7 +195,7 @@
   border: 1px solid var(--border);
   border-radius: 12px;
 
-  background: var(--bg);
+  background: var(--color-surface);
 
   transition:
     transform 0.2s ease,
@@ -420,7 +420,7 @@
 }
 
 .past-section .booking-card {
-  background: var(--social-bg);
+  background: var(--color-surface-soft);
 }
 
 /* =========================

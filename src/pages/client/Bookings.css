@@ -582,7 +582,7 @@
   gap: 24px;
   padding: 20px 22px;
   border-color: var(--border);
-  background: var(--bg);
+  background: var(--color-surface);
   box-shadow: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }

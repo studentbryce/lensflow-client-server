@@ -313,7 +313,7 @@
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 13px;
-    background: var(--bg);
+    background: var(--color-surface);
     box-shadow: var(--shadow);
     transition:
         transform 0.2s ease,
@@ -698,7 +698,7 @@
     padding: 50px 25px;
     border: 1px dashed var(--border);
     border-radius: 13px;
-    background: var(--bg);
+    background: var(--color-surface);
     text-align: center;
     box-sizing: border-box;
 }

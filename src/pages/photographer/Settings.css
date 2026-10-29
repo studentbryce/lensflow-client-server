@@ -307,10 +307,6 @@
    FORM
    ============================================================ */
 
-.settings-form {
-  max-width: 820px;
-}
-
 
 .settings-form-grid {
   display: grid;
@@ -716,8 +712,6 @@
   border-radius: var(--border-radius-medium);
 
   background: var(--color-surface-soft);
-
-  max-width: 820px;
 
   margin-top: 20px;
 }

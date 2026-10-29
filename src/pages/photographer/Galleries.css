@@ -124,7 +124,7 @@
   padding: 17px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--bg);
+  background: var(--color-surface);
   box-shadow: var(--shadow);
 }
 
@@ -703,7 +703,7 @@
   padding: 50px 25px;
   border: 1px dashed var(--border);
   border-radius: 16px;
-  background: var(--bg);
+  background: var(--color-surface);
   text-align: center;
 }
 

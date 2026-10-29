@@ -362,6 +362,7 @@
   border: 1px dashed var(--color-border);
   border-radius: 12px;
   text-align: center;
+  background: var(--color-surface);
 }
 
 .client-invoices-state>svg {
