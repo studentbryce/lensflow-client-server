@@ -983,6 +983,7 @@
   font: .8rem/1.45 "Open Sans", sans-serif;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .client-invoice-card-actions {

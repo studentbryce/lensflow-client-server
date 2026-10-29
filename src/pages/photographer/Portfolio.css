@@ -532,6 +532,7 @@
     opacity: 0.68;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
 }
 
 .portfolio-card-meta {
