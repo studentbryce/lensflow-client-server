@@ -408,6 +408,14 @@ export async function createWatermarkedPreview(
     const fontBase64 =
       await loadWatermarkFontBase64();
 
+    console.info('[LensFlow preview font diagnostic]', {
+      runtime: process.version,
+      sharpVersion: sharp.versions.sharp,
+      vipsVersion: sharp.versions.vips,
+      fontBase64Length: fontBase64.length,
+      vercel: Boolean(process.env.VERCEL),
+    });
+
     // --------------------------------------------
     // Generate watermark SVG
     // --------------------------------------------
