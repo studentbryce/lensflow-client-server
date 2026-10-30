@@ -18,7 +18,7 @@
  */
 
 import sharp from 'sharp';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 
 // --------------------------------------------------
 // Processing limits
@@ -421,6 +421,35 @@ export async function createWatermarkedPreview(
       fontPath: WATERMARK_FONT_URL.pathname,
       fontconfigFile: process.env.FONTCONFIG_FILE,
     });
+
+    const fontConfigUrl = new URL(
+      '../../assets/fonts/fonts.conf',
+      import.meta.url
+    );
+
+    try {
+      await access(fontConfigUrl);
+
+      const configText = await readFile(
+        fontConfigUrl,
+        'utf8'
+      );
+
+      console.info('[LensFlow Fontconfig check]', {
+        exists: true,
+        path: fontConfigUrl.pathname,
+        size: Buffer.byteLength(configText),
+        hasFontDirectory: configText.includes(
+          '/var/task/server/assets/fonts'
+        ),
+      });
+    } catch (error) {
+      console.error('[LensFlow Fontconfig check]', {
+        exists: false,
+        path: fontConfigUrl.pathname,
+        code: error.code,
+      });
+    }
 
     // --------------------------------------------
     // Generate watermark SVG
