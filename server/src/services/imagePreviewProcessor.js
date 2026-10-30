@@ -416,6 +416,12 @@ export async function createWatermarkedPreview(
       vercel: Boolean(process.env.VERCEL),
     });
 
+    console.info('[LensFlow font paths]', {
+      cwd: process.cwd(),
+      fontPath: WATERMARK_FONT_URL.pathname,
+      fontconfigFile: process.env.FONTCONFIG_FILE,
+    });
+
     // --------------------------------------------
     // Generate watermark SVG
     // --------------------------------------------
