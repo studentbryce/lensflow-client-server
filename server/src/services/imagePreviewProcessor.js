@@ -18,7 +18,7 @@
  */
 
 import sharp from 'sharp';
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 
 // --------------------------------------------------
 // Processing limits
@@ -56,6 +56,11 @@ const WATERMARK_ROTATION = -28;
 //
 const WATERMARK_FONT_URL = new URL(
   '../../assets/fonts/DejaVuSans-Bold.ttf',
+  import.meta.url
+);
+
+const FONTCONFIG_URL = new URL(
+  '../../assets/fonts/fonts.conf',
   import.meta.url
 );
 
@@ -141,6 +146,39 @@ async function loadWatermarkFontBase64() {
   }
 
   return watermarkFontPromise;
+}
+
+// --------------------------------------------------
+// Fontconfig configuration check
+// --------------------------------------------------
+
+// Cache the fontconfig check promise to avoid reading
+// the fonts.conf file for every generated preview.
+//
+// If loading fails, clear the cached promise so
+// a subsequent request can retry.
+
+let fontConfigPromise;
+
+async function ensureFontConfigAvailable() {
+  if (!fontConfigPromise) {
+    fontConfigPromise = readFile(FONTCONFIG_URL)
+      .then((buffer) => {
+        if (buffer.length === 0) {
+          throw new Error(
+            'Fontconfig configuration file is empty.'
+          );
+        }
+
+        return true;
+      })
+      .catch((error) => {
+        fontConfigPromise = undefined;
+        throw error;
+      });
+  }
+
+  return fontConfigPromise;
 }
 
 // --------------------------------------------------
@@ -402,54 +440,16 @@ export async function createWatermarkedPreview(
     }
 
     // --------------------------------------------
+    // Verify required font assets
+    // --------------------------------------------
+
+    await ensureFontConfigAvailable();
+
+    // --------------------------------------------
     // Load bundled watermark font
     // --------------------------------------------
 
-    const fontBase64 =
-      await loadWatermarkFontBase64();
-
-    console.info('[LensFlow preview font diagnostic]', {
-      runtime: process.version,
-      sharpVersion: sharp.versions.sharp,
-      vipsVersion: sharp.versions.vips,
-      fontBase64Length: fontBase64.length,
-      vercel: Boolean(process.env.VERCEL),
-    });
-
-    console.info('[LensFlow font paths]', {
-      cwd: process.cwd(),
-      fontPath: WATERMARK_FONT_URL.pathname,
-      fontconfigFile: process.env.FONTCONFIG_FILE,
-    });
-
-    const fontConfigUrl = new URL(
-      '../../assets/fonts/fonts.conf',
-      import.meta.url
-    );
-
-    try {
-      await access(fontConfigUrl);
-
-      const configText = await readFile(
-        fontConfigUrl,
-        'utf8'
-      );
-
-      console.info('[LensFlow Fontconfig check]', {
-        exists: true,
-        path: fontConfigUrl.pathname,
-        size: Buffer.byteLength(configText),
-        hasFontDirectory: configText.includes(
-          '/var/task/server/assets/fonts'
-        ),
-      });
-    } catch (error) {
-      console.error('[LensFlow Fontconfig check]', {
-        exists: false,
-        path: fontConfigUrl.pathname,
-        code: error.code,
-      });
-    }
+    const fontBase64 = await loadWatermarkFontBase64();
 
     // --------------------------------------------
     // Generate watermark SVG
