@@ -18,7 +18,7 @@
  */
 
 import sharp from 'sharp';
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 
 // --------------------------------------------------
 // Processing limits
