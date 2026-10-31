@@ -693,46 +693,52 @@ function PhotographerWebsiteContent({ photographerSlug }) {
 
           {reviews.length ? (
             <>
-              <div className="public-reviews-grid">
-              {(showAllReviews ? allReviews : reviews).map(
-                (review) => (
-                  <blockquote
-                    className="public-review-card"
-                    key={
-                      review.review_id
-                    }
-                  >
-                    <div
-                      className="public-review-stars"
-                      aria-label={`${review.rating} out of 5 stars`}
+              <div className="public-reviews-grid"
+                style={{
+                  "--review-columns": Math.min(
+                    showAllReviews ? allReviews.length : reviews.length,
+                    3
+                  ),
+                }}>
+                {(showAllReviews ? allReviews : reviews).map(
+                  (review) => (
+                    <blockquote
+                      className="public-review-card"
+                      key={
+                        review.review_id
+                      }
                     >
-                      {Array.from(
-                        {
-                          length:
-                            review.rating,
-                        },
-                        (_, index) => (
-                          <BiStar
-                            key={index}
-                            aria-hidden="true"
-                          />
-                        )
-                      )}
-                    </div>
+                      <div
+                        className="public-review-stars"
+                        aria-label={`${review.rating} out of 5 stars`}
+                      >
+                        {Array.from(
+                          {
+                            length:
+                              review.rating,
+                          },
+                          (_, index) => (
+                            <BiStar
+                              key={index}
+                              aria-hidden="true"
+                            />
+                          )
+                        )}
+                      </div>
 
-                    <p>
-                      “
-                      {review.comment ||
-                        "A wonderful photography experience."}
-                      ”
-                    </p>
+                      <p>
+                        “
+                        {review.comment ||
+                          "A wonderful photography experience."}
+                        ”
+                      </p>
 
-                    <cite>
-                      {review.display_name || "Photography client"}
-                    </cite>
-                  </blockquote>
-                )
-              )}
+                      <cite>
+                        {review.display_name || "Photography client"}
+                      </cite>
+                    </blockquote>
+                  )
+                )}
               </div>
 
               {allReviews.length > reviews.length && (

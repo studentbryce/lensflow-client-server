@@ -861,13 +861,20 @@
     background: white;
 }
 
+/* =========================================================
+   Reviews - Dynamic Grid Layout
+   ========================================================= */
+
 .public-reviews-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(3, minmax(0, 1fr));
-
+    grid-template-columns: repeat(var(--review-columns, 3),
+            minmax(0, 1fr));
     gap: 20px;
+    width: 100%;
+}
+
+.public-review-card {
+    min-width: 0;
 }
 
 .public-review-card {
@@ -884,6 +891,8 @@
 
     background: var(--site-background);
 }
+
+.public-reviews-grid[style*="--review-columns: 1"]
 
 .public-review-stars {
     display: flex;
@@ -1241,10 +1250,13 @@
         margin-left: 5%;
     }
 
-    .public-services-grid,
+    .public-services-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .public-reviews-grid {
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(min(var(--review-columns, 3), 2),
+                minmax(0, 1fr));
     }
 
     .public-portfolio-item,
