@@ -236,7 +236,7 @@
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 22px;
-  background: var(--bg);
+  background: var(--color-surface);
   box-shadow: 0 3px 12px var(--shadow);
   transition:
     transform 0.2s ease,
