@@ -49,5 +49,3 @@ The current repository therefore provides a **documented recovery procedure and 
 4. Keep original database credentials, service-role keys, Stripe secrets and personal data out of the repository and test logs.
 5. The developer's current local environment may have been manually switched to Recovery-Test. **Do not infer the active target from this README**; verify both frontend and Express environment variables before running any writes.
 6. Edge Function source files are not automatically deployed by database SQL. Review Stripe credentials, webhook signatures, CORS and JWT gateway settings before any deployment.
-
-The separate file `stripe-webhook-index.ts`, if still present in `documents/`, is a historical duplicate/reference. The intended deployable source is `../supabase/functions/stripe-webhook/index.ts`. It can be archived after confirming no tooling references it.
