@@ -1,7 +1,7 @@
 import brandLogo from "../assets/images/Lensflow_brand_logo-transparent.png";
 import "./LoadingScreen.css";
 
-export default function LoadingScreen() {
+export default function LoadingScreen({ onSignOut }) {
   return (
     <main className="loading-screen" role="status" aria-label="Preparing your LensFlow workspace">
       <div className="loading-screen-glow" aria-hidden="true" />
@@ -13,6 +13,11 @@ export default function LoadingScreen() {
           <span /><span /><span />
         </div>
         <p className="loading-screen-message">Preparing your workspace…</p>
+        {onSignOut && (
+          <button type="button" className="loading-screen-signout" onClick={onSignOut}>
+            Sign Out
+          </button>
+        )}
       </div>
     </main>
   );

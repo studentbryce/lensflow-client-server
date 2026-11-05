@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/authStore";
 import "./Home.css";
 import brandLogo from "../../assets/images/Lensflow_brand_logo-transparent.png";
+import LoadingScreen from "../../components/LoadingScreen";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -37,23 +38,7 @@ export default function Home() {
    * momentarily to an already authenticated user.
    */
   if (user) {
-    return (
-      <div className="home-loading">
-        <div className="home-loading-mark">
-          LF
-        </div>
-
-        <p>Loading LensFlow...</p>
-
-        <button
-          type="button"
-          className="home-loading-logout"
-          onClick={handleLogout}
-        >
-          Sign Out
-        </button>
-      </div>
-    );
+    return <LoadingScreen onSignOut={handleLogout} />;
   }
 
   return (

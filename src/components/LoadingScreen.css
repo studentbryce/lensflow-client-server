@@ -77,6 +77,29 @@
   font: 14px/1.6 var(--font-body, sans-serif);
 }
 
+.loading-screen-signout {
+  margin-top: 28px;
+  padding: 9px 18px;
+  border: 1px solid rgba(106, 100, 84, 0.38);
+  border-radius: 7px;
+  background: transparent;
+  color: #676456;
+  font: 600 11px/1.5 var(--font-navigation, sans-serif);
+  letter-spacing: 0.7px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.loading-screen-signout:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: #9c8662;
+}
+
+.loading-screen-signout:focus-visible {
+  outline: 2px solid #9c8662;
+  outline-offset: 3px;
+}
+
 @keyframes loading-screen-pulse {
   0%, 65%, 100% { opacity: 0.3; transform: translateY(0); }
   32% { opacity: 1; transform: translateY(-5px); }
