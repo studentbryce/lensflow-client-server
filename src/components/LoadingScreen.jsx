@@ -1,8 +1,19 @@
+import brandLogo from "../assets/images/Lensflow_brand_logo-transparent.png";
+import "./LoadingScreen.css";
+
 export default function LoadingScreen() {
   return (
-    <div className="loading-screen">
-      <h2>LensFlow</h2>
-      <p>Loading...</p>
-    </div>
+    <main className="loading-screen" role="status" aria-label="Preparing your LensFlow workspace">
+      <div className="loading-screen-glow" aria-hidden="true" />
+      <div className="loading-screen-content">
+        <img className="loading-screen-logo" src={brandLogo} alt="LensFlow" />
+        <div className="loading-screen-rule" aria-hidden="true" />
+        <p className="loading-screen-eyebrow">YOUR CREATIVE WORKSPACE</p>
+        <div className="loading-screen-indicator" aria-hidden="true">
+          <span /><span /><span />
+        </div>
+        <p className="loading-screen-message">Preparing your workspace…</p>
+      </div>
+    </main>
   );
 }

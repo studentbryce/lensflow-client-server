@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/authStore";
+import LoadingScreen from "./LoadingScreen";
 
 export default function RoleRoute({ allowedRole }) {
   const { profile, loading } = useAuth();
 
   if (loading) {
-    return <p>Loading...</p>;
+    return <LoadingScreen />;
   }
 
   if (!profile) {

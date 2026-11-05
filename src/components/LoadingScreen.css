@@ -1,0 +1,93 @@
+.loading-screen {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  padding: 36px 24px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #f8f5ee 0%, #efebe2 58%, #e7e3da 100%);
+  color: #343a34;
+  box-sizing: border-box;
+}
+
+.loading-screen-glow {
+  position: absolute;
+  z-index: -1;
+  width: min(80vw, 600px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196, 171, 123, 0.17), transparent 68%);
+  pointer-events: none;
+}
+
+.loading-screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 390px);
+  text-align: center;
+  animation: loading-screen-enter 500ms ease-out both;
+}
+
+.loading-screen-logo {
+  display: block;
+  width: min(78vw, 250px);
+  height: auto;
+  object-fit: contain;
+}
+
+.loading-screen-rule {
+  width: 56px;
+  height: 1px;
+  margin: 28px 0 19px;
+  background: #b4a17d;
+}
+
+.loading-screen-eyebrow {
+  margin: 0;
+  color: #737166;
+  font: 600 10px/1.6 var(--font-navigation, sans-serif);
+  letter-spacing: 2.4px;
+}
+
+.loading-screen-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  margin: 34px 0 17px;
+}
+
+.loading-screen-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9c8662;
+  animation: loading-screen-pulse 1.25s ease-in-out infinite;
+}
+
+.loading-screen-indicator span:nth-child(2) { animation-delay: 160ms; }
+.loading-screen-indicator span:nth-child(3) { animation-delay: 320ms; }
+
+.loading-screen-message {
+  margin: 0;
+  color: #6f716a;
+  font: 14px/1.6 var(--font-body, sans-serif);
+}
+
+@keyframes loading-screen-pulse {
+  0%, 65%, 100% { opacity: 0.3; transform: translateY(0); }
+  32% { opacity: 1; transform: translateY(-5px); }
+}
+
+@keyframes loading-screen-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen-content,
+  .loading-screen-indicator span { animation: none; }
+}
