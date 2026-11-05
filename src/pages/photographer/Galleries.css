@@ -178,6 +178,19 @@
   line-height: 1.2;
 }
 
+.gallery-summary-skeleton-count {
+  width: 48px;
+  height: 26px;
+  margin-top: 7px;
+}
+
+.gallery-summary-shimmer {
+  display: block;
+  background: #e9edf0;
+  border-radius: 7px;
+  animation: client-bookings-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
 /* --------------------------------------------------
    Search and filters
 -------------------------------------------------- */

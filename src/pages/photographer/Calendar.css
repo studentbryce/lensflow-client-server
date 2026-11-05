@@ -62,6 +62,8 @@
 }
 
 
+
+
 /* ============================================================
    BUTTONS
    ============================================================ */
@@ -1726,6 +1728,19 @@
   border-radius: 50%;
 
   animation: calendar-spin 0.8s linear infinite;
+}
+
+.calendar-summary-skeleton-count {
+  width: 48px;
+  height: 26px;
+  margin-top: 7px;
+}
+
+.calendar-summary-shimmer {
+  display: block;
+  background: #e9edf0;
+  border-radius: 7px;
+  animation: client-bookings-skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 

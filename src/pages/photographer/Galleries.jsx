@@ -459,7 +459,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Total galleries</span>
-              <strong>{loading ? "—" : totalGalleries}</strong>
+              <strong>{loading ? <span className="gallery-summary-skeleton-count gallery-summary-shimmer" /> : totalGalleries}</strong>
             </div>
           </div>
 
@@ -469,7 +469,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Published</span>
-              <strong>{loading ? "—" : publishedGalleries}</strong>
+              <strong>{loading ? <span className="gallery-summary-skeleton-count gallery-summary-shimmer" /> : publishedGalleries}</strong>
             </div>
           </div>
 
@@ -479,7 +479,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Unpublished</span>
-              <strong>{loading ? "—" : unpublishedGalleries}</strong>
+              <strong>{loading ? <span className="gallery-summary-skeleton-count gallery-summary-shimmer" /> : unpublishedGalleries}</strong>
             </div>
           </div>
 
@@ -489,7 +489,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Total media</span>
-              <strong>{loading ? "—" : totalMedia}</strong>
+              <strong>{loading ? <span className="gallery-summary-skeleton-count gallery-summary-shimmer" /> : totalMedia}</strong>
             </div>
           </div>
         </section>

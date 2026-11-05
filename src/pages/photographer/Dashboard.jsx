@@ -57,10 +57,10 @@ export default function Dashboard() {
   return <div className="dashboard-page photographer-dashboard" aria-busy={loading}>
     <DashboardHeader profile={profile}/>
     <section className="dashboard-stats" aria-label="Dashboard summary">
-      <StatCard title="Upcoming Bookings" value={loading ? "—" : stats.bookings} description="Scheduled sessions"/>
-      <StatCard title="Clients" value={loading ? "—" : stats.clients} description="Active clients"/>
-      <StatCard title="Outstanding" value={loading ? "—" : currency(stats.outstanding)} description="Unpaid invoices"/>
-      <StatCard title="Galleries" value={loading ? "—" : stats.galleries} description="Published galleries"/>
+      <StatCard title="Upcoming Bookings" value={loading ? <span className="dashboard-summary-skeleton-count dashboard-summary-shimmer" /> : stats.bookings} description="Scheduled sessions"/>
+      <StatCard title="Clients" value={loading ? <span className="dashboard-summary-skeleton-count dashboard-summary-shimmer" /> : stats.clients} description="Active clients"/>
+      <StatCard title="Outstanding" value={loading ? <span className="dashboard-summary-skeleton-count dashboard-summary-shimmer" /> : currency(stats.outstanding)} description="Unpaid invoices"/>
+      <StatCard title="Galleries" value={loading ? <span className="dashboard-summary-skeleton-count dashboard-summary-shimmer" /> : stats.galleries} description="Published galleries"/>
     </section>
     <section className="dashboard-section dashboard-mini-card dashboard-bookings-card">
       <div className="section-heading"><div><span className="eyebrow">Your schedule</span>

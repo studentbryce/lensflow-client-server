@@ -26,6 +26,20 @@
     font: 13px var(--font-body);
 }
 
+.dashboard-summary-skeleton-count {
+    display: inline-block;
+    width: 30px;
+    height: 20px;
+    border-radius: 4px;
+    background: var(--color-border-light)
+}
+
+.dashboard-summary-shimmer {
+  width: 48px;
+  height: 26px;
+  margin-top: 7px;
+}
+
 .dashboard-error p {
     color: var(--color-danger)
 }

@@ -139,17 +139,17 @@ export default function Services() {
           <div className="services-summary">
             <div className="summary-card">
               <span className="summary-label">Total Services</span>
-              <strong>{loading ? "—" : services.length}</strong>
+              <strong>{loading ? <span className="service-summary-skeleton-count service-summary-shimmer" /> : services.length}</strong>
             </div>
 
             <div className="summary-card">
               <span className="summary-label">Active</span>
-              <strong>{loading ? "—" : activeCount}</strong>
+              <strong>{loading ? <span className="service-summary-skeleton-count service-summary-shimmer" /> : activeCount}</strong>
             </div>
 
             <div className="summary-card">
               <span className="summary-label">Inactive</span>
-              <strong>{loading ? "—" : inactiveCount}</strong>
+              <strong>{loading ? <span className="service-summary-skeleton-count service-summary-shimmer" /> : inactiveCount}</strong>
             </div>
           </div>
 

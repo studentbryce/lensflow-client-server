@@ -139,6 +139,19 @@
   font-weight: 600;
 }
 
+.service-summary-skeleton-count {
+  width: 48px;
+  height: 26px;
+  margin-top: 7px;
+}
+
+.service-summary-shimmer {
+  display: block;
+  background: #e9edf0;
+  border-radius: 7px;
+  animation: client-bookings-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
 /* =========================
    TOOLBAR
 ========================= */

@@ -334,31 +334,31 @@ export default function Invoices() {
       <section className="invoice-summary-grid">
         <div className="invoice-summary-card">
           <span className="summary-label">Total Invoices</span>
-          <strong>{isLoading ? "—" : summary.totalInvoices}</strong>
+          <strong>{isLoading ? <span className="invoice-summary-skeleton-count invoice-summary-shimmer" /> : summary.totalInvoices}</strong>
           <p>All invoices</p>
         </div>
 
         <div className="invoice-summary-card">
           <span className="summary-label">Invoiced</span>
-          <strong>{isLoading ? "—" : formatCurrency(summary.totalValue)}</strong>
+          <strong>{isLoading ? <span className="invoice-summary-skeleton-count invoice-summary-shimmer" /> : formatCurrency(summary.totalValue)}</strong>
           <p>Total invoice value</p>
         </div>
 
         <div className="invoice-summary-card">
           <span className="summary-label">Paid</span>
-          <strong>{isLoading ? "—" : formatCurrency(summary.paidValue)}</strong>
+          <strong>{isLoading ? <span className="invoice-summary-skeleton-count invoice-summary-shimmer" /> : formatCurrency(summary.paidValue)}</strong>
           <p>Completed payments</p>
         </div>
 
         <div className="invoice-summary-card">
           <span className="summary-label">Outstanding</span>
-          <strong>{isLoading ? "—" : formatCurrency(summary.outstandingValue)}</strong>
+          <strong>{isLoading ? <span className="invoice-summary-skeleton-count invoice-summary-shimmer" /> : formatCurrency(summary.outstandingValue)}</strong>
           <p>Awaiting payment</p>
         </div>
 
         <div className="invoice-summary-card warning">
           <span className="summary-label">Overdue</span>
-          <strong>{isLoading ? "—" : formatCurrency(summary.overdueValue)}</strong>
+          <strong>{isLoading ? <span className="invoice-summary-skeleton-count invoice-summary-shimmer" /> : formatCurrency(summary.overdueValue)}</strong>
           <p>Payment overdue</p>
         </div>
       </section>

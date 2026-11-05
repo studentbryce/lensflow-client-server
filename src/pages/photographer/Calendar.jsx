@@ -1968,7 +1968,7 @@ export default function Calendar() {
           </span>
 
           <strong>
-            {loading ? "—" : monthBookings.length}
+            {loading ? <span className="calendar-summary-skeleton-count calendar-summary-shimmer" /> : monthBookings.length}
           </strong>
 
           <small>
@@ -1983,7 +1983,7 @@ export default function Calendar() {
           </span>
 
           <strong>
-            {loading ? "—" : monthConfirmed}
+            {loading ? <span className="calendar-summary-skeleton-count calendar-summary-shimmer" /> : monthConfirmed}
           </strong>
 
           <small>
@@ -1998,7 +1998,7 @@ export default function Calendar() {
           </span>
 
           <strong>
-            {loading ? "—" : monthPending}
+            {loading ? <span className="calendar-summary-skeleton-count calendar-summary-shimmer" /> : monthPending}
           </strong>
 
           <small>

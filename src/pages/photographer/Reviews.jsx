@@ -381,7 +381,7 @@ export default function Reviews() {
 
           <div>
             <span>Total Reviews</span>
-            <strong>{loading ? "—" : reviews.length}</strong>
+            <strong>{loading ? <span className="photographer-reviews-skeleton-count photographer-reviews-shimmer" /> : reviews.length}</strong>
           </div>
         </div>
 
@@ -390,7 +390,7 @@ export default function Reviews() {
 
           <div>
             <span>Average Rating</span>
-            <strong>{loading ? "—" : averageRating}</strong>
+            <strong>{loading ? <span className="photographer-reviews-skeleton-count photographer-reviews-shimmer" /> : averageRating}</strong>
           </div>
         </div>
 
@@ -399,7 +399,7 @@ export default function Reviews() {
 
           <div>
             <span>Pending</span>
-            <strong>{loading ? "—" : pendingCount}</strong>
+            <strong>{loading ? <span className="photographer-reviews-skeleton-count photographer-reviews-shimmer" /> : pendingCount}</strong>
           </div>
         </div>
 
@@ -408,7 +408,7 @@ export default function Reviews() {
 
           <div>
             <span>Published</span>
-            <strong>{loading ? "—" : approvedCount}</strong>
+            <strong>{loading ? <span className="photographer-reviews-skeleton-count photographer-reviews-shimmer" /> : approvedCount}</strong>
           </div>
         </div>
       </section>

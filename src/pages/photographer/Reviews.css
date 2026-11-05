@@ -638,6 +638,19 @@ margin-bottom: 30px;
   animation: photographer-reviews-spin 0.8s linear infinite;
 }
 
+.photographer-reviews-skeleton-count {
+    width: 48px;
+    height: 26px;
+    margin-top: 7px;
+}
+
+.photographer-reviews-shimmer {
+    display: block;
+    background: #e9edf0;
+    border-radius: 7px;
+    animation: client-bookings-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
 @keyframes photographer-reviews-spin {
   to {
     transform: rotate(360deg);

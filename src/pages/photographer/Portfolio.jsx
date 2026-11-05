@@ -487,7 +487,7 @@ export default function Portfolio() {
             <span>Total Items</span>
 
             <strong>
-              {loading ? "—" : portfolioItems.length}
+              {loading ? <span className="portfolio-summary-skeleton-count portfolio-summary-shimmer" /> : portfolioItems.length}
             </strong>
           </div>
         </div>
@@ -501,7 +501,7 @@ export default function Portfolio() {
             <span>Published</span>
 
             <strong>
-              {loading ? "—" :
+              {loading ? <span className="portfolio-summary-skeleton-count portfolio-summary-shimmer" /> :
                 portfolioItems.filter(
                   (item) =>
                     item.published
@@ -520,7 +520,7 @@ export default function Portfolio() {
             <span>Drafts</span>
 
             <strong>
-              {loading ? "—" :
+              {loading ? <span className="portfolio-summary-skeleton-count portfolio-summary-shimmer" /> :
                 portfolioItems.filter(
                   (item) =>
                     !item.published
