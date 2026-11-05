@@ -2,7 +2,7 @@
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 8px 0 70px;
+    padding: 8px 0 60px;
 }
 
 /* =========================
@@ -13,35 +13,35 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 30px;
-    margin-bottom: 32px;
+    flex-direction: row;
+    gap: 32px;
+    margin-bottom: 36px;
 }
 
 .new-invoice-eyebrow {
-    margin: 0 0 8px;
-    color: var(--accent);
+    margin: 0 0 7px;
     font-family: "Open Sans", sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
 }
 
 .new-invoice-header h1 {
-    margin: 0;
-    color: var(--text-h);
+    margin: 0 0 10px;
     font-family: "Noto Serif", serif;
-    font-size: 40px;
+    font-size: 42px;
     font-weight: 500;
-    line-height: 1.1;
+    letter-spacing: -1px;
+    color: var(--text-h);
 }
 
 .new-invoice-description {
     max-width: 650px;
-    margin: 12px 0 0;
+    margin-top: 12px;
     color: var(--text);
-    font-family: "Cormorant Garamond", serif;
-    font-size: 1.25rem;
-    line-height: 1.45;
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .new-invoice-back-button {
@@ -126,7 +126,7 @@
     border-radius: 14px;
     margin-bottom: 18px;
     padding: 27px;
-    background: var(--bg);
+    background: var(--color-surface-soft);
     box-shadow: 0 3px 12px var(--shadow);
 }
 
@@ -137,7 +137,7 @@
     margin-bottom: 25px;
 }
 
-.invoice-section-heading > span {
+.invoice-section-heading>span {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -271,12 +271,7 @@
 .invoice-item-row {
     display: grid;
     grid-template-columns:
-        minmax(130px, 1.2fr)
-        minmax(180px, 1.6fr)
-        70px
-        minmax(110px, 0.9fr)
-        minmax(100px, 0.9fr)
-        36px;
+        minmax(130px, 1.2fr) minmax(180px, 1.6fr) 70px minmax(110px, 0.9fr) minmax(100px, 0.9fr) 36px;
     gap: 10px;
     align-items: center;
     min-width: 760px;
@@ -315,7 +310,7 @@
     position: relative;
 }
 
-.invoice-price-input > span {
+.invoice-price-input>span {
     position: absolute;
     top: 50%;
     left: 10px;
@@ -488,7 +483,7 @@
     padding: 13px 0;
 }
 
-.invoice-total-row > span {
+.invoice-total-row>span {
     color: var(--text);
     font-family: "Open Sans", sans-serif;
     font-size: 0.82rem;

@@ -525,29 +525,10 @@ export default function Messages() {
 
 
   /* =========================================================
-     Loading
-     ========================================================= */
-
-  if (loading) {
-    return (
-      <div className="client-messages-page">
-        <div className="client-messages-loading">
-          <span className="client-messages-spinner" />
-
-          <p>
-            Loading your messages...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-
-  /* =========================================================
      Error
      ========================================================= */
 
-  if (error) {
+  if (!loading && error) {
     return (
       <div className="client-messages-page">
         <div className="client-messages-error">
@@ -586,7 +567,7 @@ export default function Messages() {
      ========================================================= */
 
   return (
-    <div className="client-messages-page">
+    <div className="client-messages-page" aria-busy={loading}>
 
       {/* =====================================================
           Header
@@ -624,7 +605,7 @@ export default function Messages() {
         <header className="client-messages-thread-header">
 
           <div className="client-messages-avatar">
-            {getPhotographerInitials()}
+            {loading ? <span className="client-messages-skeleton-avatar" /> : getPhotographerInitials()}
           </div>
 
           <div className="client-messages-photographer">
@@ -633,7 +614,7 @@ export default function Messages() {
             </span>
 
             <h2>
-              {getPhotographerName()}
+              {loading ? <span className="client-messages-skeleton-name" /> : getPhotographerName()}
             </h2>
           </div>
 
@@ -646,7 +627,24 @@ export default function Messages() {
 
         <div className="client-messages-history">
 
-          {!messages.length ? (
+          {loading ? (
+            <div className="client-messages-skeleton-thread" role="status" aria-label="Loading messages">
+              <div className="client-messages-skeleton-bubble client-messages-skeleton-bubble--theirs">
+                <span className="client-messages-skeleton-line" />
+                <span className="client-messages-skeleton-line client-messages-skeleton-line--short" />
+                <span className="client-messages-skeleton-time" />
+              </div>
+              <div className="client-messages-skeleton-bubble client-messages-skeleton-bubble--mine">
+                <span className="client-messages-skeleton-line" />
+                <span className="client-messages-skeleton-line client-messages-skeleton-line--short" />
+                <span className="client-messages-skeleton-time" />
+              </div>
+              <div className="client-messages-skeleton-bubble client-messages-skeleton-bubble--theirs">
+                <span className="client-messages-skeleton-line" />
+                <span className="client-messages-skeleton-time" />
+              </div>
+            </div>
+          ) : !messages.length ? (
             <div className="client-messages-empty">
 
               <div className="client-messages-empty-icon">
@@ -789,6 +787,7 @@ export default function Messages() {
 
             <textarea
               rows="1"
+              disabled={loading}
               value={draft}
               maxLength={
                 MAX_MESSAGE_LENGTH
@@ -809,6 +808,7 @@ export default function Messages() {
               type="submit"
               className="client-messages-send"
               disabled={
+                loading ||
                 sending ||
                 creatingConversation ||
                 !draft.trim()

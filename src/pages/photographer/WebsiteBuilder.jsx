@@ -32,6 +32,31 @@ const ALLOWED_IMAGE_TYPES = {
   "image/webp": "webp",
 };
 
+function WebsiteBuilderSkeleton() {
+  return (
+    <section className="wb-fields" role="status" aria-label="Loading website settings">
+      {["Website address", "Welcome section", "About you", "Appearance"].map((title, index) => (
+        <div className="wb-card wb-card-skeleton" key={title} aria-hidden="true">
+          <div className="wb-card-heading">
+            <div>
+              <span className="wb-skeleton-line wb-skeleton-line--eyebrow" />
+              <h2>{title}</h2>
+            </div>
+          </div>
+          {index === 1 || index === 2 ? (
+            <div className="wb-skeleton-image" />
+          ) : null}
+          <span className="wb-skeleton-line wb-skeleton-line--label" />
+          <span className="wb-skeleton-line wb-skeleton-line--input" />
+          <span className="wb-skeleton-line wb-skeleton-line--label" />
+          <span className="wb-skeleton-line wb-skeleton-line--input" />
+          <span className="wb-skeleton-line wb-skeleton-line--hint" />
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default function WebsiteBuilder() {
   const { user } = useAuth();
 
@@ -464,20 +489,6 @@ export default function WebsiteBuilder() {
       ? `${window.location.origin}/${profile.slug}`
       : "";
 
-  if (loading) {
-    return (
-      <div className="website-builder">
-        <div className="wb-state">
-          <span className="wb-spinner" />
-
-          <p role="status">
-            Loading your website…
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   if (loadError) {
     return (
       <div className="website-builder">
@@ -508,7 +519,7 @@ export default function WebsiteBuilder() {
   }
 
   return (
-    <div className="website-builder">
+    <div className="website-builder" aria-busy={loading}>
       <header className="wb-header">
         <div>
           <p className="wb-eyebrow">
@@ -543,7 +554,7 @@ export default function WebsiteBuilder() {
           )}
       </header>
 
-      <form
+      {loading ? <WebsiteBuilderSkeleton /> : <form
         onSubmit={save}
         onChange={() =>
           setMessage("")
@@ -1405,7 +1416,7 @@ export default function WebsiteBuilder() {
               : "Save Website"}
           </button>
         </div>
-      </form>
+      </form>}
     </div>
   );
 }

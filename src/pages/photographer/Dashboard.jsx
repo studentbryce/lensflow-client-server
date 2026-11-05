@@ -49,26 +49,26 @@ export default function Dashboard() {
     return () => { active=false; };
   },[retry]);
 
-  if (loading) return <div className="dashboard-page"><div className="dashboard-loading">Loading your dashboard...</div></div>;
   if (error) return <div className="dashboard-page"><div className="dashboard-error">
     <h2>Unable to load dashboard</h2><p>{error}</p>
     <button type="button" onClick={()=>setRetry(n=>n+1)}>Try Again</button>
   </div></div>;
 
-  return <div className="dashboard-page photographer-dashboard">
+  return <div className="dashboard-page photographer-dashboard" aria-busy={loading}>
     <DashboardHeader profile={profile}/>
     <section className="dashboard-stats" aria-label="Dashboard summary">
-      <StatCard title="Upcoming Bookings" value={stats.bookings} description="Scheduled sessions"/>
-      <StatCard title="Clients" value={stats.clients} description="Active clients"/>
-      <StatCard title="Outstanding" value={currency(stats.outstanding)} description="Unpaid invoices"/>
-      <StatCard title="Galleries" value={stats.galleries} description="Published galleries"/>
+      <StatCard title="Upcoming Bookings" value={loading ? "—" : stats.bookings} description="Scheduled sessions"/>
+      <StatCard title="Clients" value={loading ? "—" : stats.clients} description="Active clients"/>
+      <StatCard title="Outstanding" value={loading ? "—" : currency(stats.outstanding)} description="Unpaid invoices"/>
+      <StatCard title="Galleries" value={loading ? "—" : stats.galleries} description="Published galleries"/>
     </section>
     <section className="dashboard-section dashboard-mini-card dashboard-bookings-card">
       <div className="section-heading"><div><span className="eyebrow">Your schedule</span>
         <h2>Upcoming Bookings</h2></div>
         <Link className="dashboard-view-all" to="/photographer/bookings">View all</Link>
       </div>
-      {!upcomingBookings.length ? <div className="dashboard-mini-empty"><p>No upcoming bookings.</p></div> :
+      {loading ? <div className="dashboard-inline-loading" role="status">Loading bookings…</div> :
+      !upcomingBookings.length ? <div className="dashboard-mini-empty"><p>No upcoming bookings.</p></div> :
       <div className="dashboard-mini-list">{upcomingBookings.map(b=>{
         const name=[b.clients?.profiles?.first_name,b.clients?.profiles?.last_name]
           .filter(Boolean).join(" ")||"Unknown Client";
@@ -92,7 +92,8 @@ export default function Dashboard() {
           <h2>Recent Galleries</h2></div>
           <Link className="dashboard-view-all" to="/photographer/galleries">View all</Link>
         </div>
-        {!recentGalleries.length ? <div className="dashboard-mini-empty">
+        {loading ? <div className="dashboard-inline-loading" role="status">Loading galleries…</div> :
+        !recentGalleries.length ? <div className="dashboard-mini-empty">
           <BiImage size={28}/><p>No galleries yet.</p></div> :
         <div className="dashboard-mini-list">{recentGalleries.map(g=>
           <div className="dashboard-gallery-row" key={g.gallery_id}>
@@ -112,7 +113,8 @@ export default function Dashboard() {
           <h2>Outstanding Invoices</h2></div>
           <Link className="dashboard-view-all" to="/photographer/invoices">View all</Link>
         </div>
-        {!outstandingInvoices.length ? <div className="dashboard-mini-empty">
+        {loading ? <div className="dashboard-inline-loading" role="status">Loading invoices…</div> :
+        !outstandingInvoices.length ? <div className="dashboard-mini-empty">
           <BiFile size={28}/><p>No outstanding invoices.</p></div> :
         <div className="dashboard-mini-list">{outstandingInvoices.map(i=>
           <div className="dashboard-invoice-row" key={i.invoice_id}>

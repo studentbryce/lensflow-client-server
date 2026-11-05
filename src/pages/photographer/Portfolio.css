@@ -3,11 +3,10 @@
 ========================================= */
 
 .portfolio-page {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 8px 0 60px;
-    box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
 }
 
 /* =========================================
@@ -16,33 +15,37 @@
 
 .portfolio-page-header {
     display: flex;
-    justify-content: space-between;
     align-items: flex-end;
-    gap: 30px;
-    margin-bottom: 32px;
+    justify-content: space-between;
+    flex-direction: row;
+    gap: 32px;
+    margin-bottom: 36px;
 }
 
 .portfolio-eyebrow {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.55;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .portfolio-page-header h1 {
-    margin: 0;
-    font-size: 2.2rem;
-    line-height: 1.1;
+  margin: 0 0 10px;
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: var(--text-h);
 }
 
 .portfolio-page-header p {
     max-width: 650px;
-    margin: 10px 0 0;
-    line-height: 1.6;
-    opacity: 0.68;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* =========================================
@@ -188,6 +191,29 @@
     transform: translateY(-2px);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
+
+.portfolio-card-skeleton,
+.portfolio-card-skeleton:hover {
+    transform: none;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+    pointer-events: none;
+}
+
+.portfolio-skeleton-image,
+.portfolio-skeleton-line {
+    display: block;
+    background: var(--accent-bg);
+}
+
+.portfolio-skeleton-line { height: 11px; border-radius: 6px; }
+.portfolio-skeleton-heading { flex: 1; display: grid; gap: 10px; }
+.portfolio-skeleton-line--title { width: 75%; height: 18px; }
+.portfolio-skeleton-line--category { width: 43%; }
+.portfolio-skeleton-line--order { width: 26px; height: 15px; }
+.portfolio-skeleton-line--description { width: 95%; margin-top: 18px; }
+.portfolio-skeleton-line--description-short { width: 68%; margin-top: 9px; margin-bottom: 18px; }
+.portfolio-skeleton-line--date { width: 45%; height: 10px; }
+.portfolio-skeleton-line--action { width: 100%; height: 36px; }
 
 /* =========================================
    DRAG & DROP ORDERING
@@ -524,15 +550,10 @@
 }
 
 .portfolio-description {
-    display: -webkit-box;
-    overflow: hidden;
-    margin: 14px 0;
-    line-height: 1.5;
-    font-size: 0.88rem;
-    opacity: 0.68;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .portfolio-card-meta {

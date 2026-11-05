@@ -138,6 +138,30 @@ function InvoiceCard({ invoice, onView }) {
     );
 }
 
+function InvoiceCardSkeleton() {
+    return (
+        <article className="client-invoice-card client-invoice-skeleton-card" aria-hidden="true">
+            <div className="client-invoice-skeleton-heading">
+                <span className="client-invoice-skeleton-line client-invoice-skeleton-line--number" />
+                <span className="client-invoice-skeleton-pill client-invoice-skeleton-shimmer" />
+            </div>
+            <span className="client-invoice-skeleton-line client-invoice-skeleton-line--amount" />
+            <div className="client-invoice-skeleton-service">
+                <span className="client-invoice-skeleton-line client-invoice-skeleton-line--label" />
+                <span className="client-invoice-skeleton-line client-invoice-skeleton-line--service" />
+            </div>
+            <div className="client-invoice-skeleton-details">
+                {Array.from({ length: 4 }, (_, index) => (
+                    <span className="client-invoice-skeleton-line client-invoice-skeleton-line--detail" key={index} />
+                ))}
+            </div>
+            <div className="client-invoice-skeleton-actions">
+                <span className="client-invoice-skeleton-button client-invoice-skeleton-shimmer" />
+            </div>
+        </article>
+    );
+}
+
 export default function Invoices() {
     const navigate = useNavigate();
     const { invoice_id } = useParams();
@@ -439,7 +463,7 @@ export default function Invoices() {
         );
 
         return (
-            <div className="client-invoices-page client-invoice-detail-page">
+            <div className="client-invoices-page client-invoice-detail-page" aria-busy={isLoading}>
                 <div className="client-invoice-detail-toolbar">
                     <button
                         type="button"
@@ -579,11 +603,8 @@ export default function Invoices() {
                 )}
 
                 {isLoading ? (
-                    <div
-                        className="client-invoices-state"
-                        role="status"
-                    >
-                        Loading your invoice…
+                    <div className="client-invoice-detail-skeleton" role="status" aria-label="Loading invoice details">
+                        <InvoiceCardSkeleton />
                     </div>
                 ) : error ? (
                     <div
@@ -645,7 +666,7 @@ export default function Invoices() {
     }
 
     return (
-        <div className="client-invoices-page">
+        <div className="client-invoices-page" aria-busy={isLoading}>
             <header className="client-invoices-header">
                 <p className="client-invoices-eyebrow">
                     Your photography
@@ -657,14 +678,7 @@ export default function Invoices() {
                 </p>
             </header>
 
-            {isLoading ? (
-                <div
-                    className="client-invoices-state"
-                    role="status"
-                >
-                    Loading your invoices…
-                </div>
-            ) : error ? (
+            {!isLoading && error ? (
                 <div
                     className="client-invoices-state"
                     role="alert"
@@ -703,7 +717,7 @@ export default function Invoices() {
                                             {label}
                                         </span>
                                         <strong>
-                                            {value}
+                                            {isLoading ? <span className="client-invoice-skeleton-count client-invoice-skeleton-shimmer" /> : value}
                                         </strong>
                                     </div>
                                 </div>
@@ -728,6 +742,7 @@ export default function Invoices() {
                                 aria-label="Search invoices"
                                 placeholder="Search invoice number, service or notes…"
                                 value={search}
+                                disabled={isLoading}
                                 onChange={(event) =>
                                     setSearch(
                                         event.target.value
@@ -745,6 +760,7 @@ export default function Invoices() {
                                 <button
                                     type="button"
                                     key={value}
+                                    disabled={isLoading}
                                     aria-pressed={
                                         filter === value
                                     }
@@ -754,7 +770,7 @@ export default function Invoices() {
                                 >
                                     {value}{" "}
                                     <span>
-                                        {value === "all"
+                                        {isLoading ? "—" : value === "all"
                                             ? records.length
                                             : records.filter(
                                                   (
@@ -773,11 +789,15 @@ export default function Invoices() {
                         className="client-invoices-result-count"
                         role="status"
                     >
-                        Showing {visible.length} of{" "}
-                        {records.length} invoices
+                        {isLoading ? "Loading invoices…" : <>Showing {visible.length} of{" "}{records.length} invoices</>}
                     </p>
 
-                    {visible.length ? (
+                    {isLoading ? (
+                        <div className="client-invoices-grid" role="status" aria-label="Loading invoices">
+                            <InvoiceCardSkeleton />
+                            <InvoiceCardSkeleton />
+                        </div>
+                    ) : visible.length ? (
                         <div className="client-invoices-grid">
                             {visible.map((invoice) => (
                                 <InvoiceCard

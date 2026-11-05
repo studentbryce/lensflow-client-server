@@ -175,11 +175,13 @@
 }
 
 .client-bookings-page .client-bookings-eyebrow {
-  margin-bottom: 7px;
-  color: var(--color-accent);
-  font: 700 11px var(--font-navigation);
-  letter-spacing: 1.6px;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 .client-bookings-header h1 {
@@ -188,7 +190,10 @@
 }
 
 .client-bookings-header>p:last-child {
-  font: 14px/1.65 var(--font-navigation);
+  max-width: 650px;
+  margin-top: 12px;
+  color: var(--text);
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .client-bookings-summary {
@@ -433,6 +438,41 @@
   margin-top: 18px;
 }
 
+/* Booking-shaped skeletons replace the initial full-page loading message. */
+.client-bookings-shimmer,
+.client-bookings-skeleton-line {
+  display: block;
+  background: #e9edf0;
+  border-radius: 7px;
+  animation: client-bookings-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.client-bookings-skeleton-count { width: 48px; height: 26px; margin-top: 7px; }
+.client-bookings-skeleton-date { width: 75px; height: 70px; border-radius: 10px; }
+.client-bookings-skeleton-info { min-width: 0; }
+.client-bookings-skeleton-line { height: 13px; margin-bottom: 12px; }
+.client-bookings-skeleton-line--title { width: min(75%, 265px); height: 21px; }
+.client-bookings-skeleton-line--detail { width: min(55%, 180px); }
+.client-bookings-skeleton-line--location { width: min(66%, 210px); margin-bottom: 0; }
+.client-bookings-skeleton-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.client-bookings-skeleton-pill { width: 86px; height: 27px; border-radius: 20px; }
+.client-bookings-skeleton-line--amount { width: 96px; height: 20px; margin: 0; }
+.client-bookings-skeleton-button { width: 76px; height: 39px; }
+
+@keyframes client-bookings-skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-bookings-shimmer,
+  .client-bookings-skeleton-line { animation: none; }
+}
+
+@media (max-width: 600px) {
+  .client-bookings-skeleton-meta { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+}
+
 @media (max-width: 1000px) {
   .client-bookings-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -495,10 +535,13 @@
 }
 
 .client-bookings-page .client-bookings-eyebrow {
-  margin-bottom: 6px;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--accent);
-  font: 600 11px "Open Sans", sans-serif;
-  letter-spacing: 2px;
 }
 
 .client-bookings-header h1 {
@@ -506,12 +549,14 @@
   color: var(--text-h);
   font: 500 42px "Noto Serif", serif;
   letter-spacing: -1px;
+  font-size: clamp(32px, 3vw, 42px);
 }
 
 .client-bookings-header>p:last-child {
-  max-width: 600px;
+  max-width: 650px;
+  margin-top: 12px;
   color: var(--text);
-  font: 20px/1.4 "Cormorant Garamond", serif;
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .client-booking-button {

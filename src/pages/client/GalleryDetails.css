@@ -65,20 +65,18 @@
 }
 
 .gallery-details-header h1 {
-  margin: 0;
+  margin: 0 0 10px;
   color: var(--text-h);
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
+  font: 500 42px "Noto Serif", serif;
+  letter-spacing: -1px;
+  font-size: clamp(32px, 3vw, 42px);
 }
 
 .gallery-details-description {
-  max-width: 760px;
-  margin: 14px 0 0;
-  color: var(--text);
-  font-size: 1rem;
-  line-height: 1.7;
-  opacity: 0.75;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* --------------------------------------------------

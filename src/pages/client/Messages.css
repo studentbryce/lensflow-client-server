@@ -3,11 +3,10 @@
    ========================================================= */
 
 .client-messages-page {
-    width: 100%;
-    max-width: 1200px;
-
-    margin: 0 auto;
-    padding: 8px 0 60px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
 }
 
 
@@ -23,32 +22,22 @@
 
 
 .client-messages-eyebrow {
-    display: block;
-
-    margin-bottom: 6px;
-
-    color: var(--accent);
-
-    font-family: var(--font-navigation);
-
-    font-size: 12px;
-    font-weight: 600;
-
-    letter-spacing: 1.5px;
-
+    margin: 0 0 7px;
+    font-family: "Open Sans", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
+    color: var(--accent);
 }
 
 
 .client-messages-welcome h1 {
-    margin: 0 0 8px;
-
-    color: var(--color-heading);
-
-    font-family: var(--font-heading);
-
-    font-size: 38px;
-    font-weight: 500;
+    margin: 0 0 10px;
+    color: var(--text-h);
+    font: 500 42px "Noto Serif", serif;
+    letter-spacing: -1px;
+    font-size: clamp(32px, 3vw, 42px);
 }
 
 
@@ -145,7 +134,7 @@
 }
 
 
-.client-messages-photographer > span {
+.client-messages-photographer>span {
     display: block;
 
     margin-bottom: 2px;
@@ -322,8 +311,7 @@
 }
 
 
-.client-message-row--mine
-.client-message-bubble {
+.client-message-row--mine .client-message-bubble {
     background:
         var(--accent);
 
@@ -334,8 +322,7 @@
 }
 
 
-.client-message-row--theirs
-.client-message-bubble {
+.client-message-row--theirs .client-message-bubble {
     border:
         1px solid var(--color-border-light);
 
@@ -388,15 +375,13 @@
 }
 
 
-.client-message-row--mine
-.client-message-meta {
+.client-message-row--mine .client-message-meta {
     color:
         rgba(255, 255, 255, 0.72);
 }
 
 
-.client-message-row--theirs
-.client-message-meta {
+.client-message-row--theirs .client-message-meta {
     color:
         var(--color-muted);
 }
@@ -492,8 +477,7 @@
         var(--accent);
 
     box-shadow:
-        0 0 0 3px
-        var(--accent-bg);
+        0 0 0 3px var(--accent-bg);
 }
 
 
@@ -650,8 +634,7 @@
     height: 27px;
 
     border:
-        3px solid
-        var(--color-border-light);
+        3px solid var(--color-border-light);
 
     border-top-color:
         var(--accent);
@@ -659,8 +642,7 @@
     border-radius: 50%;
 
     animation:
-        client-messages-spin
-        0.7s linear infinite;
+        client-messages-spin 0.7s linear infinite;
 }
 
 
@@ -674,7 +656,7 @@
 }
 
 
-.client-messages-error > svg {
+.client-messages-error>svg {
     width: 38px;
     height: 38px;
 
@@ -840,8 +822,7 @@
     }
 
 
-    .client-messages-composer-footer
-    span:first-child {
+    .client-messages-composer-footer span:first-child {
         display: none;
     }
 
@@ -895,17 +876,131 @@
    PHOTOGRAPHER PAGE VISUAL PARITY
 ========================================================= */
 
-.client-messages-page { box-sizing: border-box; }
-.client-messages-welcome { margin-bottom: 32px; padding-top: 10px; }
-.client-messages-eyebrow {
-    margin-bottom: 6px;
-    color: var(--accent);
-    font: 600 12px var(--font-navigation);
-    letter-spacing: 1.5px;
+.client-messages-page {
+    box-sizing: border-box;
 }
 
-.client-messages-welcome h1 { margin: 0 0 8px; color: var(--color-heading); font: 500 38px var(--font-heading); }
-.client-messages-welcome p { max-width: 650px; color: var(--color-muted); font: 17px/1.6 var(--font-body); }
+/* Initial conversation loading uses message-shaped placeholders. */
+.client-messages-skeleton-avatar,
+.client-messages-skeleton-name,
+.client-messages-skeleton-line,
+.client-messages-skeleton-time {
+    display: block;
+    background: #e9edf0;
+    border-radius: 6px;
+    animation: client-message-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.client-messages-skeleton-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.client-messages-skeleton-name {
+    width: 156px;
+    height: 18px;
+    margin-top: 5px;
+}
+
+.client-messages-skeleton-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 23px;
+    width: 100%;
+}
+
+.client-messages-skeleton-bubble {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(55%, 330px);
+    min-height: 90px;
+    padding: 17px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 12px;
+    background: var(--color-surface);
+}
+
+.client-messages-skeleton-bubble--mine {
+    align-self: flex-end;
+    background: var(--color-accent-light);
+}
+
+.client-messages-skeleton-line {
+    width: 100%;
+    height: 12px;
+}
+
+.client-messages-skeleton-line--short {
+    width: 62%;
+}
+
+.client-messages-skeleton-time {
+    width: 68px;
+    height: 9px;
+    margin-top: auto;
+    align-self: flex-end;
+}
+
+@keyframes client-message-skeleton-pulse {
+
+    0%,
+    100% {
+        opacity: 0.55;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 600px) {
+    .client-messages-skeleton-bubble {
+        width: 78%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .client-messages-skeleton-avatar,
+    .client-messages-skeleton-name,
+    .client-messages-skeleton-line,
+    .client-messages-skeleton-time {
+        animation: none;
+    }
+}
+
+.client-messages-welcome {
+    margin-bottom: 32px;
+    padding-top: 10px;
+}
+
+.client-messages-eyebrow {
+    margin: 0 0 7px;
+    font-family: "Open Sans", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.client-messages-welcome h1 {
+    margin: 0 0 10px;
+    color: var(--text-h);
+    font: 500 42px "Noto Serif", serif;
+    letter-spacing: -1px;
+    font-size: clamp(32px, 3vw, 42px);
+}
+
+.client-messages-welcome p {
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
+}
+
 .client-messages-card {
     overflow: hidden;
     border: 1px solid var(--color-border-light);
@@ -921,26 +1016,78 @@
     background: var(--color-surface);
 }
 
-.client-messages-avatar { flex-basis: 46px; width: 46px; height: 46px; }
-.client-messages-photographer h2 { font: 600 16px var(--font-body); }
-.client-messages-photographer span { font: 12px var(--font-body); }
-.client-messages-history { padding: 30px 28px; background: rgba(0, 0, 0, 0.012); }
-.client-message-bubble { max-width: min(72%, 620px); padding: 11px 14px 8px; border-radius: 12px; }
-.client-message-bubble p { font: 14px/1.55 var(--font-body); }
-.client-message-meta { margin-top: 5px; font-family: var(--font-navigation); font-size: 9px; }
+.client-messages-avatar {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+}
+
+.client-messages-photographer h2 {
+    font: 600 16px var(--font-body);
+}
+
+.client-messages-photographer span {
+    font: 12px var(--font-body);
+}
+
+.client-messages-history {
+    padding: 30px 28px;
+    background: rgba(0, 0, 0, 0.012);
+}
+
+.client-message-bubble {
+    max-width: min(72%, 620px);
+    padding: 11px 14px 8px;
+    border-radius: 12px;
+}
+
+.client-message-bubble p {
+    font: 14px/1.55 var(--font-body);
+}
+
+.client-message-meta {
+    margin-top: 5px;
+    font-family: var(--font-navigation);
+    font-size: 9px;
+}
+
 .client-messages-composer {
     padding: 14px 18px 12px;
     border-color: var(--color-border-light);
     background: var(--color-surface);
 }
 
-.client-messages-composer textarea { min-height: 46px; padding: 12px 14px; border-color: var(--color-border-light); }
-.client-messages-send { min-height: 44px; border-radius: 8px; }
+.client-messages-composer textarea {
+    min-height: 46px;
+    padding: 12px 14px;
+    border-color: var(--color-border-light);
+}
+
+.client-messages-send {
+    min-height: 44px;
+    border-radius: 8px;
+}
 
 @media (max-width: 600px) {
-    .client-messages-welcome h1 { font-size: 34px; }
-    .client-messages-welcome p { font-size: 15px; }
-    .client-messages-thread-header { min-height: 72px; padding-right: 14px; padding-left: 12px; }
-    .client-messages-history { padding: 20px 14px; }
-    .client-message-bubble { max-width: 88%; }
+    .client-messages-welcome h1 {
+        font-size: 34px;
+    }
+
+    .client-messages-welcome p {
+        font-size: 15px;
+    }
+
+    .client-messages-thread-header {
+        min-height: 72px;
+        padding-right: 14px;
+        padding-left: 12px;
+    }
+
+    .client-messages-history {
+        padding: 20px 14px;
+    }
+
+    .client-message-bubble {
+        max-width: 88%;
+    }
 }

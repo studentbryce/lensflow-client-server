@@ -5,45 +5,160 @@
   padding: 8px 0 60px;
 }
 
+/* Invoice-shaped placeholders keep the page visible during initial loading. */
+.client-invoice-skeleton-line,
+.client-invoice-skeleton-shimmer {
+  display: block;
+  background: #e9edf0;
+  border-radius: 7px;
+  animation: client-invoice-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.client-invoice-skeleton-count {
+  width: 72px;
+  height: 28px;
+  margin-top: 6px;
+}
+
+.client-invoice-skeleton-line {
+  height: 13px;
+}
+
+.client-invoice-skeleton-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.client-invoice-skeleton-line--number {
+  width: 130px;
+  height: 18px;
+}
+
+.client-invoice-skeleton-pill {
+  width: 74px;
+  height: 25px;
+  border-radius: 20px;
+}
+
+.client-invoice-skeleton-line--amount {
+  width: 112px;
+  height: 26px;
+  margin-top: 18px;
+}
+
+.client-invoice-skeleton-service {
+  margin-top: 22px;
+}
+
+.client-invoice-skeleton-line--label {
+  width: 115px;
+  height: 10px;
+  margin-bottom: 12px;
+}
+
+.client-invoice-skeleton-line--service {
+  width: 65%;
+  height: 20px;
+}
+
+.client-invoice-skeleton-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 25px 0;
+}
+
+.client-invoice-skeleton-line--detail {
+  width: 78%;
+  height: 23px;
+}
+
+.client-invoice-skeleton-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 20px;
+}
+
+.client-invoice-skeleton-button {
+  width: 125px;
+  height: 40px;
+}
+
+.client-invoice-detail-skeleton {
+  max-width: 700px;
+  margin: 22px auto;
+}
+
+@keyframes client-invoice-skeleton-pulse {
+
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .client-invoice-skeleton-line,
+  .client-invoice-skeleton-shimmer {
+    animation: none;
+  }
+}
+
 .client-invoices-header {
   margin-bottom: 30px;
 }
 
 .client-invoices-page .client-invoices-eyebrow {
-  margin-bottom: 7px;
-  color: var(--color-accent);
-  font: 700 11px var(--font-navigation);
-  letter-spacing: 1.6px;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 .client-invoices-header h1 {
-  margin-bottom: 10px;
+  margin: 0 0 10px;
+  color: var(--text-h);
+  font: 500 42px "Noto Serif", serif;
+  letter-spacing: -1px;
   font-size: clamp(32px, 3vw, 42px);
 }
 
 .client-invoices-header>p:last-child {
-  font: 14px/1.65 var(--font-navigation);
+  max-width: 650px;
+  margin-top: 12px;
+  color: var(--text);
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .client-invoices-summary {
   display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 34px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 34px;
 }
 
 .client-invoices-stat {
   display: flex;
-    align-items: center;
-    gap: 16px;
-    min-height: 105px;
-    padding: 22px;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-small);
-    box-sizing: border-box;
+  align-items: center;
+  gap: 16px;
+  min-height: 105px;
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-small);
+  box-sizing: border-box;
 }
 
 .client-invoices-stat svg {
@@ -424,12 +539,6 @@
   letter-spacing: 0.14em;
 }
 
-.client-invoices-header h1 {
-  margin: 0;
-  color: var(--text-h);
-  font: 500 40px/1.1 "Noto Serif", serif;
-}
-
 .client-invoices-header>p:last-child {
   max-width: 650px;
   margin-top: 12px;
@@ -560,7 +669,7 @@
 .client-invoice-document-header h2 {
   margin: 0;
   color: var(--text-h);
-  font: 500 2rem/1.2 "Cormorant Garamond","Noto Serif", serif;
+  font: 500 2rem/1.2 "Cormorant Garamond", "Noto Serif", serif;
 }
 
 .client-invoice-document-status {

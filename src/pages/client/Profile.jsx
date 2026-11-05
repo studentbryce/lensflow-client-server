@@ -7,6 +7,38 @@ import "./Profile.css";
 
 const toForm = (profile) => ({ first_name: profile.first_name || "", last_name: profile.last_name || "", phone: profile.phone || "" });
 
+function ProfileSkeleton() {
+  return (
+    <div className="client-account-layout client-account-skeleton" role="status" aria-label="Loading profile">
+      <aside className="client-account-card client-account-summary">
+        <span className="client-account-skeleton-avatar" />
+        <span className="client-account-skeleton-line client-account-skeleton-line--name" />
+        <span className="client-account-skeleton-line client-account-skeleton-line--small" />
+        <span className="client-account-skeleton-line client-account-skeleton-line--detail" />
+        <span className="client-account-skeleton-line client-account-skeleton-line--detail" />
+        <span className="client-account-skeleton-line client-account-skeleton-line--link" />
+      </aside>
+      <section className="client-account-card">
+        <h2>Personal information</h2>
+        <p>These details are shared with your photographer.</p>
+        <div className="client-account-fields">
+          {['First name', 'Last name', 'Account email', 'Phone number (optional)'].map((label, index) => (
+            <div className={index > 1 ? 'client-account-wide' : ''} key={label}>
+              <span className="client-account-skeleton-field-label">{label}</span>
+              <span className="client-account-skeleton-input" />
+              {index === 2 && <span className="client-account-skeleton-line client-account-skeleton-line--help" />}
+            </div>
+          ))}
+        </div>
+        <div className="client-account-actions">
+          <span className="client-account-skeleton-button" />
+          <span className="client-account-skeleton-button client-account-skeleton-button--secondary" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -76,13 +108,13 @@ export default function Profile() {
   }
 
   return (
-    <div className="client-account-page">
+    <div className="client-account-page" aria-busy={loading}>
       <header className="client-account-header">
         <p className="client-account-eyebrow">Your account</p>
         <h1>My Profile</h1>
         <p>Keep your personal details up to date so your photographer can stay in touch.</p>
       </header>
-      {loading ? <div className="client-account-state" role="status">Loading your profile…</div> :
+      {loading ? <ProfileSkeleton /> :
         loadError ? <div className="client-account-state" role="alert"><h2>Unable to load profile</h2><p>{loadError}</p><button type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></div> : profile && (
           <div className="client-account-layout">
             <aside className="client-account-card client-account-summary">

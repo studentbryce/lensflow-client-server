@@ -6,7 +6,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 8px 0 70px;
+  padding: 8px 0 60px;
 }
 
 /* =========================================================
@@ -17,36 +17,35 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 30px;
-  margin-bottom: 35px;
-  padding-bottom: 30px;
-  border-bottom: 1px solid var(--border);
+  flex-direction: row;
+  gap: 32px;
+  margin-bottom: 36px;
 }
 
 .clients-header h1 {
-  margin: 0;
+  margin: 0 0 10px;
   font-family: "Noto Serif", serif;
-  font-size: 40px;
+  font-size: 42px;
   font-weight: 500;
-  letter-spacing: -0.7px;
+  letter-spacing: -1px;
   color: var(--text-h);
 }
 
 .page-eyebrow {
   margin: 0 0 7px;
   font-family: "Open Sans", sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .page-description {
-  margin-top: 8px;
-  font-family: "Cormorant Garamond", serif;
-  font-size: 19px;
-  color: var(--text);
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* =========================================================
@@ -167,6 +166,38 @@
   border-color: var(--accent-border);
   box-shadow: var(--shadow);
 }
+
+.client-card-skeleton,
+.client-card-skeleton:hover {
+  transform: none;
+  border-color: var(--border);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.client-skeleton-avatar,
+.client-skeleton-line,
+.client-skeleton-action {
+  display: block;
+  background: var(--accent-bg);
+  border-radius: 7px;
+}
+
+.client-skeleton-avatar {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  border-radius: 50%;
+}
+
+.client-skeleton-details { display: grid; gap: 9px; flex: 1; min-width: 0; }
+.client-skeleton-line { height: 10px; }
+.client-skeleton-line--name { width: 65%; height: 15px; }
+.client-skeleton-line--email { width: 85%; }
+.client-skeleton-line--phone { width: 46%; }
+.client-skeleton-line--label { width: 70%; height: 8px; margin-bottom: 9px; }
+.client-skeleton-line--value { width: 60%; height: 15px; }
+.client-skeleton-action { width: 97px; height: 34px; }
 
 /* =========================================================
    Client Identity

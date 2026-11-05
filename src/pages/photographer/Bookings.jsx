@@ -12,6 +12,20 @@ const FILTERS = [
   { label: "Declined", value: "declined" },
 ];
 
+function BookingSkeleton() {
+  return (
+    <div className="booking-card booking-card-skeleton" aria-hidden="true">
+      <div className="booking-skeleton-date" />
+      <div className="booking-skeleton-details">
+        <span className="booking-skeleton-line booking-skeleton-line--medium" />
+        <span className="booking-skeleton-line booking-skeleton-line--long" />
+        <span className="booking-skeleton-line booking-skeleton-line--short" />
+      </div>
+      <span className="booking-skeleton-action" />
+    </div>
+  );
+}
+
 export default function Bookings() {
   const navigate = useNavigate();
 
@@ -172,7 +186,7 @@ export default function Bookings() {
   }
 
   return (
-    <div className="bookings-page">
+    <div className="bookings-page" aria-busy={loading}>
 
       <header className="bookings-header">
         <div>
@@ -216,8 +230,25 @@ export default function Bookings() {
       )}
 
       {loading && (
-        <div className="booking-state">
-          <p>Loading bookings...</p>
+        <div role="status" aria-label="Loading bookings">
+          <section className="booking-section">
+            <div className="section-heading">
+              <div><p className="section-eyebrow">Your schedule</p><h2>Upcoming Bookings</h2></div>
+              <span className="booking-count">—</span>
+            </div>
+            <div className="booking-list">
+              <BookingSkeleton />
+              <BookingSkeleton />
+            </div>
+          </section>
+          <section className="booking-section past-section">
+            <div className="section-heading">
+              <div><p className="section-eyebrow">History</p><h2>Past Bookings</h2></div>
+              <span className="booking-count">—</span>
+            </div>
+            <div className="booking-list"><BookingSkeleton /></div>
+          </section>
+          <span className="booking-loading-label">Loading bookings…</span>
         </div>
       )}
 

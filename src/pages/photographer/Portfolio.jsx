@@ -12,6 +12,33 @@ import {
 import { apiListPhotographerPortfolio, apiUpdatePortfolioItem, apiDeletePortfolioItem, apiReorderPortfolio } from "../../services/photographerWebsiteApi";
 import "./Portfolio.css";
 
+function PortfolioSkeleton() {
+  return (
+    <article className="portfolio-card portfolio-card-skeleton" aria-hidden="true">
+      <div className="portfolio-card-image portfolio-skeleton-image" />
+      <div className="portfolio-card-content">
+        <div className="portfolio-card-top">
+          <div className="portfolio-skeleton-heading">
+            <span className="portfolio-skeleton-line portfolio-skeleton-line--title" />
+            <span className="portfolio-skeleton-line portfolio-skeleton-line--category" />
+          </div>
+          <span className="portfolio-skeleton-line portfolio-skeleton-line--order" />
+        </div>
+        <span className="portfolio-skeleton-line portfolio-skeleton-line--description" />
+        <span className="portfolio-skeleton-line portfolio-skeleton-line--description-short" />
+        <div className="portfolio-card-meta">
+          <span className="portfolio-skeleton-line portfolio-skeleton-line--date" />
+        </div>
+        <div className="portfolio-card-actions">
+          <span className="portfolio-skeleton-line portfolio-skeleton-line--action" />
+          <span className="portfolio-skeleton-line portfolio-skeleton-line--action" />
+          <span className="portfolio-skeleton-line portfolio-skeleton-line--action" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Portfolio() {
   const navigate = useNavigate();
 
@@ -387,26 +414,11 @@ export default function Portfolio() {
   }
 
   /* =========================================
-     LOADING
-  ========================================== */
-
-  if (loading) {
-    return (
-      <div className="portfolio-page">
-        <div className="portfolio-loading">
-          <div className="portfolio-spinner"></div>
-          <p>Loading portfolio...</p>
-        </div>
-      </div>
-    );
-  }
-
-  /* =========================================
      PAGE
   ========================================== */
 
   return (
-    <div className="portfolio-page">
+    <div className="portfolio-page" aria-busy={loading}>
 
       {/* =========================
           PAGE HEADER
@@ -475,7 +487,7 @@ export default function Portfolio() {
             <span>Total Items</span>
 
             <strong>
-              {portfolioItems.length}
+              {loading ? "—" : portfolioItems.length}
             </strong>
           </div>
         </div>
@@ -489,7 +501,7 @@ export default function Portfolio() {
             <span>Published</span>
 
             <strong>
-              {
+              {loading ? "—" :
                 portfolioItems.filter(
                   (item) =>
                     item.published
@@ -508,7 +520,7 @@ export default function Portfolio() {
             <span>Drafts</span>
 
             <strong>
-              {
+              {loading ? "—" :
                 portfolioItems.filter(
                   (item) =>
                     !item.published
@@ -524,7 +536,15 @@ export default function Portfolio() {
           EMPTY STATE
       ========================== */}
 
-      {portfolioItems.length === 0 ? (
+      {loading ? (
+        <section role="status" aria-label="Loading portfolio">
+          <div className="portfolio-grid">
+            <PortfolioSkeleton />
+            <PortfolioSkeleton />
+            <PortfolioSkeleton />
+          </div>
+        </section>
+      ) : portfolioItems.length === 0 ? (
         <div className="portfolio-empty">
 
           <div className="portfolio-empty-icon">

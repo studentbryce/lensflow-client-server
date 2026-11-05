@@ -33,6 +33,24 @@ function getGalleryAccessClass(gallery) {
   return gallery.allow_downloads ? "enabled" : "disabled";
 }
 
+function GalleryCardSkeleton() {
+  return (
+    <article className="gallery-card client-gallery-skeleton-card" aria-hidden="true">
+      <div className="gallery-card-preview client-gallery-skeleton-preview" />
+      <div className="gallery-card-content">
+        <span className="client-gallery-skeleton-line client-gallery-skeleton-line--title" />
+        <span className="client-gallery-skeleton-line client-gallery-skeleton-line--description" />
+        <span className="client-gallery-skeleton-line client-gallery-skeleton-line--label" />
+        <span className="client-gallery-skeleton-line client-gallery-skeleton-line--description" />
+        <span className="client-gallery-skeleton-button" />
+      </div>
+      <div className="gallery-card-footer">
+        <span className="client-gallery-skeleton-line client-gallery-skeleton-line--footer" />
+      </div>
+    </article>
+  );
+}
+
 export default function Galleries() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -218,25 +236,10 @@ export default function Galleries() {
   };
 
   // -------------------------------------------------------------
-  // Loading state
-  // -------------------------------------------------------------
-
-  if (loading) {
-    return (
-      <div className="galleries-page client-galleries-page">
-        <div className="galleries-loading">
-          <div className="galleries-spinner"></div>
-          <p>Loading your galleries...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
   // Error state
   // -------------------------------------------------------------
 
-  if (errorMessage) {
+  if (!loading && errorMessage) {
     return (
       <div className="galleries-page client-galleries-page">
         <header className="galleries-header">
@@ -271,7 +274,7 @@ export default function Galleries() {
   }
 
   return (
-    <div className="galleries-page client-galleries-page">
+    <div className="galleries-page client-galleries-page" aria-busy={loading}>
       {/* ========================================================
           HEADER
       ======================================================== */}
@@ -303,7 +306,7 @@ export default function Galleries() {
 
           <div>
             <span>Your Galleries</span>
-            <strong>{totalGalleries}</strong>
+            <strong>{loading ? <span className="client-gallery-skeleton-count" /> : totalGalleries}</strong>
           </div>
         </div>
 
@@ -314,7 +317,7 @@ export default function Galleries() {
 
           <div>
             <span>Downloads</span>
-            <strong>{galleriesWithDownloads}</strong>
+            <strong>{loading ? <span className="client-gallery-skeleton-count" /> : galleriesWithDownloads}</strong>
           </div>
         </div>
 
@@ -325,7 +328,7 @@ export default function Galleries() {
 
           <div>
             <span>View Only</span>
-            <strong>{viewOnlyGalleries}</strong>
+            <strong>{loading ? <span className="client-gallery-skeleton-count" /> : viewOnlyGalleries}</strong>
           </div>
         </div>
 
@@ -336,7 +339,7 @@ export default function Galleries() {
 
           <div>
             <span>Total Media</span>
-            <strong>{totalMedia}</strong>
+            <strong>{loading ? <span className="client-gallery-skeleton-count" /> : totalMedia}</strong>
           </div>
         </div>
       </section>
@@ -352,6 +355,7 @@ export default function Galleries() {
           <input
             type="text"
             placeholder="Search your galleries..."
+            disabled={loading}
             value={searchTerm}
             onChange={(event) =>
               setSearchTerm(event.target.value)
@@ -373,6 +377,7 @@ export default function Galleries() {
         <div className="galleries-filter-tabs">
           <button
             type="button"
+            disabled={loading}
             className={
               accessFilter === "all"
                 ? "gallery-filter active"
@@ -381,11 +386,12 @@ export default function Galleries() {
             onClick={() => setAccessFilter("all")}
           >
             All
-            <span>{totalGalleries}</span>
+            <span>{loading ? "—" : totalGalleries}</span>
           </button>
 
           <button
             type="button"
+            disabled={loading}
             className={
               accessFilter === "downloads"
                 ? "gallery-filter active"
@@ -396,11 +402,12 @@ export default function Galleries() {
             }
           >
             Downloads
-            <span>{galleriesWithDownloads}</span>
+            <span>{loading ? "—" : galleriesWithDownloads}</span>
           </button>
 
           <button
             type="button"
+            disabled={loading}
             className={
               accessFilter === "view-only"
                 ? "gallery-filter active"
@@ -411,7 +418,7 @@ export default function Galleries() {
             }
           >
             View Only
-            <span>{viewOnlyGalleries}</span>
+            <span>{loading ? "—" : viewOnlyGalleries}</span>
           </button>
         </div>
       </section>
@@ -421,7 +428,13 @@ export default function Galleries() {
       ======================================================== */}
 
       <section className="galleries-content">
-        {filteredGalleries.length === 0 ? (
+        {loading ? (
+          <div className="galleries-grid" role="status" aria-label="Loading galleries">
+            <GalleryCardSkeleton />
+            <GalleryCardSkeleton />
+            <GalleryCardSkeleton />
+          </div>
+        ) : filteredGalleries.length === 0 ? (
           <div className="galleries-empty">
             <div className="galleries-empty-icon">
               <BiImage aria-hidden="true" />

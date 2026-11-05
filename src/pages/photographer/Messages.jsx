@@ -928,14 +928,54 @@ export default function Messages() {
 
     if (loading) {
         return (
-            <div className="messages-page">
-                <div className="messages-loading">
-                    <span className="messages-spinner" />
-
-                    <p>
-                        Loading messages...
-                    </p>
-                </div>
+            <div className="messages-page" aria-busy="true">
+                <header className="messages-page-header">
+                    <div>
+                        <span className="messages-eyebrow">Communication</span>
+                        <h1>Messages</h1>
+                        <p>Keep in touch with your photography clients.</p>
+                    </div>
+                    <button type="button" className="messages-new-button" disabled>
+                        <BiMessageAdd aria-hidden="true" /> New message
+                    </button>
+                </header>
+                <section className="messages-shell" role="status" aria-label="Loading messages">
+                    <aside className="messages-sidebar">
+                        <div className="messages-sidebar-header">
+                            <div><h2>Conversations</h2><span>Loading conversations…</span></div>
+                        </div>
+                        <div className="messages-search">
+                            <BiSearch aria-hidden="true" />
+                            <input type="search" placeholder="Search messages..." disabled aria-label="Search conversations" />
+                        </div>
+                        <div className="messages-conversation-list">
+                            {Array.from({ length: 4 }, (_, index) => (
+                                <div className="messages-conversation-item messages-skeleton-item" key={index} aria-hidden="true">
+                                    <span className="messages-skeleton-avatar" />
+                                    <div className="messages-skeleton-details">
+                                        <span className="messages-skeleton-line messages-skeleton-line--name" />
+                                        <span className="messages-skeleton-line messages-skeleton-line--preview" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </aside>
+                    <div className="messages-thread messages-skeleton-thread" aria-hidden="true">
+                        <div className="messages-skeleton-thread-header">
+                            <span className="messages-skeleton-avatar" />
+                            <div className="messages-skeleton-details">
+                                <span className="messages-skeleton-line messages-skeleton-line--name" />
+                                <span className="messages-skeleton-line messages-skeleton-line--preview" />
+                            </div>
+                        </div>
+                        <div className="messages-skeleton-history">
+                            <span className="messages-skeleton-bubble" />
+                            <span className="messages-skeleton-bubble messages-skeleton-bubble--mine" />
+                            <span className="messages-skeleton-bubble messages-skeleton-bubble--short" />
+                        </div>
+                        <span className="messages-skeleton-composer" />
+                    </div>
+                </section>
             </div>
         );
     }

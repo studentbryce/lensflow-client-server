@@ -42,6 +42,59 @@
     color: var(--color-danger);
 }
 
+/* Dashboard-shaped placeholders keep the layout visible while data loads. */
+.client-dashboard-skeleton-value,
+.client-dashboard-skeleton-tile,
+.client-dashboard-skeleton-line,
+.client-dashboard-skeleton-pill {
+    display: block;
+    background: #e9edf0;
+    border-radius: 7px;
+    animation: client-dashboard-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.client-dashboard-skeleton-value {
+    width: 78px;
+    height: 32px;
+    margin: 5px 0;
+}
+
+.client-dashboard-skeleton-list { display: flex; flex-direction: column; }
+.client-dashboard-skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 88px;
+    padding: 18px 14px;
+    border-bottom: 1px solid var(--color-border-light);
+}
+.client-dashboard-skeleton-row:last-child { border-bottom: 0; }
+.client-dashboard-skeleton-tile { flex: 0 0 64px; height: 51px; }
+.client-dashboard-skeleton-details { flex: 1; min-width: 0; }
+.client-dashboard-skeleton-line { height: 13px; margin: 0 0 11px; }
+.client-dashboard-skeleton-line--primary { width: min(75%, 220px); height: 17px; }
+.client-dashboard-skeleton-line--secondary { width: min(55%, 145px); margin-bottom: 0; }
+.client-dashboard-skeleton-pill { flex: 0 0 74px; height: 24px; border-radius: 18px; }
+.client-dashboard-skeleton-list--invoices .client-dashboard-skeleton-tile { display: none; }
+
+@keyframes client-dashboard-skeleton-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .client-dashboard-skeleton-value,
+    .client-dashboard-skeleton-tile,
+    .client-dashboard-skeleton-line,
+    .client-dashboard-skeleton-pill { animation: none; }
+}
+
+@media (max-width: 480px) {
+    .client-dashboard-skeleton-row { gap: 10px; padding: 14px 8px; }
+    .client-dashboard-skeleton-tile { flex-basis: 45px; height: 45px; }
+    .client-dashboard-skeleton-pill { flex-basis: 54px; }
+}
+
 
 /* ------------------------------------------------------------
    CLIENT WELCOME
@@ -73,17 +126,10 @@
 
 
 .client-welcome p {
-    margin: 0;
-
-    max-width: 650px;
-
-    color: var(--color-muted);
-
-    font-family: var(--font-body);
-
-    font-size: 17px;
-
-    line-height: 1.6;
+  max-width: 650px;
+  margin-top: 12px;
+  color: var(--text);
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 
@@ -680,108 +726,4 @@
         height: 58px;
     }
 
-}
-
-/* ------------------------------------------------------------
-   PHOTOGRAPHER PAGE VISUAL PARITY
-   ------------------------------------------------------------ */
-
-.dashboard-page:not(.photographer-dashboard) {
-    box-sizing: border-box;
-}
-
-.dashboard-page:not(.photographer-dashboard) .client-welcome {
-    margin-bottom: 24px;
-    padding-top: 0;
-}
-
-.dashboard-page:not(.photographer-dashboard) .client-welcome h1 {
-    margin: 0 0 8px;
-    font-size: clamp(32px, 3vw, 42px);
-}
-
-.dashboard-page:not(.photographer-dashboard) .client-welcome p {
-    font-size: 14px;
-    line-height: 1.65;
-}
-
-.dashboard-page:not(.photographer-dashboard) .dashboard-stats {
-    gap: 14px;
-    margin: 24px 0;
-}
-
-.dashboard-page:not(.photographer-dashboard) .dashboard-section {
-    min-width: 0;
-    margin-bottom: 18px;
-    padding: 22px;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-small);
-}
-
-.dashboard-page:not(.photographer-dashboard) .section-heading {
-    gap: 12px;
-    margin-bottom: 15px;
-}
-
-.dashboard-page:not(.photographer-dashboard) .section-heading .eyebrow {
-    margin-bottom: 3px;
-    color: var(--color-accent);
-    font: italic 23px/1.2 var(--font-subheading);
-}
-
-.dashboard-page:not(.photographer-dashboard) .section-heading h2 {
-    font-size: clamp(19px, 2vw, 25px);
-    font-weight: 500;
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-row {
-    grid-template-columns: 90px minmax(0, 1fr) 120px 100px;
-    gap: 18px;
-    padding: 12px 4px;
-    border-radius: 0;
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-date {
-    min-height: 52px;
-    padding: 6px;
-    border-radius: 7px;
-    text-align: center;
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-date strong {
-    font: 600 13px var(--font-heading);
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-date span {
-    margin-top: 0;
-    font: 10px var(--font-navigation);
-    letter-spacing: 0;
-    text-transform: none;
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-client strong {
-    overflow: hidden;
-    font: 600 15px var(--font-body);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-client span {
-    font: 12px var(--font-body);
-}
-
-.dashboard-page:not(.photographer-dashboard) .booking-amount {
-    font: 600 13px var(--font-navigation);
-}
-
-@media (max-width: 560px) {
-    .dashboard-page:not(.photographer-dashboard) {
-        padding: 12px 12px 40px;
-    }
-
-    .dashboard-page:not(.photographer-dashboard) .dashboard-section {
-        padding: 16px;
-    }
 }

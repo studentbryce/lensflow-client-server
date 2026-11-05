@@ -18,10 +18,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-
-  gap: 24px;
-
-  margin-bottom: 28px;
+  flex-direction: row;
+  gap: 32px;
+  margin-bottom: 36px;
 }
 
 
@@ -35,47 +34,31 @@
 
 
 .calendar-eyebrow {
-  display: block;
-
-  margin-bottom: 8px;
-
-  color: var(--color-accent-dark);
-
-  font-family: var(--font-navigation);
-
-  font-size: 10px;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
   font-weight: 700;
-
-  letter-spacing: 1.6px;
-
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 
 .calendar-page-header h1 {
-  margin: 0 0 9px;
-
-  color: var(--color-heading);
-
-  font-family: var(--font-heading);
-
-  font-size: clamp(34px, 4vw, 46px);
+  margin: 0 0 10px;
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
   font-weight: 500;
-
-  letter-spacing: -0.7px;
+  letter-spacing: -1px;
+  color: var(--text-h);
 }
 
 
 .calendar-page-header p {
-  margin: 0;
-
-  color: var(--color-muted);
-
-  font-family: var(--font-body);
-
-  font-size: 17px;
-
-  line-height: 1.6;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 
@@ -1720,6 +1703,13 @@
   justify-content: center;
 
   min-height: 450px;
+}
+
+.calendar-inline-loading {
+  grid-column: 1 / -1;
+  padding: 10px 14px;
+  color: var(--color-muted);
+  font: 13px var(--font-body);
 }
 
 

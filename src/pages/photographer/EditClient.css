@@ -6,7 +6,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 8px 0 70px;
+  padding: 8px 0 60px;
 }
 
 /* =========================================================
@@ -24,29 +24,29 @@
 }
 
 .edit-client-header h1 {
-  margin: 8px 0 0;
+  margin: 0 0 10px;
   font-family: "Noto Serif", serif;
-  font-size: 40px;
+  font-size: 42px;
   font-weight: 500;
-  letter-spacing: -0.7px;
+  letter-spacing: -1px;
   color: var(--text-h);
 }
 
 .page-eyebrow {
-  margin: 12px 0 0;
+  margin: 0 0 7px;
   font-family: "Open Sans", sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .page-description {
-  margin-top: 8px;
-  font-family: "Cormorant Garamond", serif;
-  font-size: 19px;
-  color: var(--text);
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .back-button {
@@ -154,10 +154,10 @@
 }
 
 .section-heading p:last-child {
-  margin: 6px 0 0;
-  font-family: "Cormorant Garamond", serif;
-  font-size: 17px;
+  max-width: 650px;
+  margin-top: 12px;
   color: var(--text);
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* =========================================================
@@ -398,8 +398,7 @@
 }
 
 .cancel-button,
-.save-button,
-.secondary-button {
+.save-button {
   padding: 11px 18px;
   border-radius: 7px;
   cursor: pointer;
@@ -489,7 +488,7 @@
 }
 
 .secondary-button {
-  margin: 20px 0 0;
+
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text-h);

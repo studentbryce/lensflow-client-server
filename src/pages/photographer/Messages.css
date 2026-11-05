@@ -3,11 +3,10 @@
    ========================================================= */
 
 .messages-page {
-    width: 100%;
-    max-width: 1200px;
-
-    margin: 0 auto;
-    padding: 8px 0 60px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
 }
 
 
@@ -16,57 +15,41 @@
    ========================================================= */
 
 .messages-page-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-
-    gap: 30px;
-
-    margin-bottom: 32px;
-    padding-top: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-direction: row;
+  gap: 32px;
+  margin-bottom: 36px;
 }
 
 
 .messages-eyebrow {
-    display: block;
-
-    margin-bottom: 6px;
-
-    color: var(--accent);
-
-    font-family: var(--font-navigation);
-
-    font-size: 12px;
-    font-weight: 600;
-
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 
 .messages-page-header h1 {
-    margin: 0 0 8px;
-
-    color: var(--color-heading);
-
-    font-family: var(--font-heading);
-
-    font-size: 38px;
-    font-weight: 500;
+  margin: 0 0 10px;
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: var(--text-h);
 }
 
 
 .messages-page-header p {
     max-width: 650px;
-
-    margin: 0;
-
-    color: var(--color-muted);
-
-    font-family: var(--font-body);
-
-    font-size: 17px;
-    line-height: 1.6;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 
@@ -317,6 +300,33 @@
 .messages-conversation-item:hover {
     background: var(--accent-bg);
 }
+
+.messages-skeleton-item,
+.messages-skeleton-item:hover {
+    background: transparent;
+    pointer-events: none;
+}
+
+.messages-skeleton-avatar,
+.messages-skeleton-line,
+.messages-skeleton-bubble,
+.messages-skeleton-composer {
+    display: block;
+    background: var(--accent-bg);
+    border-radius: 7px;
+}
+
+.messages-skeleton-avatar { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; }
+.messages-skeleton-details { display: grid; gap: 10px; flex: 1; min-width: 0; align-content: center; }
+.messages-skeleton-line { height: 10px; }
+.messages-skeleton-line--name { width: 58%; height: 14px; }
+.messages-skeleton-line--preview { width: 83%; }
+.messages-skeleton-thread-header { display: flex; align-items: center; gap: 13px; padding: 20px; border-bottom: 1px solid var(--color-border-light); }
+.messages-skeleton-history { flex: 1; padding: 28px 25px; display: flex; flex-direction: column; gap: 19px; }
+.messages-skeleton-bubble { width: 62%; max-width: 320px; height: 66px; border-radius: 14px; }
+.messages-skeleton-bubble--mine { align-self: flex-end; width: 52%; }
+.messages-skeleton-bubble--short { width: 36%; height: 46px; }
+.messages-skeleton-composer { height: 58px; margin: 16px 20px 20px; }
 
 
 .messages-conversation-item.is-active {

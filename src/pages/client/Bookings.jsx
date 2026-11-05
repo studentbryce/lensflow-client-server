@@ -25,6 +25,24 @@ function isUpcoming(booking, today) {
   return ["pending", "confirmed"].includes(booking.status) && booking.booking_date >= today;
 }
 
+function BookingCardSkeleton() {
+  return (
+    <article className="client-bookings-card client-bookings-skeleton-card" aria-hidden="true">
+      <div className="client-bookings-skeleton-date client-bookings-shimmer" />
+      <div className="client-bookings-skeleton-info">
+        <span className="client-bookings-skeleton-line client-bookings-skeleton-line--title" />
+        <span className="client-bookings-skeleton-line client-bookings-skeleton-line--detail" />
+        <span className="client-bookings-skeleton-line client-bookings-skeleton-line--location" />
+      </div>
+      <div className="client-bookings-skeleton-meta">
+        <span className="client-bookings-skeleton-pill client-bookings-shimmer" />
+        <span className="client-bookings-skeleton-line client-bookings-skeleton-line--amount" />
+        <span className="client-bookings-skeleton-button client-bookings-shimmer" />
+      </div>
+    </article>
+  );
+}
+
 export default function Bookings() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
@@ -74,7 +92,7 @@ export default function Bookings() {
   ];
 
   return (
-    <div className="client-bookings-page">
+    <div className="client-bookings-page" aria-busy={loading}>
       <header className="client-bookings-header">
         <div className="client-bookings-header-main">
           <p className="client-bookings-eyebrow">Your photography</p>
@@ -84,9 +102,7 @@ export default function Bookings() {
         <Link className="client-booking-button" to="/client/bookings/new">+ New Booking</Link>
       </header>
 
-      {loading ? (
-        <div className="client-bookings-state" role="status">Loading your bookings…</div>
-      ) : error ? (
+      {!loading && error ? (
         <div className="client-bookings-state" role="alert">
           <h2>Unable to load your bookings</h2>
           <p>{error}</p>
@@ -98,7 +114,7 @@ export default function Bookings() {
             {summaries.map(([label, count]) => (
               <div className="client-bookings-stat" key={label}>
                 <CalendarDays size={23} aria-hidden="true" />
-                <div><span>{label}</span><strong>{count}</strong></div>
+                <div><span>{label}</span><strong>{loading ? <span className="client-bookings-skeleton-count client-bookings-shimmer" /> : count}</strong></div>
               </div>
             ))}
           </section>
@@ -107,17 +123,25 @@ export default function Bookings() {
             <label className="client-bookings-search">
               <Search size={18} aria-hidden="true" />
               <input type="search" aria-label="Search bookings" placeholder="Search by session, location or date…"
-                value={search} onChange={(event) => setSearch(event.target.value)} />
+                value={search} disabled={loading} onChange={(event) => setSearch(event.target.value)} />
             </label>
             <div className="client-bookings-filters" role="group" aria-label="Filter by booking status">
               {STATUSES.map((value) => (
-                <button type="button" key={value} aria-pressed={status === value.toLowerCase()}
+                <button type="button" key={value} disabled={loading} aria-pressed={status === value.toLowerCase()}
                   onClick={() => setStatus(value.toLowerCase())}>{value}</button>
               ))}
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <section className="client-bookings-section" role="status" aria-label="Loading bookings">
+              <h2>Upcoming sessions</h2>
+              <div className="client-bookings-list">
+                <BookingCardSkeleton />
+                <BookingCardSkeleton />
+              </div>
+            </section>
+          ) : filtered.length === 0 ? (
             <div className="client-bookings-state" role="status">
               <CalendarDays size={32} aria-hidden="true" />
               <h2>{bookings.length ? "No matching bookings" : "No bookings yet"}</h2>

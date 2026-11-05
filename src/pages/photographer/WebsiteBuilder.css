@@ -10,30 +10,38 @@
    ========================================================= */
 
 .wb-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 28px;
-  margin-bottom: 30px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-direction: row;
+    gap: 32px;
+    margin-bottom: 36px;
 }
 
 .wb-header h1 {
   margin: 0 0 10px;
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: var(--text-h);
 }
 
 .wb-eyebrow {
-  margin: 0 0 8px;
-  color: var(--color-accent);
-  font: 700 11px var(--font-navigation);
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 1.6px;
+  color: var(--accent);
 }
 
 .wb-header-description {
-  max-width: 650px;
-  margin: 0;
-  color: var(--color-text-muted);
-  font: 14px/1.7 var(--font-navigation);
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .wb-preview-link {
@@ -100,6 +108,21 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-small);
 }
+
+.wb-card-skeleton { pointer-events: none; }
+.wb-skeleton-line,
+.wb-skeleton-image {
+  display: block;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-light);
+  border-radius: 7px;
+}
+.wb-skeleton-line { height: 11px; border: 0; }
+.wb-skeleton-line--eyebrow { width: 80px; height: 8px; margin-bottom: 10px; }
+.wb-skeleton-line--label { width: 35%; margin: 19px 0 9px; }
+.wb-skeleton-line--input { width: 100%; height: 42px; }
+.wb-skeleton-line--hint { width: 67%; margin-top: 16px; }
+.wb-skeleton-image { height: 125px; margin-bottom: 18px; }
 
 .wb-card-heading {
   display: flex;

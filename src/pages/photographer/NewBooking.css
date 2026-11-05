@@ -10,28 +10,28 @@
 ========================= */
 
 .new-booking-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-direction: row;
+  gap: 32px;
   margin-bottom: 36px;
 }
 
 .new-booking-header h1 {
-  margin: 10px 0 10px;
-
+  margin: 0 0 10px;
   font-family: "Noto Serif", serif;
   font-size: 42px;
   font-weight: 500;
   letter-spacing: -1px;
-
   color: var(--text-h);
 }
 
 .new-booking-header .page-description {
-  max-width: 650px;
-
-  font-family: "Cormorant Garamond", serif;
-  font-size: 20px;
-  line-height: 1.4;
-
-  color: var(--text);
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .back-button {
@@ -103,7 +103,13 @@
 }
 
 .form-section-heading .section-eyebrow {
-  margin-bottom: 5px;
+    margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .form-section-heading h2 {

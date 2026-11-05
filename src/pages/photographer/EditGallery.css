@@ -1,7 +1,7 @@
 .edit-gallery-page {
-  min-height: 100vh;
-  background: var(--bg, #f6f7f9);
-  color: var(--text, #334155);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   padding: 8px 0 60px;
 }
 
@@ -47,13 +47,13 @@
 }
 
 .edit-gallery-eyebrow {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--accent, #2563eb);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 .edit-gallery-heading h1 {
@@ -66,7 +66,7 @@
 
 .edit-gallery-heading p {
   margin: 8px 0 0;
-  color: #64748b;
+  color: var(--text);
   font-size: 15px;
 }
 
@@ -169,9 +169,10 @@
 
 .edit-gallery-card-header p {
   margin: 5px 0 0;
-  color: #64748b;
+  color: var(--text);
   font-size: 13px;
   line-height: 1.5;
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* ============================================================

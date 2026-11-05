@@ -6,7 +6,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 8px 0 70px;
+  padding: 8px 0 60px;
 }
 
 /* =========================================================
@@ -56,15 +56,11 @@
 
 .client-profile-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-
-  gap: 30px;
-
-  padding-bottom: 30px;
-  border-bottom: 1px solid var(--border);
-
-  margin-bottom: 25px;
+  flex-direction: row;
+  gap: 32px;
+  margin-bottom: 36px;
 }
 
 .client-profile-identity {
@@ -212,7 +208,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
 
-  background: var(--bg);
+  background: var(--color-surface);
 }
 
 .overview-card span {
@@ -258,15 +254,13 @@
 }
 
 .section-eyebrow {
-  margin: 0 0 5px;
-
-  color: var(--accent);
-
+  margin: 0 0 7px;
   font-family: "Open Sans", sans-serif;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 1.7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 .section-heading h2 {
@@ -403,6 +397,7 @@
   transition:
     background 0.2s ease,
     padding 0.2s ease;
+  background: var(--color-surface-soft);
 }
 
 .booking-row:last-child {

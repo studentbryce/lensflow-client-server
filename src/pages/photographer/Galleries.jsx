@@ -68,6 +68,46 @@ function getGalleryStatus(isPublished) {
   return isPublished ? "Published" : "Unpublished";
 }
 
+function GallerySkeleton() {
+  return (
+    <article className="gallery-card gallery-card-skeleton" aria-hidden="true">
+      <div className="gallery-card-preview gallery-skeleton-preview" />
+      <div className="gallery-card-content">
+        <div className="gallery-card-heading">
+          <span className="gallery-skeleton-line gallery-skeleton-line--title" />
+          <span className="gallery-skeleton-line gallery-skeleton-line--description" />
+        </div>
+        <div className="gallery-client">
+          <span className="gallery-skeleton-avatar" />
+          <div className="gallery-skeleton-client-details">
+            <span className="gallery-skeleton-line gallery-skeleton-line--label" />
+            <span className="gallery-skeleton-line gallery-skeleton-line--client" />
+          </div>
+        </div>
+        <div className="gallery-meta">
+          {Array.from({ length: 2 }, (_, index) => (
+            <div className="gallery-meta-item" key={index}>
+              <div className="gallery-skeleton-meta-details">
+                <span className="gallery-skeleton-line gallery-skeleton-line--label" />
+                <span className="gallery-skeleton-line gallery-skeleton-line--meta" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <span className="gallery-skeleton-line gallery-skeleton-line--breakdown" />
+        <span className="gallery-skeleton-line gallery-skeleton-line--download" />
+        <div className="gallery-card-actions">
+          <span className="gallery-skeleton-line gallery-skeleton-line--action" />
+          <span className="gallery-skeleton-line gallery-skeleton-line--action" />
+        </div>
+      </div>
+      <div className="gallery-card-footer">
+        <span className="gallery-skeleton-line gallery-skeleton-line--footer" />
+      </div>
+    </article>
+  );
+}
+
 export default function Galleries() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -349,23 +389,6 @@ export default function Galleries() {
   };
 
   // -------------------------------------------------------------
-  // Loading state
-  // -------------------------------------------------------------
-
-  if (loading) {
-    return (
-      <div className="galleries-page">
-        <div className="galleries-container">
-          <div className="galleries-loading">
-            <div className="galleries-spinner" aria-hidden="true"></div>
-            <p>Loading galleries...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
   // Error state
   // -------------------------------------------------------------
 
@@ -400,7 +423,7 @@ export default function Galleries() {
   }
 
   return (
-    <div className="galleries-page">
+    <div className="galleries-page" aria-busy={loading}>
       <div className="galleries-container">
         {/* ========================================================
             HEADER
@@ -436,7 +459,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Total galleries</span>
-              <strong>{totalGalleries}</strong>
+              <strong>{loading ? "—" : totalGalleries}</strong>
             </div>
           </div>
 
@@ -446,7 +469,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Published</span>
-              <strong>{publishedGalleries}</strong>
+              <strong>{loading ? "—" : publishedGalleries}</strong>
             </div>
           </div>
 
@@ -456,7 +479,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Unpublished</span>
-              <strong>{unpublishedGalleries}</strong>
+              <strong>{loading ? "—" : unpublishedGalleries}</strong>
             </div>
           </div>
 
@@ -466,7 +489,7 @@ export default function Galleries() {
             </div>
             <div>
               <span>Total media</span>
-              <strong>{totalMedia}</strong>
+              <strong>{loading ? "—" : totalMedia}</strong>
             </div>
           </div>
         </section>
@@ -506,7 +529,7 @@ export default function Galleries() {
               aria-pressed={statusFilter === "all"}
             >
               All
-              <span>{totalGalleries}</span>
+              <span>{loading ? "—" : totalGalleries}</span>
             </button>
 
             <button
@@ -516,7 +539,7 @@ export default function Galleries() {
               aria-pressed={statusFilter === "published"}
             >
               Published
-              <span>{publishedGalleries}</span>
+              <span>{loading ? "—" : publishedGalleries}</span>
             </button>
 
             <button
@@ -526,7 +549,7 @@ export default function Galleries() {
               aria-pressed={statusFilter === "unpublished"}
             >
               Unpublished
-              <span>{unpublishedGalleries}</span>
+              <span>{loading ? "—" : unpublishedGalleries}</span>
             </button>
           </div>
         </section>
@@ -536,7 +559,22 @@ export default function Galleries() {
         ======================================================== */}
 
         <section className="galleries-content">
-          {filteredGalleries.length === 0 ? (
+          {loading ? (
+            <div role="status" aria-label="Loading galleries">
+              <div className="galleries-results-heading">
+                <div>
+                  <span className="galleries-results-eyebrow">Gallery library</span>
+                  <h2>Your Galleries</h2>
+                </div>
+                <span className="galleries-results-count">Loading galleries…</span>
+              </div>
+              <div className="galleries-grid">
+                <GallerySkeleton />
+                <GallerySkeleton />
+                <GallerySkeleton />
+              </div>
+            </div>
+          ) : filteredGalleries.length === 0 ? (
             <div className="galleries-empty">
               <div className="galleries-empty-icon">
                 <BiImages aria-hidden="true" />

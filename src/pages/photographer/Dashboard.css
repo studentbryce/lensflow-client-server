@@ -20,6 +20,12 @@
     font: 20px var(--font-body)
 }
 
+.dashboard-inline-loading {
+    padding: 22px 8px;
+    color: var(--color-muted);
+    font: 13px var(--font-body);
+}
+
 .dashboard-error p {
     color: var(--color-danger)
 }

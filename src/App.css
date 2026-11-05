@@ -408,11 +408,10 @@
 
 
 .dashboard-header p {
-  color: var(--color-muted);
-
-  font-family: var(--font-body);
-
-  font-size: 20px;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 

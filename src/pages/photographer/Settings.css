@@ -4,6 +4,9 @@
 
 .settings-page {
   width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
 }
 
 
@@ -18,50 +21,31 @@
 
 .settings-page-eyebrow,
 .settings-section-eyebrow {
-  display: block;
-
-  margin-bottom: 8px;
-
-  color: var(--color-accent-dark);
-
-  font-family: var(--font-navigation);
-
-  font-size: 10px;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
   font-weight: 700;
-
-  letter-spacing: 1.6px;
-
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 
 .settings-page-header h1 {
   margin: 0 0 10px;
-
-  color: var(--color-heading);
-
-  font-family: var(--font-heading);
-
-  font-size: clamp(34px, 4vw, 46px);
-
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
   font-weight: 500;
-
-  letter-spacing: -0.7px;
+  letter-spacing: -1px;
+  color: var(--text-h);
 }
 
 
 .settings-page-header p {
-  max-width: 680px;
-
-  margin: 0;
-
-  color: var(--color-muted);
-
-  font-family: var(--font-body);
-
-  font-size: 18px;
-
-  line-height: 1.65;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 
@@ -790,17 +774,10 @@
 
 
 .settings-integration-description {
-  margin: 0;
-
-  padding: 24px 24px 5px;
-
-  color: var(--color-muted);
-
-  font-family: var(--font-body);
-
-  font-size: 16px;
-
-  line-height: 1.7;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 
@@ -1485,6 +1462,72 @@
 .settings-integration-card > .settings-status {
   margin-right: 24px;
   margin-left: 24px;
+}
+
+/* Initial loading placeholders retain the settings page layout. */
+.settings-skeleton-line,
+.settings-skeleton-input,
+.settings-skeleton-button,
+.settings-skeleton-icon {
+  display: block;
+  background: #eceff2;
+  border-radius: 7px;
+  animation: settings-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.settings-skeleton-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-skeleton-line {
+  height: 13px;
+  margin-bottom: 12px;
+}
+
+.settings-skeleton-line--eyebrow { width: 94px; height: 9px; margin-bottom: 17px; }
+.settings-skeleton-line--title { width: 205px; max-width: 70%; height: 29px; }
+.settings-skeleton-line--description { width: 78%; max-width: 440px; }
+.settings-skeleton-line--description-short { width: 54%; }
+.settings-skeleton-line--label { width: 98px; height: 11px; margin-bottom: 0; }
+.settings-skeleton-line--card-title { width: 42%; height: 17px; }
+
+.settings-skeleton-icon {
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+
+.settings-skeleton-input {
+  height: 45px;
+  width: 100%;
+  border: 1px solid var(--color-border-light);
+}
+
+.settings-skeleton-button { width: 148px; height: 44px; }
+
+.settings-skeleton-cards { display: grid; gap: 18px; }
+.settings-skeleton-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-medium);
+}
+.settings-skeleton-card-content { flex: 1; min-width: 0; }
+
+@keyframes settings-skeleton-pulse {
+  0%, 100% { opacity: 0.58; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-skeleton-line,
+  .settings-skeleton-input,
+  .settings-skeleton-button,
+  .settings-skeleton-icon { animation: none; }
 }
 
 @media (max-width: 650px) {

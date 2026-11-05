@@ -3,6 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { apiGetPhotographerClients } from "../../services/photographerClientsApi";
 import "./Clients.css";
 
+function ClientSkeleton() {
+  return (
+    <article className="client-card client-card-skeleton" aria-hidden="true">
+      <div className="client-identity">
+        <div className="client-skeleton-avatar" />
+        <div className="client-skeleton-details">
+          <span className="client-skeleton-line client-skeleton-line--name" />
+          <span className="client-skeleton-line client-skeleton-line--email" />
+          <span className="client-skeleton-line client-skeleton-line--phone" />
+        </div>
+      </div>
+      <div className="client-booking-summary">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div className="client-stat" key={index}>
+            <span className="client-skeleton-line client-skeleton-line--label" />
+            <span className="client-skeleton-line client-skeleton-line--value" />
+          </div>
+        ))}
+      </div>
+      <div className="client-skeleton-action" />
+    </article>
+  );
+}
+
 export default function Clients() {
   const navigate = useNavigate();
 
@@ -105,7 +129,7 @@ export default function Clients() {
   }
 
   return (
-    <div className="clients-page">
+    <div className="clients-page" aria-busy={loading}>
 
       {/* =========================
           Header
@@ -123,9 +147,9 @@ export default function Clients() {
         </div>
 
         <div className="clients-summary">
-          <span>{clients.length}</span>
+          <span>{loading ? "—" : clients.length}</span>
           <small>
-            {clients.length === 1 ? "Client" : "Clients"}
+            {loading ? "Clients" : clients.length === 1 ? "Client" : "Clients"}
           </small>
         </div>
       </header>
@@ -134,7 +158,7 @@ export default function Clients() {
           Search
       ========================= */}
 
-      {!loading && !error && clients.length > 0 && (
+      {!error && (loading || clients.length > 0) && (
         <div className="clients-toolbar">
 
           <div className="client-search">
@@ -151,10 +175,10 @@ export default function Clients() {
           </div>
 
           <span className="results-count">
-            {filteredClients.length}{" "}
-            {filteredClients.length === 1
+            {loading ? "Loading clients…" : filteredClients.length}{" "}
+            {!loading && (filteredClients.length === 1
               ? "client"
-              : "clients"}
+              : "clients")}
           </span>
 
         </div>
@@ -165,9 +189,13 @@ export default function Clients() {
       ========================= */}
 
       {loading && (
-        <div className="clients-state">
-          <p>Loading clients...</p>
-        </div>
+        <section className="clients-section" role="status" aria-label="Loading clients">
+          <div className="clients-list">
+            <ClientSkeleton />
+            <ClientSkeleton />
+            <ClientSkeleton />
+          </div>
+        </section>
       )}
 
       {/* =========================

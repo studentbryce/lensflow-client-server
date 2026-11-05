@@ -1,8 +1,8 @@
 .invoice-details-page {
-    min-height: 100vh;
-    padding: 42px 48px 64px;
-    background: var(--bg);
-    color: var(--text);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 0 60px;
 }
 
 /* =========================================
@@ -40,13 +40,13 @@
 }
 
 .invoice-page-eyebrow {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--accent);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .invoice-title-row h1 {

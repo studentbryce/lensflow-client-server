@@ -6,6 +6,23 @@ import StatCard from "../../components/dashboard/StatCard";
 import "./Dashboard.css";
 import { BiImage } from "react-icons/bi";
 
+function DashboardRowsSkeleton({ type }) {
+  return (
+    <div className={`client-dashboard-skeleton-list client-dashboard-skeleton-list--${type}`} role="status" aria-label={`Loading ${type}`}>
+      {Array.from({ length: 2 }, (_, index) => (
+        <div className="client-dashboard-skeleton-row" key={index}>
+          <span className="client-dashboard-skeleton-tile" />
+          <div className="client-dashboard-skeleton-details">
+            <span className="client-dashboard-skeleton-line client-dashboard-skeleton-line--primary" />
+            <span className="client-dashboard-skeleton-line client-dashboard-skeleton-line--secondary" />
+          </div>
+          <span className="client-dashboard-skeleton-pill" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [profile, setProfile] = useState(null);
 
@@ -50,24 +67,10 @@ export default function Dashboard() {
   }, []);
 
   // -----------------------------------------------------------
-  // Loading state
-  // -----------------------------------------------------------
-
-  if (loading) {
-    return (
-      <div className="dashboard-page client-dashboard-page">
-        <div className="dashboard-loading">
-          Loading your dashboard...
-        </div>
-      </div>
-    );
-  }
-
-  // -----------------------------------------------------------
   // Error state
   // -----------------------------------------------------------
 
-  if (error) {
+  if (!loading && error) {
     return (
       <div className="dashboard-page client-dashboard-page">
         <div className="dashboard-error">
@@ -85,7 +88,7 @@ export default function Dashboard() {
   const firstName = profile?.first_name || "there";
 
   return (
-    <div className="dashboard-page client-dashboard-page">
+    <div className="dashboard-page client-dashboard-page" aria-busy={loading}>
 
       {/* -----------------------------------------------------
           Welcome Header
@@ -99,7 +102,7 @@ export default function Dashboard() {
           </span>
 
           <h1>
-            Hello, {firstName}
+            {loading ? "Hello" : `Hello, ${firstName}`}
           </h1>
 
           <p>
@@ -118,25 +121,25 @@ export default function Dashboard() {
 
         <StatCard
           title="Upcoming Bookings"
-          value={stats.upcomingBookings}
+          value={loading ? <span className="client-dashboard-skeleton-value" /> : stats.upcomingBookings}
           description="Scheduled sessions"
         />
 
         <StatCard
           title="Total Bookings"
-          value={stats.bookings}
+          value={loading ? <span className="client-dashboard-skeleton-value" /> : stats.bookings}
           description="Your photography sessions"
         />
 
         <StatCard
           title="Outstanding"
-          value={`$${stats.outstanding.toFixed(2)}`}
+          value={loading ? <span className="client-dashboard-skeleton-value" /> : `$${stats.outstanding.toFixed(2)}`}
           description="Unpaid invoices"
         />
 
         <StatCard
           title="Galleries"
-          value={stats.galleries}
+          value={loading ? <span className="client-dashboard-skeleton-value" /> : stats.galleries}
           description="Published galleries"
         />
 
@@ -166,7 +169,9 @@ export default function Dashboard() {
 
         </div>
 
-        {upcomingBookings.length === 0 ? (
+        {loading ? (
+          <DashboardRowsSkeleton type="bookings" />
+        ) : upcomingBookings.length === 0 ? (
 
           <div className="empty-state">
             <h3>No upcoming bookings</h3>
@@ -287,7 +292,9 @@ export default function Dashboard() {
 
           </div>
 
-          {recentGalleries.length === 0 ? (
+          {loading ? (
+            <DashboardRowsSkeleton type="galleries" />
+          ) : recentGalleries.length === 0 ? (
 
             <div className="empty-state">
               <h3>No galleries yet</h3>
@@ -366,7 +373,9 @@ export default function Dashboard() {
 
           </div>
 
-          {outstandingInvoices.length === 0 ? (
+          {loading ? (
+            <DashboardRowsSkeleton type="invoices" />
+          ) : outstandingInvoices.length === 0 ? (
 
             <div className="empty-state">
               <h3>You're all caught up</h3>

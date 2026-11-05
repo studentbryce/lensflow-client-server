@@ -11,19 +11,20 @@
 
 .bookings-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
+  justify-content: space-between;
+  flex-direction: row;
   gap: 32px;
   margin-bottom: 36px;
 }
 
 .page-eyebrow,
 .section-eyebrow {
-  margin: 0 0 6px;
+  margin: 0 0 7px;
   font-family: "Open Sans", sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
 }
@@ -38,11 +39,10 @@
 }
 
 .page-description {
-  max-width: 600px;
-  font-family: "Cormorant Garamond", serif;
-  font-size: 20px;
-  line-height: 1.4;
-  color: var(--text);
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* =========================
@@ -208,6 +208,31 @@
   border-color: var(--accent-border);
   box-shadow: var(--shadow);
 }
+
+.booking-card-skeleton,
+.booking-card-skeleton:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border);
+  pointer-events: none;
+}
+
+.booking-skeleton-date,
+.booking-skeleton-line,
+.booking-skeleton-action {
+  display: block;
+  background: var(--accent-bg);
+  border-radius: 7px;
+}
+
+.booking-skeleton-date { width: 60px; height: 61px; }
+.booking-skeleton-details { display: grid; gap: 10px; width: 100%; }
+.booking-skeleton-line { height: 11px; }
+.booking-skeleton-line--short { width: 35%; }
+.booking-skeleton-line--medium { width: 48%; }
+.booking-skeleton-line--long { width: 65%; }
+.booking-skeleton-action { width: 60px; height: 30px; }
+.booking-loading-label { display: block; color: var(--color-muted); font-size: 13px; }
 
 /* =========================
    Date

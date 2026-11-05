@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 8px 0 70px;
+  padding: 8px 0 60px;
 }
 
 /* =========================
@@ -14,47 +14,29 @@
 }
 
 .page-eyebrow {
-  margin: 0 0 6px;
-
-  color: var(--accent);
-
-  font-family:
-    "Open Sans",
-    sans-serif;
-
-  font-size: 12px;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
   font-weight: 700;
-
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--accent);
 }
 
 .edit-service-header h1 {
-  margin: 0;
-
+  margin: 0 0 10px;
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -1px;
   color: var(--text-h);
-
-  font-family:
-    "Noto Serif",
-    serif;
-
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 1.15;
 }
 
 .page-description {
-  max-width: 650px;
-  margin: 10px 0 0;
-
-  color: var(--text);
-
-  font-family:
-    "Cormorant Garamond",
-    serif;
-
-  font-size: 19px;
-  line-height: 1.45;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* =========================
@@ -79,7 +61,7 @@
 
   border-radius: 12px;
 
-  background: var(--bg);
+  background: var(--color-surface-soft);
 
   box-shadow: var(--shadow);
 }
@@ -98,7 +80,7 @@
     serif;
 
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.3;
 }
 

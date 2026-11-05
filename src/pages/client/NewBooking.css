@@ -72,11 +72,10 @@
 
 
 .client-new-booking-header > p:last-child {
-  margin: 0;
-
-  color: var(--color-text);
-
-  font: 14px/1.65 var(--font-navigation);
+  max-width: 650px;
+  margin-top: 12px;
+  color: var(--text);
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 
@@ -956,8 +955,9 @@
 
 .client-new-booking-header > p:last-child {
   max-width: 650px;
+  margin-top: 12px;
   color: var(--text);
-  font: 20px/1.4 "Cormorant Garamond", serif;
+  font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 .client-new-booking-back {

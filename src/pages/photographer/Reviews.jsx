@@ -89,6 +89,39 @@ function StarDisplay({ rating }) {
   );
 }
 
+function ReviewSkeleton() {
+  return (
+    <article className="photographer-review-card photographer-review-card-skeleton" aria-hidden="true">
+      <div className="photographer-review-card-top">
+        <div className="photographer-review-skeleton-heading">
+          <span className="photographer-review-skeleton-line photographer-review-skeleton-line--stars" />
+          <span className="photographer-review-skeleton-line photographer-review-skeleton-line--name" />
+        </div>
+        <span className="photographer-review-skeleton-line photographer-review-skeleton-line--status" />
+      </div>
+      <div className="photographer-review-booking">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index}>
+            <span className="photographer-review-skeleton-line photographer-review-skeleton-line--label" />
+            <span className="photographer-review-skeleton-line photographer-review-skeleton-line--value" />
+          </div>
+        ))}
+      </div>
+      <div className="photographer-review-skeleton-comment">
+        <span className="photographer-review-skeleton-line photographer-review-skeleton-line--comment" />
+        <span className="photographer-review-skeleton-line photographer-review-skeleton-line--comment-short" />
+      </div>
+      <div className="photographer-review-card-footer">
+        <span className="photographer-review-skeleton-line photographer-review-skeleton-line--date" />
+        <div className="photographer-review-actions">
+          <span className="photographer-review-skeleton-line photographer-review-skeleton-line--button" />
+          <span className="photographer-review-skeleton-line photographer-review-skeleton-line--button" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Reviews() {
   const { user } = useAuth();
 
@@ -243,25 +276,10 @@ export default function Reviews() {
   }
 
   // -------------------------------------------------------------
-  // Loading
-  // -------------------------------------------------------------
-
-  if (loading) {
-    return (
-      <div className="photographer-reviews-page">
-        <div className="photographer-reviews-loading">
-          <div className="photographer-reviews-spinner"></div>
-          <p>Loading your reviews...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
   // Initial page error
   // -------------------------------------------------------------
 
-  if (errorMessage && reviews.length === 0) {
+  if (!loading && errorMessage && reviews.length === 0) {
     return (
       <div className="photographer-reviews-page">
         <header className="photographer-reviews-header">
@@ -296,7 +314,7 @@ export default function Reviews() {
   }
 
   return (
-    <div className="photographer-reviews-page">
+    <div className="photographer-reviews-page" aria-busy={loading}>
       {/* ========================================================
           HEADER
       ======================================================== */}
@@ -363,7 +381,7 @@ export default function Reviews() {
 
           <div>
             <span>Total Reviews</span>
-            <strong>{reviews.length}</strong>
+            <strong>{loading ? "—" : reviews.length}</strong>
           </div>
         </div>
 
@@ -372,7 +390,7 @@ export default function Reviews() {
 
           <div>
             <span>Average Rating</span>
-            <strong>{averageRating}</strong>
+            <strong>{loading ? "—" : averageRating}</strong>
           </div>
         </div>
 
@@ -381,7 +399,7 @@ export default function Reviews() {
 
           <div>
             <span>Pending</span>
-            <strong>{pendingCount}</strong>
+            <strong>{loading ? "—" : pendingCount}</strong>
           </div>
         </div>
 
@@ -390,7 +408,7 @@ export default function Reviews() {
 
           <div>
             <span>Published</span>
-            <strong>{approvedCount}</strong>
+            <strong>{loading ? "—" : approvedCount}</strong>
           </div>
         </div>
       </section>
@@ -412,7 +430,7 @@ export default function Reviews() {
 
         {/* FILTERS */}
 
-        {reviews.length > 0 && (
+        {(loading || reviews.length > 0) && (
           <div
             className="photographer-review-filters"
             role="group"
@@ -444,7 +462,7 @@ export default function Reviews() {
                     ? "All"
                     : getStatusLabel(value)}
 
-                  <span>{count}</span>
+                  <span>{loading ? "—" : count}</span>
                 </button>
               );
             })}
@@ -453,7 +471,12 @@ export default function Reviews() {
 
         {/* EMPTY STATE */}
 
-        {reviews.length === 0 ? (
+        {loading ? (
+          <div className="photographer-review-list" role="status" aria-label="Loading reviews">
+            <ReviewSkeleton />
+            <ReviewSkeleton />
+          </div>
+        ) : reviews.length === 0 ? (
           <div className="photographer-reviews-state">
             <BiStar size={34} aria-hidden="true" />
 

@@ -1205,34 +1205,11 @@ export default function Calendar() {
 
 
   /* =========================================================
-     Loading
-     ========================================================= */
-
-  if (loading) {
-    return (
-      <div className="calendar-page">
-
-        <div className="calendar-loading">
-
-          <span className="calendar-spinner" />
-
-          <p>
-            Loading calendar...
-          </p>
-
-        </div>
-
-      </div>
-    );
-  }
-
-
-  /* =========================================================
      Render
      ========================================================= */
 
   return (
-    <div className="calendar-page">
+    <div className="calendar-page" aria-busy={loading}>
 
       {/* =====================================================
           Header
@@ -1280,6 +1257,7 @@ export default function Calendar() {
           <button
             type="button"
             className="calendar-primary-button"
+            disabled={loading}
             onClick={() =>
               setShowAvailabilityManager(
                 (current) =>
@@ -1990,7 +1968,7 @@ export default function Calendar() {
           </span>
 
           <strong>
-            {monthBookings.length}
+            {loading ? "—" : monthBookings.length}
           </strong>
 
           <small>
@@ -2005,7 +1983,7 @@ export default function Calendar() {
           </span>
 
           <strong>
-            {monthConfirmed}
+            {loading ? "—" : monthConfirmed}
           </strong>
 
           <small>
@@ -2020,7 +1998,7 @@ export default function Calendar() {
           </span>
 
           <strong>
-            {monthPending}
+            {loading ? "—" : monthPending}
           </strong>
 
           <small>
@@ -2167,6 +2145,8 @@ export default function Calendar() {
 
       <section className="calendar-content">
 
+        
+
         <div className="calendar-month-card">
 
           <div className="calendar-weekdays">
@@ -2192,15 +2172,13 @@ export default function Calendar() {
                 const dateKey =
                   formatDateKey(date);
 
-                const dayBookings =
-                  bookingsByDate.get(
-                    dateKey
-                  ) || [];
+                const dayBookings = loading
+                  ? []
+                  : bookingsByDate.get(dateKey) || [];
 
-                const availabilityState =
-                  getAvailabilityState(
-                    date
-                  );
+                const availabilityState = loading
+                  ? "loading"
+                  : getAvailabilityState(date);
 
                 const isCurrentMonth =
                   date.getMonth() ===
@@ -2375,7 +2353,7 @@ export default function Calendar() {
             </h2>
 
             <p>
-              {selectedBookings.length ===
+              {loading ? "Loading bookings…" : selectedBookings.length ===
               1
                 ? "1 booking"
                 : `${selectedBookings.length} bookings`}
@@ -2399,7 +2377,9 @@ export default function Calendar() {
             </div>
 
 
-            {selectedRules.length ===
+            {loading ? (
+              <p className="calendar-no-availability">Loading availability…</p>
+            ) : selectedRules.length ===
               0 &&
             selectedExceptions.length ===
               0 ? (
@@ -2514,7 +2494,9 @@ export default function Calendar() {
             </div>
 
 
-            {selectedBookings.length ===
+            {loading ? (
+              <div className="calendar-inline-loading" role="status">Loading bookings…</div>
+            ) : selectedBookings.length ===
             0 ? (
               <div className="calendar-empty-day">
 

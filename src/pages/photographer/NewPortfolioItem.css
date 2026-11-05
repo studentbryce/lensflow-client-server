@@ -7,7 +7,6 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 8px 0 60px;
-  box-sizing: border-box;
 }
 
 .new-portfolio-container {
@@ -19,7 +18,12 @@
 ========================================= */
 
 .new-portfolio-header {
-  margin-bottom: 28px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-direction: row;
+  gap: 32px;
+  margin-bottom: 36px;
 }
 
 .new-portfolio-back {
@@ -48,26 +52,29 @@
 }
 
 .new-portfolio-eyebrow {
-  display: block;
-  margin-bottom: 7px;
-  font-size: 0.76rem;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.5;
+  color: var(--accent);
 }
 
 .new-portfolio-header h1 {
-  margin: 0;
-  font-size: 2.15rem;
-  line-height: 1.2;
+  margin: 0 0 10px;
+  font-family: "Noto Serif", serif;
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: var(--text-h);
 }
 
 .new-portfolio-header p {
-  margin: 10px 0 0;
-  max-width: 650px;
-  line-height: 1.6;
-  opacity: 0.65;
+    max-width: 650px;
+    margin-top: 12px;
+    color: var(--text);
+    font: 1.25rem/1.45 "Cormorant Garamond", serif;
 }
 
 /* =========================================
@@ -171,13 +178,13 @@
 }
 
 .new-portfolio-section-eyebrow {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.7rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
+  margin: 0 0 7px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.45;
+  color: var(--accent);
 }
 
 .new-portfolio-section-header h2 {
@@ -422,8 +429,7 @@
   transition: transform 0.25s ease;
 }
 
-.new-portfolio-media-card:hover
-  .new-portfolio-media-image {
+.new-portfolio-media-card:hover .new-portfolio-media-image {
   transform: scale(1.015);
 }
 
@@ -483,11 +489,9 @@
   bottom: 0;
   left: 0;
   padding: 30px 10px 9px;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.65),
-    rgba(0, 0, 0, 0)
-  );
+  background: linear-gradient(to top,
+      rgba(0, 0, 0, 0.65),
+      rgba(0, 0, 0, 0));
   color: var(--color-surface);
   opacity: 0;
   transform: translateY(4px);
@@ -497,10 +501,8 @@
   pointer-events: none;
 }
 
-.new-portfolio-media-card:hover
-  .new-portfolio-media-hover-info,
-.new-portfolio-media-card:focus-visible
-  .new-portfolio-media-hover-info {
+.new-portfolio-media-card:hover .new-portfolio-media-hover-info,
+.new-portfolio-media-card:focus-visible .new-portfolio-media-hover-info {
   opacity: 1;
   transform: translateY(0);
 }
@@ -565,7 +567,7 @@
   background: var(--color-surface);
 }
 
-.new-portfolio-selected-header > div {
+.new-portfolio-selected-header>div {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -665,7 +667,7 @@
   margin-top: 0;
 }
 
-.new-portfolio-selected-details > strong {
+.new-portfolio-selected-details>strong {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -699,7 +701,7 @@
   background: #f8f9fa;
 }
 
-.new-portfolio-copy-notice > span {
+.new-portfolio-copy-notice>span {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -837,7 +839,7 @@
   transition: background 0.2s ease;
 }
 
-.new-portfolio-toggle > span {
+.new-portfolio-toggle>span {
   position: absolute;
   top: 3px;
   left: 3px;
@@ -849,18 +851,15 @@
   transition: transform 0.2s ease;
 }
 
-.new-portfolio-published-toggle input:checked
-  + .new-portfolio-toggle {
+.new-portfolio-published-toggle input:checked+.new-portfolio-toggle {
   background: var(--accent);
 }
 
-.new-portfolio-published-toggle input:checked
-  + .new-portfolio-toggle > span {
+.new-portfolio-published-toggle input:checked+.new-portfolio-toggle>span {
   transform: translateX(18px);
 }
 
-.new-portfolio-published-toggle input:focus-visible
-  + .new-portfolio-toggle {
+.new-portfolio-published-toggle input:focus-visible+.new-portfolio-toggle {
   outline: 2px solid #6b7280;
   outline-offset: 3px;
 }
@@ -917,8 +916,7 @@
   font-weight: 800;
 }
 
-.new-portfolio-checkbox input:checked
-  + .new-portfolio-checkbox-box {
+.new-portfolio-checkbox input:checked+.new-portfolio-checkbox-box {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--color-surface);
@@ -1213,11 +1211,12 @@
 ========================================= */
 
 @media (prefers-reduced-motion: reduce) {
+
   .new-portfolio-media-card,
   .new-portfolio-media-image,
   .new-portfolio-media-hover-info,
   .new-portfolio-toggle,
-  .new-portfolio-toggle > span {
+  .new-portfolio-toggle>span {
     transition: none;
   }
 

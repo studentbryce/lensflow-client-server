@@ -156,6 +156,39 @@ function InvoiceCard({ invoice, onView, onEdit }) {
   );
 }
 
+function InvoiceSkeleton() {
+  return (
+    <article className="invoice-card invoice-card-skeleton" aria-hidden="true">
+      <div className="invoice-card-top">
+        <div className="invoice-skeleton-heading">
+          <span className="invoice-skeleton-line invoice-skeleton-line--number" />
+          <span className="invoice-skeleton-line invoice-skeleton-line--badge" />
+        </div>
+        <span className="invoice-skeleton-line invoice-skeleton-line--amount" />
+      </div>
+      <div className="invoice-client">
+        <span className="invoice-skeleton-avatar" />
+        <div className="invoice-skeleton-client">
+          <span className="invoice-skeleton-line invoice-skeleton-line--name" />
+          <span className="invoice-skeleton-line invoice-skeleton-line--email" />
+        </div>
+      </div>
+      <div className="invoice-details">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div className="invoice-detail" key={index}>
+            <span className="invoice-skeleton-line invoice-skeleton-line--label" />
+            <span className="invoice-skeleton-line invoice-skeleton-line--value" />
+          </div>
+        ))}
+      </div>
+      <div className="invoice-card-actions">
+        <span className="invoice-skeleton-line invoice-skeleton-line--button" />
+        <span className="invoice-skeleton-line invoice-skeleton-line--button-small" />
+      </div>
+    </article>
+  );
+}
+
 export default function Invoices() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -278,7 +311,7 @@ export default function Invoices() {
   };
 
   return (
-    <main className="invoices-page">
+    <main className="invoices-page" aria-busy={isLoading}>
       <header className="invoices-header">
         <div>
           <p className="invoices-eyebrow">FINANCIAL MANAGEMENT</p>
@@ -301,31 +334,31 @@ export default function Invoices() {
       <section className="invoice-summary-grid">
         <div className="invoice-summary-card">
           <span className="summary-label">Total Invoices</span>
-          <strong>{summary.totalInvoices}</strong>
+          <strong>{isLoading ? "—" : summary.totalInvoices}</strong>
           <p>All invoices</p>
         </div>
 
         <div className="invoice-summary-card">
           <span className="summary-label">Invoiced</span>
-          <strong>{formatCurrency(summary.totalValue)}</strong>
+          <strong>{isLoading ? "—" : formatCurrency(summary.totalValue)}</strong>
           <p>Total invoice value</p>
         </div>
 
         <div className="invoice-summary-card">
           <span className="summary-label">Paid</span>
-          <strong>{formatCurrency(summary.paidValue)}</strong>
+          <strong>{isLoading ? "—" : formatCurrency(summary.paidValue)}</strong>
           <p>Completed payments</p>
         </div>
 
         <div className="invoice-summary-card">
           <span className="summary-label">Outstanding</span>
-          <strong>{formatCurrency(summary.outstandingValue)}</strong>
+          <strong>{isLoading ? "—" : formatCurrency(summary.outstandingValue)}</strong>
           <p>Awaiting payment</p>
         </div>
 
         <div className="invoice-summary-card warning">
           <span className="summary-label">Overdue</span>
-          <strong>{formatCurrency(summary.overdueValue)}</strong>
+          <strong>{isLoading ? "—" : formatCurrency(summary.overdueValue)}</strong>
           <p>Payment overdue</p>
         </div>
       </section>
@@ -357,11 +390,10 @@ export default function Invoices() {
       </section>
 
       {isLoading && (
-        <div className="invoice-state">
-          <div className="invoice-spinner" />
-          <h2>Loading invoices...</h2>
-          <p>Retrieving your invoice information.</p>
-        </div>
+        <section className="invoice-grid" role="status" aria-label="Loading invoices">
+          <InvoiceSkeleton />
+          <InvoiceSkeleton />
+        </section>
       )}
 
       {!isLoading && error && (

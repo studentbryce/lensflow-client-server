@@ -1008,26 +1008,11 @@ export default function Settings() {
      Loading state
      ========================================================= */
 
-  if (loading) {
-    return (
-      <div className="settings-page">
-        <div className="settings-loading">
-          <span className="settings-spinner" />
-
-          <p>
-            Loading settings...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-
   /* =========================================================
      Load error
      ========================================================= */
 
-  if (loadError) {
+  if (!loading && loadError) {
     return (
       <div className="settings-page">
         <div className="settings-load-error">
@@ -1064,6 +1049,53 @@ export default function Settings() {
   /* =========================================================
      Section content
      ========================================================= */
+
+  function renderSettingsSkeleton() {
+    const isFormSection = ["account", "business", "tax", "payments"].includes(activeSection);
+    const fieldCount = activeSection === "tax" ? 2 : activeSection === "business" ? 6 : 4;
+
+    return (
+      <div className="settings-skeleton" role="status" aria-label="Loading settings">
+        <div className="settings-section-heading">
+          <div className="settings-skeleton-heading">
+            <span className="settings-skeleton-line settings-skeleton-line--eyebrow" />
+            <span className="settings-skeleton-line settings-skeleton-line--title" />
+            <span className="settings-skeleton-line settings-skeleton-line--description" />
+          </div>
+          <span className="settings-skeleton-icon settings-skeleton-shimmer" />
+        </div>
+
+        {isFormSection ? (
+          <div className="settings-form">
+            <div className="settings-form-grid">
+              {Array.from({ length: fieldCount }, (_, index) => (
+                <div className="settings-field" key={index}>
+                  <span className="settings-skeleton-line settings-skeleton-line--label" />
+                  <span className="settings-skeleton-input settings-skeleton-shimmer" />
+                </div>
+              ))}
+            </div>
+            <div className="settings-form-actions">
+              <span className="settings-skeleton-button settings-skeleton-shimmer" />
+            </div>
+          </div>
+        ) : (
+          <div className="settings-skeleton-cards">
+            {Array.from({ length: 2 }, (_, index) => (
+              <div className="settings-skeleton-card" key={index}>
+                <span className="settings-skeleton-icon settings-skeleton-shimmer" />
+                <div className="settings-skeleton-card-content">
+                  <span className="settings-skeleton-line settings-skeleton-line--card-title" />
+                  <span className="settings-skeleton-line settings-skeleton-line--description" />
+                  <span className="settings-skeleton-line settings-skeleton-line--description-short" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   function renderAccountSection() {
     return (
@@ -2386,8 +2418,8 @@ export default function Settings() {
 
         {/* Main panel */}
 
-        <div className="settings-panel">
-          {renderActiveSection()}
+        <div className="settings-panel" aria-busy={loading}>
+          {loading ? renderSettingsSkeleton() : renderActiveSection()}
         </div>
 
       </section>

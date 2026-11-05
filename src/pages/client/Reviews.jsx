@@ -76,6 +76,29 @@ function StarDisplay({ rating }) {
   );
 }
 
+function ReviewCardSkeleton() {
+  return (
+    <article className="client-review-card client-review-skeleton-card" aria-hidden="true">
+      <div className="client-review-card-top">
+        <div className="client-review-skeleton-heading">
+          <span className="client-review-skeleton-line client-review-skeleton-line--eyebrow" />
+          <span className="client-review-skeleton-line client-review-skeleton-line--title" />
+        </div>
+        <span className="client-review-skeleton-pill" />
+      </div>
+      <span className="client-review-skeleton-line client-review-skeleton-line--date" />
+      <div className="client-review-skeleton-stars">★★★★★</div>
+      <span className="client-review-skeleton-line client-review-skeleton-line--comment" />
+      <span className="client-review-skeleton-line client-review-skeleton-line--comment-short" />
+      <span className="client-review-skeleton-notice" />
+      <div className="client-review-card-footer">
+        <span className="client-review-skeleton-line client-review-skeleton-line--footer" />
+        <span className="client-review-skeleton-button" />
+      </div>
+    </article>
+  );
+}
+
 export default function Reviews() {
   const { user } = useAuth();
 
@@ -376,25 +399,10 @@ export default function Reviews() {
   }
 
   // -------------------------------------------------------------
-  // Loading state
-  // -------------------------------------------------------------
-
-  if (loading) {
-    return (
-      <div className="client-reviews-page">
-        <div className="client-reviews-loading">
-          <div className="client-reviews-spinner"></div>
-          <p>Loading your reviews...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
   // Error state
   // -------------------------------------------------------------
 
-  if (errorMessage) {
+  if (!loading && errorMessage) {
     return (
       <div className="client-reviews-page">
         <header className="client-reviews-header">
@@ -427,7 +435,7 @@ export default function Reviews() {
   }
 
   return (
-    <div className="client-reviews-page">
+    <div className="client-reviews-page" aria-busy={loading}>
       {/* ========================================================
           HEADER
       ======================================================== */}
@@ -476,7 +484,7 @@ export default function Reviews() {
 
           <div>
             <span>Completed Sessions</span>
-            <strong>{completedBookings.length}</strong>
+            <strong>{loading ? <span className="client-review-skeleton-count" /> : completedBookings.length}</strong>
           </div>
         </div>
 
@@ -485,7 +493,7 @@ export default function Reviews() {
 
           <div>
             <span>Your Reviews</span>
-            <strong>{reviews.length}</strong>
+            <strong>{loading ? <span className="client-review-skeleton-count" /> : reviews.length}</strong>
           </div>
         </div>
 
@@ -494,7 +502,7 @@ export default function Reviews() {
 
           <div>
             <span>Awaiting Review</span>
-            <strong>{awaitingReviews.length}</strong>
+            <strong>{loading ? <span className="client-review-skeleton-count" /> : awaitingReviews.length}</strong>
           </div>
         </div>
 
@@ -503,7 +511,7 @@ export default function Reviews() {
 
           <div>
             <span>Average Rating</span>
-            <strong>{averageRating}</strong>
+            <strong>{loading ? <span className="client-review-skeleton-count" /> : averageRating}</strong>
           </div>
         </div>
       </section>
@@ -591,7 +599,7 @@ export default function Reviews() {
 
         {/* FILTERS */}
 
-        {reviews.length > 0 && (
+        {(loading || reviews.length > 0) && (
           <div className="client-review-filters">
             {REVIEW_FILTERS.map((value) => {
               let count = reviews.length;
@@ -611,6 +619,7 @@ export default function Reviews() {
               return (
                 <button
                   type="button"
+                  disabled={loading}
                   key={value}
                   aria-pressed={filter === value}
                   onClick={() => setFilter(value)}
@@ -619,7 +628,7 @@ export default function Reviews() {
                     ? "All"
                     : getStatusLabel(value)}
 
-                  <span>{count}</span>
+                  <span>{loading ? "—" : count}</span>
                 </button>
               );
             })}
@@ -628,7 +637,12 @@ export default function Reviews() {
 
         {/* EMPTY STATE */}
 
-        {reviews.length === 0 ? (
+        {loading ? (
+          <div className="client-review-list" role="status" aria-label="Loading reviews">
+            <ReviewCardSkeleton />
+            <ReviewCardSkeleton />
+          </div>
+        ) : reviews.length === 0 ? (
           <div className="client-reviews-state">
             <BiStar size={34} aria-hidden="true" />
 

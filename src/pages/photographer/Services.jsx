@@ -3,6 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { apiGetPhotographerServices } from "../../services/photographerServicesApi";
 import "./Services.css";
 
+function ServiceSkeleton() {
+  return (
+    <article className="service-card service-card-skeleton" aria-hidden="true">
+      <div className="service-card-top service-skeleton-image" />
+      <div className="service-card-content">
+        <span className="service-skeleton-line service-skeleton-line--title" />
+        <span className="service-skeleton-line service-skeleton-line--description" />
+        <span className="service-skeleton-line service-skeleton-line--description-short" />
+        <div className="service-details">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div className="service-detail" key={index}>
+              <span className="service-skeleton-line service-skeleton-line--detail-label" />
+              <span className="service-skeleton-line service-skeleton-line--detail-value" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="service-card-footer">
+        <span className="service-skeleton-line service-skeleton-line--action" />
+      </div>
+    </article>
+  );
+}
+
 export default function Services() {
   const navigate = useNavigate();
 
@@ -88,7 +112,7 @@ export default function Services() {
   }
 
   return (
-    <div className="services-page">
+    <div className="services-page" aria-busy={loading}>
       <header className="services-header">
         <div>
           <p className="page-eyebrow">LensFlow</p>
@@ -110,22 +134,22 @@ export default function Services() {
         </button>
       </header>
 
-      {!loading && !error && services.length > 0 && (
+      {!error && (loading || services.length > 0) && (
         <>
           <div className="services-summary">
             <div className="summary-card">
               <span className="summary-label">Total Services</span>
-              <strong>{services.length}</strong>
+              <strong>{loading ? "—" : services.length}</strong>
             </div>
 
             <div className="summary-card">
               <span className="summary-label">Active</span>
-              <strong>{activeCount}</strong>
+              <strong>{loading ? "—" : activeCount}</strong>
             </div>
 
             <div className="summary-card">
               <span className="summary-label">Inactive</span>
-              <strong>{inactiveCount}</strong>
+              <strong>{loading ? "—" : inactiveCount}</strong>
             </div>
           </div>
 
@@ -168,17 +192,20 @@ export default function Services() {
             </div>
 
             <span className="results-count">
-              {filteredServices.length}{" "}
-              {filteredServices.length === 1 ? "service" : "services"}
+              {loading ? "Loading services…" : `${filteredServices.length} ${filteredServices.length === 1 ? "service" : "services"}`}
             </span>
           </div>
         </>
       )}
 
       {loading && (
-        <div className="services-state">
-          <p>Loading services...</p>
-        </div>
+        <section className="services-section" role="status" aria-label="Loading services">
+          <div className="services-grid">
+            <ServiceSkeleton />
+            <ServiceSkeleton />
+            <ServiceSkeleton />
+          </div>
+        </section>
       )}
 
       {!loading && error && (
