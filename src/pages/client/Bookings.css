@@ -53,6 +53,45 @@ client-bookings-shimmer
   font: 600 12px/1.6 var(--font-navigation);
 }
 
+@font-face {
+  font-family: "Roboto";
+  src: url("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+.client-booking-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0px 0px 0px;
+
+  font-family: "Roboto", sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
+  letter-spacing: normal;
+  white-space: nowrap;
+
+  color: #5e5e5e;
+  text-decoration: none;
+}
+
+.client-booking-map strong {
+  font-weight: 700;
+}
+
+.client-booking-map-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.client-booking-map:hover {
+  opacity: 0.75;
+}
+
 .client-booking-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

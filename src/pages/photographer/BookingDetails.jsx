@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiDeleteBooking, apiGetBookingById, apiGetBookingRelated, apiUpdateBooking, apiUpdateBookingStatus } from "../../services/bookingApi";
+import googleMapsIcon from "../../assets/icons/google-maps.svg";
 import "./BookingDetails.css";
 
 // Key the detail view by route ID so a different booking starts with fresh
@@ -669,12 +670,13 @@ function BookingDetailsContent({ booking_id }) {
 
           {booking.location && (
             <a
-              className="text-button"
+              className="photographer-booking-map"
               href={getGoogleMapsUrl()}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Open in Google Maps →
+              <img src={googleMapsIcon} alt="" aria-hidden="true" className="photographer-booking-map-icon" />
+              <span><strong>Google</strong> Maps</span>
             </a>
           )}
 

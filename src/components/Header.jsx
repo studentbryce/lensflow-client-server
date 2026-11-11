@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	BiBell,
+	BiCog,
+	BiLogOut,
 	BiUser,
 } from "react-icons/bi";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/authStore";
 import { supabase } from "../lib/supabaseClient";
@@ -13,10 +15,14 @@ import brandLogo from "../assets/images/Lensflow_brand_logo-transparent.png";
 
 
 function Header() {
-	const { profile } = useAuth();
+	const { profile, signOut } = useAuth();
+	const navigate = useNavigate();
+	const profileMenuRef = useRef(null);
 
 	const [isCompact, setIsCompact] = useState(false);
 	const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+	const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+	const [isSigningOut, setIsSigningOut] = useState(false);
 
 
 	/* =========================================================
@@ -62,10 +68,48 @@ function Header() {
 			: "/client/messages";
 
 
-	const profilePath =
-		profile?.role === "photographer"
-			? "/photographer/settings"
-			: "/client/profile";
+	const isPhotographer = profile?.role === "photographer";
+	const accountPath = isPhotographer
+		? "/photographer/settings"
+		: "/client/profile";
+
+	useEffect(() => {
+		if (!isProfileMenuOpen) return undefined;
+
+		function handlePointerDown(event) {
+			if (!profileMenuRef.current?.contains(event.target)) {
+				setIsProfileMenuOpen(false);
+			}
+		}
+
+		function handleEscape(event) {
+			if (event.key === "Escape") {
+				setIsProfileMenuOpen(false);
+				profileMenuRef.current?.querySelector(".top-header-profile")?.focus();
+			}
+		}
+
+		document.addEventListener("pointerdown", handlePointerDown);
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("pointerdown", handlePointerDown);
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, [isProfileMenuOpen]);
+
+	async function handleLogout() {
+		if (isSigningOut) return;
+		setIsSigningOut(true);
+		try {
+			await signOut();
+			setIsProfileMenuOpen(false);
+			navigate("/", { replace: true });
+		} catch (error) {
+			console.error("Logout failed:", error);
+		} finally {
+			setIsSigningOut(false);
+		}
+	}
 
 
 	/* =========================================================
@@ -231,18 +275,32 @@ function Header() {
 				</Link>
 
 
-				{/* Profile */}
-				<Link
-					to={profilePath}
-					className="top-header-profile"
-					aria-label="Open profile"
-					title="Open profile"
-				>
-					<BiUser
-						size={24}
-						aria-hidden="true"
-					/>
-				</Link>
+				{/* Profile actions */}
+				<div className="top-header-profile-container" ref={profileMenuRef}>
+					<button
+						type="button"
+						className="top-header-profile"
+						aria-label="Account menu"
+						aria-haspopup="true"
+						aria-expanded={isProfileMenuOpen}
+						aria-controls="top-header-account-menu"
+						onClick={() => setIsProfileMenuOpen((open) => !open)}
+					>
+						<BiUser size={24} aria-hidden="true" />
+					</button>
+					{isProfileMenuOpen && (
+						<div id="top-header-account-menu" className="top-header-profile-menu" aria-label="Account actions">
+							<Link to={accountPath} className="top-header-profile-menu-item" onClick={() => setIsProfileMenuOpen(false)}>
+								{isPhotographer ? <BiCog aria-hidden="true" /> : <BiUser aria-hidden="true" />}
+								{isPhotographer ? "Settings" : "My Profile"}
+							</Link>
+							<div className="top-header-profile-menu-divider" />
+							<button type="button" className="top-header-profile-menu-item top-header-profile-menu-logout" onClick={handleLogout} disabled={isSigningOut}>
+								<BiLogOut aria-hidden="true" /> {isSigningOut ? "Signing out..." : "Log out"}
+							</button>
+						</div>
+					)}
+				</div>
 
 			</div>
 

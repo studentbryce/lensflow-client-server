@@ -317,6 +317,50 @@
    LOCATION
 ========================================================= */
 
+@font-face {
+  font-family: "Roboto";
+  src: url("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+.photographer-booking-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #5e5e5e;
+  font-family: "Roboto", Arial, sans-serif;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-decoration: none;
+  text-transform: none;
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.photographer-booking-map strong {
+  font-weight: 700;
+}
+
+.photographer-booking-map-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.photographer-booking-map:hover {
+  opacity: 0.75;
+}
+
+.photographer-booking-map:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .location-content {
   display: flex;
   align-items: flex-start;
